@@ -1,10 +1,9 @@
-// FJTP - FrankenJuraTopoPrint (content_20180713)
+// FJTP - FrankenJuraTopoPrint (content_20180714)
 
 (function content() {
 
-    //var topWindow = window == top;
-    //debug(false, "this.url: " + this.url);
-    //debug(false, "document.URL: " + document.URL);
+    //--------------------------------------------------------------------------------------------------
+    // basic script functions
 
     var alertMode = false;
     var verboseMode = false; //true;
@@ -22,6 +21,39 @@
       //}
       //debugElem.appendChild(document.createTextNode(str+' '));
     }
+
+    var domLoaded = function (callback) {
+        /* Internet Explorer */
+        /*
+        @cc_on
+        @if (@_win32 || @_win64)
+          document.write('<script id="ieScriptLoad" defer src="//:"><\/script>');
+          document.getElementById('ieScriptLoad').onreadystatechange = function () {
+            if (this.readyState == 'complete') {
+              callback();
+            }
+          };
+          return;
+        @end@
+        */
+        /* Mozilla, Chrome, Opera */
+        if (document.addEventListener) {
+            document.addEventListener('DOMContentLoaded', callback, false);
+            return;
+        }
+        /* Safari, iCab, Konqueror */
+        if (/KHTML|WebKit|iCab/i.test(navigator.userAgent)) {
+            var DOMLoadTimer = setInterval(function () {
+                if (/loaded|complete/i.test(document.readyState)) {
+                    callback();
+                    clearInterval(DOMLoadTimer);
+                }
+            }, 10);
+            return;
+        }
+        /* Other web browsers */
+        window.onload = callback;
+    };
 
     const getChildTreeAsNodeList = (node, result = []) => {
       Array.prototype.forEach.call(node.childNodes, function (child) {
@@ -176,6 +208,8 @@
         return "";
     }
 
+    //--------------------------------------------------------------------------------------------------
+    // functions for process state marking
 
     var MASK_ID_PREPROCESSED = "__FJCTP_mask_preprocessed__";
     var MASK_ID_PROCESSING = "__FJCTP_mask_processing__";
@@ -285,39 +319,6 @@
 
         //unmarkAsPreProcessed();
     }
-
-    var domLoaded = function (callback) {
-        /* Internet Explorer */
-        /*
-        @cc_on
-        @if (@_win32 || @_win64)
-          document.write('<script id="ieScriptLoad" defer src="//:"><\/script>');
-          document.getElementById('ieScriptLoad').onreadystatechange = function () {
-            if (this.readyState == 'complete') {
-              callback();
-            }
-          };
-          return;
-        @end@
-        */
-        /* Mozilla, Chrome, Opera */
-        if (document.addEventListener) {
-            document.addEventListener('DOMContentLoaded', callback, false);
-            return;
-        }
-        /* Safari, iCab, Konqueror */
-        if (/KHTML|WebKit|iCab/i.test(navigator.userAgent)) {
-            var DOMLoadTimer = setInterval(function () {
-                if (/loaded|complete/i.test(document.readyState)) {
-                    callback();
-                    clearInterval(DOMLoadTimer);
-                }
-            }, 10);
-            return;
-        }
-        /* Other web browsers */
-        window.onload = callback;
-    };
 
     //--------------------------------------------------------------------------------------------------
     // functions for FJCTP modifications...
@@ -702,7 +703,38 @@
             text = text.substring(6);
         }
         text = text.trim();
+        return text;
+    }
 
+    function FJTCPcleanTextContent(text) {
+        while (text.indexOf("\r\n") >= 0) {
+            text = text.replace("\r\n", " ");
+        }
+        while (text.indexOf("\r") >= 0) {
+            text = text.replace("\r", " ");
+        }
+        while (text.indexOf("\n") >= 0) {
+            text = text.replace("\n", " ");
+        }
+        while (text.indexOf("  ") >= 0) {
+            text = text.replace("  ", " ");
+        }
+        //Ã¤ -> ä -> &auml;
+        //Ã¶ -> ö -> &ouml;
+        //Ã¼ -> ü -> &uuml;
+        //Ã? -> ß -> &szlig;
+        while (text.indexOf("Ã¤") >= 0) {
+            text = text.replace("Ã¤", "&auml;");
+        }
+        while (text.indexOf("Ã¶") >= 0) {
+            text = text.replace("Ã¶", "&ouml;");
+        }
+        while (text.indexOf("Ã¼") >= 0) {
+            text = text.replace("Ã¼", "&uuml;");
+        }
+        while (text.indexOf("Ã?") >= 0) {
+            text = text.replace("Ã?", "&szlig;");
+        }
         return text;
     }
 
@@ -993,22 +1025,6 @@
 
         FJCTPmodifyRouteDescriptionsAsync(html, callback);
         //FJCTPmodifyRouteDescriptionsSync(html, callback);
-    }
-
-    function FJTCPcleanTextContent(text) {
-        while (text.indexOf("\r\n") >= 0) {
-            text = text.replace("\r\n", " ");
-        }
-        while (text.indexOf("\r") >= 0) {
-            text = text.replace("\r", " ");
-        }
-        while (text.indexOf("\n") >= 0) {
-            text = text.replace("\n", " ");
-        }
-        while (text.indexOf("  ") >= 0) {
-            text = text.replace("  ", " ");
-        }
-        return text;
     }
 
     function FJCTPreadRouteFirstAscenter(html) {
@@ -1361,11 +1377,15 @@
         debug(false, "FJCTPcleanListEntries getChildTreeAsNodeList.length: " + allChilds.length);
         for (var child of allChilds) {
           if (child.tagName == "IMG" && (child.alt == "Freier Inhalt" || child.src.endsWith("/free.png"))) {
-            debug(false, "FJCTPmodifyGebietPage --> removing IMG(alt='Freier Inhalt')");
+            debug(false, "FJCTPcleanListEntries --> removing IMG(alt='Freier Inhalt')");
+            child.parentElement.removeChild(child);
+          }
+          if (child.tagName == "IMG" && (child.alt == "Neu" || child.src.endsWith("/neu_liste.gif"))) {
+            debug(false, "FJCTPcleanListEntries --> removing IMG(alt='Freier Inhalt')");
             child.parentElement.removeChild(child);
           }
           if (child.tagName == "A" && child.href.indexOf("/poi/") > 0) {
-            debug(false, "FJCTPmodifyGebietPage --> modify poi url target)");
+            debug(false, "FJCTPcleanListEntries --> modify poi url target)");
             child.target = "_blank";
           }
         }
@@ -1800,13 +1820,13 @@
         var backgroundGraphicUrl = unhighlightedBackgroundGraphicUrl;
 
         var markerAttributes = {title: name, href: href};
-        var markerImage = {graphicZIndex: 2, backgroundGraphicZIndex: 1, externalGraphic: numberIcon, graphicWidth: width, graphicHeight: height, graphicXOffset: xOffset, graphicYOffset: yOffset, backgroundGraphic: backgroundGraphicUrl, backgroundWidth: width, backgroundHeight: height, backgroundXOffset: xOffset, backgroundYOffset: yOffset, highlightedBackgroundGraphicUrl: highlightedBackgroundGraphicUrl, unhighlightedBackgroundGraphicUrl: unhighlightedBackgroundGraphicUrl};
+        var markerImage = {externalGraphic: numberIcon, graphicWidth: width, graphicHeight: height, graphicXOffset: xOffset, graphicYOffset: yOffset, backgroundGraphic: backgroundGraphicUrl, backgroundWidth: width, backgroundHeight: height, backgroundXOffset: xOffset, backgroundYOffset: yOffset, highlightedBackgroundGraphicUrl: highlightedBackgroundGraphicUrl, unhighlightedBackgroundGraphicUrl: unhighlightedBackgroundGraphicUrl};
         var markerFeature = new OpenLayers.Feature.Vector(markerPoint, markerAttributes, markerImage);
         markerLayer.addFeatures(markerFeature);
       }
 
       function onMarkerSelected(evt) {
-        //alert("onMarkerSelected:\n " + evt.feature.attributes.title + " \n" + evt.feature.attributes.href + " \nbackgroundUnhighlighted: " + evt.feature.style.unhighlightedBackgroundGraphicUrl + " \nbackgroundHighlightd: " + evt.feature.style.highlightedBackgroundGraphicUrl + " \nbackground: " + evt.feature.style.backgroundGraphicUrl);
+        //alert("onMarkerSelected:\n " + evt.feature.attributes.title + " \n" + evt.feature.attributes.href + " \nbackgroundUnhighlighted: " + evt.feature.style.unhighlightedBackgroundGraphicUrl + " \nbackgroundHighlighted: " + evt.feature.style.highlightedBackgroundGraphicUrl + " \nbackground: " + evt.feature.style.backgroundGraphic);
         //window.location.href = evt.feature.attributes.href;
         window.open(evt.feature.attributes.href);
         onMarkerUnhighlighted(evt);
@@ -1817,34 +1837,35 @@
           return;
         }
         var features = markerLayer.getFeaturesByAttribute('title', title);
-        Array.prototype.forEach.call(features, function (feature) {
-          if (currentHighlightedFeature != feature) {
-            hideFeaturePopup(currentHighlightedFeature);
-            hideFeatureBackgroundImage(currentHighlightedFeature);
-          }
-          currentHighlightedFeature = feature;
-          showFeaturePopup(feature);
-          showFeatureBackgroundImage(feature);
+        var feature = null;
+        Array.prototype.forEach.call(features, function (feat) {
+          feature = feat;
         });
+        if (feature == null) {
+          return;
+        }
+        if (currentHighlightedFeature != feature) {
+          hideFeaturePopup(currentHighlightedFeature);
+          hideFeatureBackgroundImage(currentHighlightedFeature);
+        }
+        currentHighlightedFeature = feature;
+        showFeaturePopup(feature); setTimeout(function(){hideFeaturePopup(feature);}, 1000);
+        showFeatureBackgroundImage(feature);
       }
 
       function showFeatureBackgroundImage(feature) {
         if (feature == null) {
           return;
         }
-        if (feature.style.backgroundGraphicUrl != feature.style.highlightedBackgroundGraphicUrl)
+        if (feature.style.backgroundGraphic != feature.style.highlightedBackgroundGraphicUrl)
         {
-          var s = feature.style;
-          var newStyle = {graphicZIndex: 2, backgroundGraphicZIndex: 1, externalGraphic: s.externalGraphic, graphicWidth: s.graphicWidth, graphicHeight: s.graphicHeight, graphicXOffset: s.graphicXOffset, graphicYOffset: s.graphicYOffset, backgroundGraphic: s.highlightedBackgroundGraphicUrl, backgroundWidth: s.backgroundWidth, backgroundHeight: s.backgroundHeight, backgroundXOffset: s.backgroundXOffset, backgroundYOffset: s.backgroundYOffset, highlightedBackgroundGraphicUrl: s.highlightedBackgroundGraphicUrl, unhighlightedBackgroundGraphicUrl: s.unhighlightedBackgroundGraphicUrl};
-          //markerLayer.drawFeature(feature, newStyle);
-
-          markerLayer.removeFeatures(feature);
-          var modifiedFeature = new OpenLayers.Feature.Vector(feature.geometry, feature.attributes, newStyle);
-          markerLayer.addFeatures(modifiedFeature);
-
-          setTimeout(function(){
-              hideFeatureBackgroundImage(feature);
-          }, 2500);
+          var extGraphicUrl = feature.style.externalGraphic;
+          feature.style.externalGraphic = "";
+          feature.style.backgroundGraphic = feature.style.highlightedBackgroundGraphicUrl;
+          markerLayer.drawFeature(feature);
+          feature.style.externalGraphic = extGraphicUrl;
+          markerLayer.drawFeature(feature);
+          setTimeout(function(){hideFeatureBackgroundImage(feature);}, 2500);
         }
       }
 
@@ -1852,15 +1873,14 @@
         if (feature == null) {
           return;
         }
-        if (feature.style.backgroundGraphicUrl != feature.style.unhighlightedBackgroundGraphicUrl)
+        if (feature.style.backgroundGraphic != feature.style.unhighlightedBackgroundGraphicUrl)
         {
-          var s = feature.style;
-          var newStyle = {externalGraphic: s.externalGraphic, graphicWidth: s.graphicWidth, graphicHeight: s.graphicHeight, graphicXOffset: s.graphicXOffset, graphicYOffset: s.graphicYOffset, backgroundGraphic: s.unhighlightedBackgroundGraphicUrl, backgroundWidth: s.backgroundWidth, backgroundHeight: s.backgroundHeight, backgroundXOffset: s.backgroundXOffset, backgroundYOffset: s.backgroundYOffset, highlightedBackgroundGraphicUrl: s.highlightedBackgroundGraphicUrl, unhighlightedBackgroundGraphicUrl: s.unhighlightedBackgroundGraphicUrl};
-          //markerLayer.drawFeature(feature, newStyle);
-          
-          markerLayer.removeFeatures(feature);
-          var modifiedFeature = new OpenLayers.Feature.Vector(feature.geometry, feature.attributes, newStyle);
-          markerLayer.addFeatures(modifiedFeature);
+          //var extGraphicUrl = feature.style.externalGraphic;
+          //feature.style.externalGraphic = "";
+          feature.style.backgroundGraphic = feature.style.unhighlightedBackgroundGraphicUrl;
+          markerLayer.drawFeature(feature);
+          //feature.style.externalGraphic = extGraphicUrl;
+          //markerLayer.drawFeature(feature);
         }
       }
 
@@ -1907,7 +1927,7 @@
 
       function onMarkerUnhighlighted(evt) {
         //alert("onMarkerUnhighlighted: " + evt.feature.attributes.title + "  " + evt.feature.attributes.href);
-        setTimeout(function(){hideFeaturePopup(evt.feature);hideFeatureBackgroundImage(evt.feature)}, 1000);
+        setTimeout(function(){hideFeaturePopup(evt.feature);/*hideFeatureBackgroundImage(evt.feature);*/}, 1500);
       }
 
       function drawMap() {
@@ -2333,12 +2353,15 @@
 
         debug(true, "FJCTPmodifyDocument:: finished Processing");
     }
-
-
+    
     //----------------------------------------------------------------------------------------------------
     // START of document processing
 
     debug(true, "START of document processing");
+
+    //var topWindow = window == top;
+    //debug(false, "this.url: " + this.url);
+    //debug(false, "document.URL: " + document.URL);
 
     // here we do things after DOM loaded (e.g. kickout scripts we do not want to run or modify configurations)
     // for our scenario the current implementation is to early (with CHROME)
@@ -2352,4 +2375,5 @@
         debug(false, "onload");
         FJCTPmodifyDocument(document);
     };
+    
 })();
