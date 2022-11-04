@@ -1,4 +1,4 @@
-// FJTP - FrankenJuraTopoPrint (content_20180705)
+// FJTP - FrankenJuraTopoPrint (content_20180706)
 
 (function content() {
 
@@ -148,33 +148,33 @@
       return obj;
     }
 
-		function setCookie(cname, cvalue, exdays) {
-		    var d = new Date();
-		    d.setTime(d.getTime() + (exdays*24*60*60*1000));
-		    var expires = "expires="+ d.toUTCString();
-		    var cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
+    function setCookie(cname, cvalue, exdays) {
+        var d = new Date();
+        d.setTime(d.getTime() + (exdays*24*60*60*1000));
+        var expires = "expires="+ d.toUTCString();
+        var cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
         debug(false, "setCookie -> '" + cookie + "'");
-		    document.cookie = cookie;
-		}
-		
-		function getCookie(cname) {
-		    var name = cname + "=";
-		    var decodedCookie = decodeURIComponent(document.cookie);
+        document.cookie = cookie;
+    }
+    
+    function getCookie(cname) {
+        var name = cname + "=";
+        var decodedCookie = decodeURIComponent(document.cookie);
         debug(false, "getCookie -> decodedCookie = '" + decodedCookie + "'");
-		    var ca = decodedCookie.split(';');
-		    for(var i = 0; i <ca.length; i++) {
-		        var c = ca[i];
-		        while (c.charAt(0) == ' ') {
-		            c = c.substring(1);
-		        }
-		        if (c.indexOf(name) == 0) {
-		            var cookieValue = c.substring(name.length, c.length);
+        var ca = decodedCookie.split(';');
+        for(var i = 0; i <ca.length; i++) {
+            var c = ca[i];
+            while (c.charAt(0) == ' ') {
+                c = c.substring(1);
+            }
+            if (c.indexOf(name) == 0) {
+                var cookieValue = c.substring(name.length, c.length);
                 debug(false, "getCookie -> " + cname + " = '" + cookieValue + "'");
-		            return cookieValue;
-		        }
-		    }
-		    return "";
-		}
+                return cookieValue;
+            }
+        }
+        return "";
+    }
 
 
     var MASK_ID_PREPROCESSED = "__FJCTP_mask_preprocessed__";
@@ -182,11 +182,11 @@
     var MASK_ID_PROCESSED = "__FJCTP_mask_processed__";
 
     function setProcessPages(processPages) {
-    		return setCookie("FJCTPProcessPages", processPages, 7);
+        return setCookie("FJCTPProcessPages", processPages, 7);
     }
 
     function getProcessPages() {
-    		return getCookie("FJCTPProcessPages");
+        return getCookie("FJCTPProcessPages");
     }
 
     function isPreProcessed() {
@@ -291,17 +291,19 @@
         /*
         @cc_on
         @if (@_win32 || @_win64)
-        document.write('<script id="ieScriptLoad" defer src="//:"><\/script>');
-        document.getElementById('ieScriptLoad').onreadystatechange = function () {
-        if (this.readyState == 'complete') {
-        callback();
-        }
-        };
+          document.write('<script id="ieScriptLoad" defer src="//:"><\/script>');
+          document.getElementById('ieScriptLoad').onreadystatechange = function () {
+            if (this.readyState == 'complete') {
+              callback();
+            }
+          };
+          return;
         @end@
         */
         /* Mozilla, Chrome, Opera */
         if (document.addEventListener) {
             document.addEventListener('DOMContentLoaded', callback, false);
+            return;
         }
         /* Safari, iCab, Konqueror */
         if (/KHTML|WebKit|iCab/i.test(navigator.userAgent)) {
@@ -311,6 +313,7 @@
                     clearInterval(DOMLoadTimer);
                 }
             }, 10);
+            return;
         }
         /* Other web browsers */
         window.onload = callback;
@@ -379,7 +382,7 @@
         });
     }
 
-		function FJCTPhideElement(html, selector) {
+    function FJCTPhideElement(html, selector) {
         debug(false, "FJCTPhideElement '" + selector + "'");
         Array.prototype.forEach.call(html.querySelectorAll(selector), function (element) {
             debug(false, "FJCTPremoveElement - removing element '" + element + "'");
@@ -1060,7 +1063,7 @@
     function FJCTPreadPoiId(html) {
         debug(true, "FJCTPreadPoiId");
         //<ul id="poi-menu">
-        //    <li>		<a href="/klettern/premium" target="_blank">
+        //    <li>    <a href="/klettern/premium" target="_blank">
         //            <img src="/images/menu/print-premium.png" border="0" alt="Druckausgabe nur bei Premium" title="Druckausgabe  nur bei Premium" align="absmiddle"><br>
         //            Drucken
         //        </a>
@@ -1348,6 +1351,25 @@
         //FJCTPremoveElement(html, "div.poi-section>ul>li>br:last-of-type");  //tailing br in Rock-Event
     }
 
+    function FJCTPcleanListEntries(html) {
+        debug(true, "FJCTPcleanListEntries -> removing free content icons and changing link targéts");
+        var allChilds = getChildTreeAsNodeList(html);
+        debug(false, "FJCTPcleanListEntries getChildTreeAsNodeList.length: " + allChilds.length);
+        for (var child of allChilds) {
+          if (child.tagName == "IMG" && (child.alt == "Freier Inhalt" || child.src.endsWith("/free.png"))) {
+            debug(false, "FJCTPmodifyGebietPage --> removing IMG(alt='Freier Inhalt')");
+            child.parentElement.removeChild(child);
+          }
+          if (child.tagName == "A" && child.href.indexOf("/poi/") > 0) {
+            debug(false, "FJCTPmodifyGebietPage --> modify poi url target)");
+            child.target = "_blank";
+          }
+        }
+    }
+
+    //----------------------------------------------------------------------------------------------------
+    // START of POI section handling stuff ...
+
     function FJCTPgetPoiSectionId(element) {
         debug(false, "FJCTPgetPoiSectionId");
         var sectionIsEmpty = element.childNodes.length < 1;
@@ -1391,10 +1413,10 @@
         debug(true, "FJCTPgetPoiSectionNode '" + sectionId + "'");
         var section; 
         Array.prototype.forEach.call(html.querySelectorAll("div.poi-section"), function (element) {
-            if (FJCTPgetPoiSectionId(element) == sectionId) {
-              debug(false, "FJCTPgetPoiSectionNode -> found section");
-              section = element;
-            }
+          if (FJCTPgetPoiSectionId(element) == sectionId) {
+            debug(false, "FJCTPgetPoiSectionNode -> found section");
+            section = element;
+          }
         });
         return section;
     }
@@ -1403,47 +1425,50 @@
         debug(true, "FJCTPlistPoiSections");
         var num = 1;
         Array.prototype.forEach.call(html.querySelectorAll("div.poi-section"), function (element) {
-            debug(true, "FJCTPlistPoiSections -> section " + num + " '" + FJCTPgetPoiSectionId(element) + "'");
-            num++;
+          debug(true, "FJCTPlistPoiSections -> section " + num + " '" + FJCTPgetPoiSectionId(element) + "'");
+          num++;
         });
     }
 
     function FJCTPremovePoiSection(html, sectionId) {
         debug(true, "FJCTPremovePoiSections -> removing section: " + sectionId);
         Array.prototype.forEach.call(html.querySelectorAll("div.poi-section"), function (element) {
-            if (FJCTPgetPoiSectionId(element) == sectionId) {
-              debug(true, "FJCTPremovePoiSections -> section removed");
-              element.parentElement.removeChild(element);
-            }
+          if (FJCTPgetPoiSectionId(element) == sectionId) {
+            debug(true, "FJCTPremovePoiSections -> section removed");
+            element.parentElement.removeChild(element);
+          }
         });
     }
 
     function FJCTPmovePoiSectionToEnd(html, sectionId) {
         debug(true, "FJCTPmovePoiSectionToEnd -> moving section: " + sectionId);
         Array.prototype.forEach.call(html.querySelectorAll("div.poi-section"), function (element) {
-            if (FJCTPgetPoiSectionId(element) == sectionId) {
-              debug(true, "FJCTPremovePoiSections -> section removed");
-              var parent = element.parentElement;
-              parent.removeChild(element);
-              parent.appendChild(element);
-            }
-        });
-    }
+          if (FJCTPgetPoiSectionId(element) == sectionId) {
+            debug(true, "FJCTPremovePoiSections -> section removed");
+            var parent = element.parentElement;
+            parent.removeChild(element);
 
-    function FJCTPcleanListEntries(html) {
-        debug(true, "FJCTPcleanListEntries -> removing free content icons and changing link targéts");
-        var allChilds = getChildTreeAsNodeList(html);
-        debug(false, "FJCTPcleanListEntries getChildTreeAsNodeList.length: " + allChilds.length);
-        for (var child of allChilds) {
-          if (child.tagName == "IMG" && (child.alt == "Freier Inhalt" || child.src.endsWith("/free.png"))) {
-            debug(false, "FJCTPmodifyGebietPage --> removing IMG(alt='Freier Inhalt')");
-            child.parentElement.removeChild(child);
+            element.style.pageBreakBefore = "always";
+            element.style.pageBreakAfter = "always";
+            element.insertBefore(document.createElement("br"), element.childNodes[0]);
+            element.insertBefore(document.createElement("br"), element.childNodes[0]);
+            element.insertBefore(document.createElement("br"), element.childNodes[0]);
+            element.insertBefore(document.createElement("br"), element.childNodes[0]);
+            element.style.marginBottom = "100px";
+            parent.appendChild(element);
+            /* var div = document.createElement("div");
+            div.style.pageBreakBefore = "always";
+            div.style.pageBreakAfter = "always";
+            //div.style.marginTop = "100px";
+            div.appendChild(document.createElement("br"));
+            div.appendChild(document.createElement("br"));
+            div.appendChild(document.createElement("br"));
+            div.appendChild(document.createElement("br"));
+            div.appendChild(element);
+            div.style.marginBottom = "100px";
+            parent.appendChild(div); */
           }
-          if (child.tagName == "A" && child.href.indexOf("/poi/") > 0) {
-            debug(false, "FJCTPmodifyGebietPage --> modify poi url target)");
-            child.target = "_blank";
-          }
-        }
+        });
     }
 
     //----------------------------------------------------------------------------------------------------
@@ -1670,176 +1695,190 @@
         return undefined;
     }
 
+    function FJCTPcontainsMapParkingPosition(dochtml) {
+        var hasParking = false;
+        Array.prototype.forEach.call(dochtml.querySelectorAll("script"), function (element) {
+          var contentMatches = element.textContent.match(/OpenLayers/gi);
+          if (contentMatches != null && contentMatches.length > 0) {
+            debug(false, "FJCTPcontainsMapParkingPosition --> analysing script that creates OpenLayers map");
+            if (element.textContent.indexOf("'parkplatz'") > 0) {
+              hasParking = true;
+            }
+          }
+        });
+        return hasParking;
+    }
+
     function FJCTPMapCreation() {
-  		var map;
-  		var markerLayer;
-  		var polygonLayer;
-  		var mapHover;
-  		var iconNumber = 1;
-  		var numberedIcons = true;
+      var map;
+      var markerLayer;
+      var polygonLayer;
+      var mapHover;
+      var iconNumber = 1;
+      var numberedIcons = true;
 
-  		OpenLayers.ImgPath = '/images/openLayers/';
+      OpenLayers.ImgPath = '/images/openLayers/';
 
-  		function createPolygon(points, id, name, type) {
-  			var site_points = new Array();
-  			for(var i = 0; i < points.length; i++) {
-  				site_points.push(new OpenLayers.Geometry.Point(points[i][0], points[i][1]));
-  			}
-  			var linear_ring = new OpenLayers.Geometry.LinearRing(site_points);
-  			var centroid = linear_ring.getCentroid();
-  			createMarker(centroid.x,centroid.y,'/klettern/region/'+id,name,'region/region_'+type);
-  			linear_ring.transform(new OpenLayers.Projection('EPSG:4326'), map.getProjectionObject());
-  			var polygonFeature = new OpenLayers.Feature.Vector(new OpenLayers.Geometry.Polygon([linear_ring]), null);
-  			polygonLayer.addFeatures([polygonFeature]);
-  		}
+      function createPolygon(points, id, name, type) {
+        var site_points = new Array();
+        for(var i = 0; i < points.length; i++) {
+          site_points.push(new OpenLayers.Geometry.Point(points[i][0], points[i][1]));
+        }
+        var linear_ring = new OpenLayers.Geometry.LinearRing(site_points);
+        var centroid = linear_ring.getCentroid();
+        createMarker(centroid.x,centroid.y,'/klettern/region/'+id,name,'region/region_'+type);
+        linear_ring.transform(new OpenLayers.Projection('EPSG:4326'), map.getProjectionObject());
+        var polygonFeature = new OpenLayers.Feature.Vector(new OpenLayers.Geometry.Polygon([linear_ring]), null);
+        polygonLayer.addFeatures([polygonFeature]);
+      }
 
-  		function createMarker(lon, lat, href, name, type) {
-  			var markerPoint = new OpenLayers.Geometry.Point(lon,lat).transform(
-  				new OpenLayers.Projection('EPSG:4326'), 
-  				map.getProjectionObject()
-  			);
-  			var width = 21;
-  			var height = 26;
-  			var xOffset = -width/2;
-  			var yOffset = -height/2;
-  			var numberIcon;
-  			if(numberedIcons) {
-  				numberIcon = '/images/number/'+iconNumber+'.png';
-  			} else {
-  				numberIcon = '/images/number/blank.png';
-  			}
-  			iconNumber = iconNumber + 1;
+      function createMarker(lon, lat, href, name, type) {
+        var markerPoint = new OpenLayers.Geometry.Point(lon,lat).transform(
+          new OpenLayers.Projection('EPSG:4326'), 
+          map.getProjectionObject()
+        );
+        var width = 21;
+        var height = 26;
+        var xOffset = -width/2;
+        var yOffset = -height/2;
+        var numberIcon;
+        if(numberedIcons) {
+          numberIcon = '/images/number/'+iconNumber+'.png';
+        } else {
+          numberIcon = '/images/number/blank.png';
+        }
+        iconNumber = iconNumber + 1;
 
         //handle createMarker polymorphism (grag page vs overview page)
-  			//createMarker(11.376929,49.6532,'crag');
-  			//createMarker(11.380327,49.650933,'parkplatz');
-  			//createMarker(11.55159,49.54212,'/klettern/poi/1115','Bodenbergwand','crag');
-  			var backgroundGraphicUrl;
-  			if (typeof name === 'undefined' && typeof type === 'undefined') {
-  			  // grag page:
-  			  var latlon = lat + ", " + lon;
-  			  type = href;
-  			  name = href + " (" + latlon + ")";
-  			  href = "https://maps.google.de/maps?q=" + latlon;
-  			  numberIcon = '/images/number/blank.png';
-  			  backgroundGraphicUrl = '/images/poi/poi_' + type + '.png';
-  			} else {
-  			  // overview page:
-  			  backgroundGraphicUrl = ''; //'/images/poi/poi_' + type + '.png';
-  			}
+        //createMarker(11.376929,49.6532,'crag');
+        //createMarker(11.380327,49.650933,'parkplatz');
+        //createMarker(11.55159,49.54212,'/klettern/poi/1115','Bodenbergwand','crag');
+        var backgroundGraphicUrl;
+        if (typeof name === 'undefined' && typeof type === 'undefined') {
+          // grag page:
+          var latlon = lat + ", " + lon;
+          type = href;
+          name = href + " (" + latlon + ")";
+          href = "https://maps.google.de/maps?q=" + latlon;
+          numberIcon = '/images/number/blank.png';
+          backgroundGraphicUrl = '/images/poi/poi_' + type + '.png';
+        } else {
+          // overview page:
+          backgroundGraphicUrl = ''; //'/images/poi/poi_' + type + '.png';
+        }
 
-  			var markerAttributes = {title: name, href: href};
-  			var markerImage = {externalGraphic: numberIcon, graphicWidth: width, graphicHeight: height, graphicXOffset: xOffset, graphicYOffset: yOffset, backgroundGraphic: backgroundGraphicUrl, backgroundWidth: width, backgroundHeight: height, backgroundXOffset: xOffset, backgroundYOffset: yOffset};
-  			var markerFeature = new OpenLayers.Feature.Vector(markerPoint, markerAttributes, markerImage);
-  			markerLayer.addFeatures(markerFeature);
-  		}
+        var markerAttributes = {title: name, href: href};
+        var markerImage = {externalGraphic: numberIcon, graphicWidth: width, graphicHeight: height, graphicXOffset: xOffset, graphicYOffset: yOffset, backgroundGraphic: backgroundGraphicUrl, backgroundWidth: width, backgroundHeight: height, backgroundXOffset: xOffset, backgroundYOffset: yOffset};
+        var markerFeature = new OpenLayers.Feature.Vector(markerPoint, markerAttributes, markerImage);
+        markerLayer.addFeatures(markerFeature);
+      }
 
-  		function onFeatureSelect(evt) {
-  			var feature = evt.feature;
-  			alert(feature.attributes.href);
-  		}
+      function onFeatureSelect(evt) {
+        var feature = evt.feature;
+        alert(feature.attributes.href);
+      }
 
-  		function drawMap() {
-  			var mapControls = [ 
-  				new OpenLayers.Control.Navigation({
-  					'zoomWheelEnabled': false, 
-  				}),
-  				new OpenLayers.Control.Zoom()
-  			];
+      function drawMap() {
+        var mapControls = [ 
+          new OpenLayers.Control.Navigation({
+            'zoomWheelEnabled': false, 
+          }),
+          new OpenLayers.Control.Zoom()
+        ];
 
-  			map = new OpenLayers.Map('map-64', { controls: mapControls, theme: null });
-  			var mapnik = new OpenLayers.Layer.OSM('Mapnik','/osm/tileproxy.php?layer=OSM_MAPNIK&path=${z}/${x}/${y}.png');
-  			map.addLayer(mapnik);
+        map = new OpenLayers.Map('map-64', { controls: mapControls, theme: null });
+        var mapnik = new OpenLayers.Layer.OSM('Mapnik','/osm/tileproxy.php?layer=OSM_MAPNIK&path=${z}/${x}/${y}.png');
+        map.addLayer(mapnik);
 
-  			polygonLayer = new OpenLayers.Layer.Vector('Vector Layer');
-  			var style = OpenLayers.Util.extend({}, OpenLayers.Feature.Vector.style['default']);
-  			style.fillColor = '#ee9900';
-  			style.fillOpacity = 0.5;
-  			style.strokeWidth = 2; 
-  			style.strokeColor = '#f5b300';
-  			style.strokeOpacity = 0.9;
-  			polygonLayer.style = style;
-  			map.addLayer(polygonLayer);
+        polygonLayer = new OpenLayers.Layer.Vector('Vector Layer');
+        var style = OpenLayers.Util.extend({}, OpenLayers.Feature.Vector.style['default']);
+        style.fillColor = '#ee9900';
+        style.fillOpacity = 0.5;
+        style.strokeWidth = 2; 
+        style.strokeColor = '#f5b300';
+        style.strokeOpacity = 0.9;
+        polygonLayer.style = style;
+        map.addLayer(polygonLayer);
 
-  			markerLayer = new OpenLayers.Layer.Vector('Markers');
-  			map.addLayer(markerLayer);
+        markerLayer = new OpenLayers.Layer.Vector('Markers');
+        map.addLayer(markerLayer);
 
-  			var hoverControl = new OpenLayers.Control.SelectFeature(markerLayer, {
-  				hover: true,
-  				highlightOnly: true
-  			});
-  			hoverControl.events.on({
-  				'featurehighlighted':function(evt){
-  					var feature = evt.feature;
-  					var popup = new OpenLayers.Popup('popup',
-  							OpenLayers.LonLat.fromString(feature.geometry.toShortString()),
-  							null,
-  							"<div style='white-space: nowrap'>" + feature.attributes.title + '</div>',
-  							null,
-  							true
-  					);
-  					popup.autoSize = true;
-  					feature.popup = popup;
-  					map.addPopup(popup);
-  				},
-  				'featureunhighlighted':function(evt){
-  					var feature = evt.feature;
-  					if (feature.popup) {
-  						map.removePopup(feature.popup);
-  						feature.popup.destroy();
-  						feature.popup = null;
-  					}
-  				}
-  			});
-  			map.addControl(hoverControl);
-  			hoverControl.activate();
+        var hoverControl = new OpenLayers.Control.SelectFeature(markerLayer, {
+          hover: true,
+          highlightOnly: true
+        });
+        hoverControl.events.on({
+          'featurehighlighted':function(evt){
+            var feature = evt.feature;
+            var popup = new OpenLayers.Popup('popup',
+                OpenLayers.LonLat.fromString(feature.geometry.toShortString()),
+                null,
+                "<div style='white-space: nowrap'>" + feature.attributes.title + '</div>',
+                null,
+                true
+            );
+            popup.autoSize = true;
+            feature.popup = popup;
+            map.addPopup(popup);
+          },
+          'featureunhighlighted':function(evt){
+            var feature = evt.feature;
+            if (feature.popup) {
+              map.removePopup(feature.popup);
+              feature.popup.destroy();
+              feature.popup = null;
+            }
+          }
+        });
+        map.addControl(hoverControl);
+        hoverControl.activate();
 
-  			var selectControl = new OpenLayers.Control.SelectFeature(markerLayer);
-  			map.addControl(selectControl);
-  			selectControl.activate();
+        var selectControl = new OpenLayers.Control.SelectFeature(markerLayer);
+        map.addControl(selectControl);
+        selectControl.activate();
 
-  			markerLayer.events.on({
-  				'featureselected':function(evt){
-  					//window.location.href = evt.feature.attributes.href;
-  					window.open(evt.feature.attributes.href);
-  				}
-  			});
+        markerLayer.events.on({
+          'featureselected':function(evt){
+            //window.location.href = evt.feature.attributes.href;
+            window.open(evt.feature.attributes.href);
+          }
+        });
 
-  			//var points;
-  			//...
-  			//createPolygon(points,,,);
+        //var points;
+        //...
+        //createPolygon(points,,,);
 
-  			//iconNumber = 1;
-  			//createMarker(11.376929,49.6532,'crag');
-  			//createMarker(11.380327,49.650933, 'parkplatz');
-  			//
-  			//createMarker(11.55159,49.54212,'/klettern/poi/1115','Bodenbergwand','crag');
-  			//createMarker(11.56155,49.51129,'/klettern/poi/1053','Brosinnadel','crag');
-  			//createMarker(11.57142,49.5061,'/klettern/poi/1041','Dohlenwand','crag');
-  			//createMarker(11.58156,49.52932,'/klettern/poi/1047','Etzelwanger Wand 01 - Linker Teil','crag');
-  			//createMarker(11.58175,49.52927,'/klettern/poi/1048','Etzelwanger Wand 02 - Rechter Teil','crag');
-  			//createMarker(11.55158,49.53774,'/klettern/poi/1113','Gemeindefels','crag');
+        //iconNumber = 1;
+        //createMarker(11.376929,49.6532,'crag');
+        //createMarker(11.380327,49.650933, 'parkplatz');
+        //
+        //createMarker(11.55159,49.54212,'/klettern/poi/1115','Bodenbergwand','crag');
+        //createMarker(11.56155,49.51129,'/klettern/poi/1053','Brosinnadel','crag');
+        //createMarker(11.57142,49.5061,'/klettern/poi/1041','Dohlenwand','crag');
+        //createMarker(11.58156,49.52932,'/klettern/poi/1047','Etzelwanger Wand 01 - Linker Teil','crag');
+        //createMarker(11.58175,49.52927,'/klettern/poi/1048','Etzelwanger Wand 02 - Rechter Teil','crag');
+        //createMarker(11.55158,49.53774,'/klettern/poi/1113','Gemeindefels','crag');
 
-  			//map.zoomToExtent(markerLayer.getDataExtent());
-  		}
+        //map.zoomToExtent(markerLayer.getDataExtent());
+      }
 
-  		function initialize() {
-  			//alert('initialize started');
-  			drawMap();
-  			window.map = map;
-  			createMapMarkersAndPolygons();
-  			setTimeout(function() {
-  				map.updateSize(); 
-  				map.zoomToExtent(markerLayer.getDataExtent()); 
-  				map.zoomOut(); 
-  			}, 250);
-  		}
+      function initialize() {
+        //alert('initialize started');
+        drawMap();
+        window.map = map;
+        createMapMarkersAndPolygons();
+        setTimeout(function() {
+          map.updateSize(); 
+          map.zoomToExtent(markerLayer.getDataExtent()); 
+          map.zoomOut(); 
+        }, 250);
+      }
 
-  		//$(document).ready(function() {
-  		//	initialize();
-  		//});
-  		initialize();
-  	}
+      //$(document).ready(function() {
+      //  initialize();
+      //});
+      initialize();
+    }
 
     function FJCTPgetMapCreationScript(originalScript) {
       debug(true, "FJCTPgetMapCreationScript");
@@ -1848,11 +1887,11 @@
       script = script.substring(0,script.lastIndexOf("}"));
       script += "\n\n function createMapMarkersAndPolygons() {\n  iconNumber = 1;";
       var createMarkerCalls = originalScript.match(/createMarker+.*(?=;)/g);
-    	for (i = 0; i < createMarkerCalls.length; i++) {
-    	  if (createMarkerCalls[i].indexOf("centroid.x,centroid.y,'/klettern/region/'") < 0) {
+      for (i = 0; i < createMarkerCalls.length; i++) {
+        if (createMarkerCalls[i].indexOf("centroid.x,centroid.y,'/klettern/region/'") < 0) {
           script += "\n  " + createMarkerCalls[i];
         }
-    	}
+      }
       script += "\n}"
       return script.replace(/'map-?\d*'/g, originalScript.match(/'map-?\d*'/));
     }
@@ -1882,7 +1921,6 @@
                 //script.addEventListener('abort', () => alert('Script loading aborted.'));
                 script.defer = "defer";
                 script.textContent = FJCTPgetMapCreationScript(element.textContent);
-                //script.textContent = element.textContent + " window.map = map;" + "setTimeout(function(){map.updateSize();},250);";
                 element.parentElement.removeChild(element);
                 document.head.appendChild(script);
                 //script.parentElement.removeChild(script);
@@ -1900,11 +1938,23 @@
         if (child.tagName == "DIV" && child.id.indexOf("OpenLayers.Control.Zoom") >= 0) {
           debug(false, "FJCTPupgradeMap --> hiding OS Zoom buttons");
           var zoomButtons = child;
-          zoomButtons.parentElement.onmouseover = function() {for(var button of zoomButtons.childNodes){button.style.visibility = "visible";}};
-          zoomButtons.parentElement.onmouseout  = function() {for(var button of zoomButtons.childNodes){button.style.visibility = "hidden";}};
-          for(var button of zoomButtons.childNodes) {
-            button.style.visibility = "hidden";
-          }
+          var mapView = zoomButtons.parentElement;
+          var map = mapView.parentElement;
+          zoomButtons.style.visibility = "hidden";
+          
+          var hideButton = document.createElement('button');
+          hideButton.textContent = "hide map";
+          hideButton.style.position = "absolute";
+          hideButton.style.left = "500px";
+          hideButton.style.top = "8px";
+          hideButton.style.zIndex = 2000;
+          hideButton.style.padding = "5px 5px 5px 5px";
+          hideButton.style.visibility = "hidden";
+          hideButton.onclick = function() { /*FJCTPremovePoiSection(dochtml,"map"); map.parentElement.removeChild(map);*/ map.parentElement.parentElement.removeChild(map.parentElement); };
+          mapView.appendChild(hideButton);
+          
+          mapView.onmouseover = function() {zoomButtons.style.visibility = "visible"; hideButton.style.visibility = "visible";};
+          mapView.onmouseout  = function() {zoomButtons.style.visibility = "hidden"; hideButton.style.visibility = "hidden";};
         }
       }
     }
@@ -2104,8 +2154,7 @@
             // div.poi-section 3 "Beschreibung"        : Beschreibung - Zufahrt - Zusteig
             // div.poi-section 4 "Rock-Events"         : Rock-Events
             // div.poi-section 5 "Sektoren"            : Sektoren
-            //FJCTPremovePoiSection(dochtml, "map");
-            FJCTPmovePoiSectionToEnd(dochtml, "map");
+            FJCTPremovePoiSection/*FJCTPmovePoiSectionToEnd*/(dochtml, "map");
             FJCTPcleanListEntries(dochtml);
         }
         else if (isGragPage) {
@@ -2117,7 +2166,11 @@
             // div.poi-section 6 "Informationen von"   : Informationen von ...
             // div.poi-section 7 "Routeninformationen" : Routeninformationen (Balkendiagramm)
             // div.poi-section 8 "Routen"              : Routen
-            FJCTPremovePoiSection(dochtml, "map");
+            if (FJCTPcontainsMapParkingPosition(dochtml)) {
+              FJCTPmovePoiSectionToEnd(dochtml, "map");
+            } else {
+              FJCTPremovePoiSection(dochtml, "map");
+            }
             FJCTPremovePoiSection(dochtml, "Zonierung");
             //FJCTPremovePoiSection(dochtml, "Rock-Events");
             FJCTPremovePoiSection(dochtml, "Informationen von");
@@ -2185,23 +2238,15 @@
     debug(true, "START of document processing");
 
     // here we do things after DOM loaded (e.g. kickout scripts we do not want to run or modify configurations)
-    // we avoid reiterations due to our manipulations
-    var domLoadedExecuted = false;
-    domLoaded(function () {
-
-        if (domLoadedExecuted)
-            return;
-
-        domLoadedExecuted = true;
-        debug(false, "domLoaded");
-
-        //FJCTPmodifyDocument(document);
-    });
+    // for our scenario the current implementation is to early (with CHROME)
+    //domLoaded(function () {
+    //    debug(true, "domLoaded");
+    //    FJCTPmodifyDocument(document);
+    //});
 
     // here we do further processings (to get all in a single file) after document completely loaded (and modified)
     window.onload = function () {
         debug(false, "onload");
-
         FJCTPmodifyDocument(document);
     };
 })();
