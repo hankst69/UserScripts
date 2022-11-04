@@ -1,4 +1,4 @@
-// FJTP - FrankenJuraTopoPrint (content_20190607)
+// FJTP - FrankenJuraTopoPrint (content_20190611)
 
 (function content() {
 
@@ -790,7 +790,9 @@
         //  <a href="/klettern/personal/hitliste/eintragen/5293">&nbsp; 2 &nbsp;&nbsp;&nbsp;&nbsp;</a>
         //  <span>(unbekannt etwa 1908)</span>
         //  <br>
+        //  <div style="margin-left: 28px; font-size: 13.5px; letter-spacing: 0.025em">
         //  In der blockigen Rinne rechts der kleinen Pfeilerwand z. A. Wurde ebenfalls als Abstiegsweg genutzt.
+        //  </div>
         //</li>
         //
         //AFTER (with hit info):
@@ -800,7 +802,9 @@
         //  <a href="/klettern/personal/hitliste/eintragen/5295">&nbsp; 7- &nbsp;&nbsp;&nbsp;&nbsp;</a>
         //  <span>(unbekannt vor 1995 | Rotpunkt 17.04.18)</span>
         //  <br>
+        //  <div style="margin-left: 28px; font-size: 13.5px; letter-spacing: 0.025em">
         //  Ãœber Platte und an kleinem Ãœberhang vorbei zu Band. Dann Ã¼ber abdrÃ¤ngendes WÃ¤ndchen z. UH. Etws eingezwÃ¤ngte RoutenfÃ¼hrung.
+        //  </div>
         //</li>
 
         var oldtext = element.parentElement.innerHTML;
@@ -859,8 +863,11 @@
           var oldRouteName = routeName;
           routeName = oldRouteName.substring(0, idx) + "target=\"_blank\" " + oldRouteName.substring(idx);
         }
+        
+        // 6) enwrap routeDescription
+        routeDescription = '<div style="margin-left: 28px; font-size: 13.5px; letter-spacing: 0.025em">' + routeDescription + '</div>';
 
-        // 6) concatenate elements
+        // 7) concatenate elements
         debug(false, poi + " - " + routeName + " - " + routeDifficulty + " - " + routeHitData + " - " + ascentInfo);
         var newtext = (ascentInfo.length > 0) 
             ? routeName + routeDifficulty + "<span>" + ascentInfo + "</span><br>" + routeDescription
@@ -868,41 +875,6 @@
 
         element.parentElement.innerHTML = newtext;
     }
-
-    //function FJCTPmodifyRouteDescriptionsSync(html, callback) {
-    //    debug(true, "FJCTPmodifyRouteDescriptionsSync");
-    //    FJCTPmodifyRouteDescriptionsPreHook(html);
-    //
-    //    var xmlhttp;
-    //    if (window.XMLHttpRequest) {// code for IE7+, Firefox, Chrome, Opera, Safari
-    //        xmlhttp = new XMLHttpRequest();
-    //    }
-    //    else {// code for IE6, IE5
-    //        xmlhttp = new ActiveXObject("Microsoft.XMLHTTP");
-    //    }
-    //
-    //    var receivedDataElement = document.createElement("DIV");
-    //
-    //    Array.prototype.forEach.call(html.querySelectorAll("ol.route-list>li>a:nth-of-type(1)"), function (element) {
-    //        var href = element.attributes.getNamedItem("href").value;
-    //        if (href.length > 0) {
-    //            debug(false, href);
-    //
-    //            xmlhttp.open("GET", href, /*asynchronous*/false);
-    //            xmlhttp.send();
-    //
-    //            element.attributes.getNamedItem("href").value = "";
-    //
-    //            receivedDataElement.innerHTML = xmlhttp.responseText;
-    //            var firstAscenter = FJCTPreadRouteFirstAscenter(receivedDataElement);
-    //            var routeDescription = FJCTPreadRouteDescription(receivedDataElement);
-    //
-    //            FJCTPmodifyRouteDescriptionElement(element, firstAscenter, routeDescription);
-    //        }
-    //    });
-    //
-    //    FJCTPmodifyRouteDescriptionsPostHook(html, callback);
-    //}
 
     function FJCTPmodifyRouteDescriptionsAsync(html, callback) {
         debug(true, "FJCTPmodifyRouteDescriptionsAsync");
@@ -1051,7 +1023,6 @@
         });
 
         FJCTPmodifyRouteDescriptionsAsync(html, callback);
-        //FJCTPmodifyRouteDescriptionsSync(html, callback);
     }
 
     function FJCTPreadRouteFirstAscenter(html) {
@@ -1280,12 +1251,16 @@
             element.style.lineHeight = "1.2em";
             element.style.color = "#202020"; //"#777777";
         });
+        Array.prototype.forEach.call(html.querySelectorAll("ul.rock-event-list"), function (element) {
+          element.style.margin = 0;
+          element.style.marginTop = "8px";
+        });
 
         // adapt p style
         Array.prototype.forEach.call(html.querySelectorAll("p"), function (element) {
             //element.style.margin = "0 0 0px 0";
-            element.style.margin = "0 0 10px 0";
-            element.style.lineHeight = "1.1em";
+            element.style.margin = "0 0 10px 10px";
+            element.style.lineHeight = "1.15em";
         });
 
         // adapt h4 style
@@ -1351,31 +1326,6 @@
         }
         
         debug(false, "FJCTPmodifyRockEventsSection -> continue with jquery modifications");
-        //Array.prototype.forEach.call(html.querySelectorAll("div.poi-section>div.reverse-row-order>div.column"), function (element) {
-        //  var section = element.parentElement.parentElement;
-        //  if (rockEventSection == section) {
-        //    Array.prototype.forEach.call(element.children, function (child) {
-        //      if (child.textContent.startsWith("FÃ¼r diesen Fels gibt es derzeit kein Rock-Event")) {
-        //        debug(false, "FJCTPmodifyRockEventsSection -> removing empty RockEvent section");
-        //        rockEventSection.parentElement.removeChild(rockEventSection);
-        //        return;
-        //      }
-        //    });
-        //  }
-        //});
-        //FJCTPremoveElement(html, "div.poi-section>p#send-rock-event");      //Rock-Event melden
-        //FJCTPremoveElement(html, "div.poi-section>img#rock-event");         //Rock-Event icon
-        //FJCTPremoveElement(html, "div.poi-section>ul>li>br:last-of-type");  //tailing br in Rock-Event
-        //FJCTPremoveElement(html, "div.poi-section>ul>li>br:last-of-type");  //tailing br in Rock-Event
-        //Array.prototype.forEach.call(html.querySelectorAll("div.poi-section>div.reverse-row-order>div.column>img"), function (element) {
-        //  var section = element.parentElement.parentElement.parentElement;
-        //  if (rockEventSection == section) {
-        //    if (element.alt == "Rock Event") {
-        //      debug(false, "FJCTPmodifyRockEventsSection -> removing RockEvent icon");
-        //      element.parentElement.removeChild(element); 
-        //    }
-        //  }
-        //});
         Array.prototype.forEach.call(html.querySelectorAll("div.poi-section>div.columns>div.column>ul.rock-event-list"), function (element) {
           var section = element.parentElement.parentElement.parentElement;
           if (rockEventSection == section) {
@@ -1398,7 +1348,21 @@
           rockEventSection.parentElement.removeChild(rockEventSection);
         }
         FJCTPremoveElement(html, "div.poi-section>ul>li>br:last-of-type");  //tailing br in Rock-Event
-        //FJCTPremoveElement(html, "div.poi-section>ul>li>br:last-of-type");  //tailing br in Rock-Event
+        FJCTPremoveElement(html, "div.more-button-rock");        //RockEvent comments button
+        FJCTPremoveElement(html, "div.more-button-rock-alt");    //RockEvent comments button old
+    }
+
+    function FJCTPmoveSperrungenBeforeRoutes(html) {
+        debug(true, "FJCTPmoveSperrungenBeforeRoutes");
+        var sperrungP = html.querySelector("h3.sperrung+p");
+        var sperrungH = html.querySelector("h3.sperrung");
+        var routeSection = FJCTPgetPoiSectionNode(html, "Routen");
+        if (routeSection && sperrungH) {
+          routeSection.insertAdjacentElement("beforebegin", sperrungH);
+        }
+        if (routeSection && sperrungP) {
+          routeSection.insertAdjacentElement("beforebegin", sperrungP);
+        }
     }
 
     function FJCTPcleanListEntries(html) {
@@ -1474,25 +1438,29 @@
         }
         var sectionId = "unknown";
         if (!sectionIsEmpty) {
-          if (element.firstElementChild != null) {
-            var firstElementTagName = element.firstElementChild.tagName;
+          var firstChildElement = element.firstElementChild;
+          var secondChildElement = element.children.length > 1 ? element.children[1] : null;
+
+          if (firstChildElement != null) {
+            var firstElementTagName = firstChildElement.tagName;
             if (firstElementTagName.startsWith("H")) {
-              sectionId = element.firstElementChild.textContent;
+              sectionId = firstChildElement.textContent;
             }
             else if (firstElementTagName == "TABLE") {
-              sectionId = element.firstElementChild.className;
+              sectionId = firstChildElement.className;
             }
             else if (firstElementTagName == "DIV") {
-              sectionId = element.firstElementChild.id;
-              if (sectionId.length < 1) {
-                if (element.firstElementChild.firstElementChild) {
-                  sectionId = element.firstElementChild.firstElementChild.id;
-                }
+              sectionId = firstChildElement.id;
+              if (sectionId.length < 1 && secondChildElement != null) {
+                sectionId = secondChildElement.id;
+              }
+              if (sectionId.length < 1 && firstChildElement.firstElementChild != null) {
+                 sectionId = firstChildElement.firstElementChild.id;
               }
             }
           }
           if (sectionId.length < 1) {
-            sectionId = element.firstElementChild.textContent.substr(0,20);
+            sectionId = firstChildElement.textContent.substr(0,20);
           }
         }
         return sectionId;
@@ -1500,13 +1468,18 @@
 
     function FJCTPgetPoiSectionNode(html, sectionId) {
         debug(true, "FJCTPgetPoiSectionNode '" + sectionId + "'");
+        var lastSection;
         var section; 
         Array.prototype.forEach.call(html.querySelectorAll("div.poi-section"), function (element) {
+          lastSection = element;
           if (FJCTPgetPoiSectionId(element) == sectionId) {
             debug(false, "FJCTPgetPoiSectionNode -> found section");
             section = element;
           }
         });
+        if (sectionId == "lastSection") {
+          return lastSection;
+        }
         return section;
     }
 
@@ -1551,51 +1524,61 @@
         });
     }
 
-    function FJCTPremoveFirstPoiSection(html, sectionId) {
-        debug(true, "FJCTPremoveFirstPoiSection -> removing section: " + sectionId);
+    function FJCTPremoveNthPoiSection(html, sectionId, nth) {
+        debug(true, "FJCTPremoveNthPoiSection -> removing section: " + sectionId);
+        var num = 0;
         var done = false;
         Array.prototype.forEach.call(html.querySelectorAll("div.poi-section"), function (element) {
           if (!done && FJCTPgetPoiSectionId(element) == sectionId) {
-            done = true;
-            debug(true, "FJCTPremoveFirstPoiSection -> section removed");
-            element.parentElement.removeChild(element);
+            num++;
+            if (num == nth) {
+              done = true;
+              debug(true, "FJCTPremoveNthPoiSection -> section removed");
+              element.parentElement.removeChild(element);
+            }
           }
         });
     }
 
     function FJCTPmovePoiSectionToEnd(html, sectionId) {
         debug(true, "FJCTPmovePoiSectionToEnd -> moving section: " + sectionId);
-        Array.prototype.forEach.call(html.querySelectorAll("div.poi-section"), function (element) {
-          if (FJCTPgetPoiSectionId(element) == sectionId) {
-            debug(true, "FJCTPremovePoiSections -> section removed");
-            var parent = element.parentElement;
-            parent.removeChild(element);
+        var section = FJCTPgetPoiSectionNode(html, sectionId);
+        var lastSection = FJCTPgetPoiSectionNode(html, "lastSection");
+        if (section && lastSection) {
+          debug(true, "FJCTPmovePoiSectionToEnd - moving");
+          // remove from old position
+          var parent = section.parentElement;
+          parent.removeChild(section);
+          // create some space
+          section.style.pageBreakBefore = "always";
+          section.style.pageBreakAfter = "always";
+          section.insertBefore(document.createElement("br"), section.childNodes[0]);
+          section.insertBefore(document.createElement("br"), section.childNodes[0]);
+          section.insertBefore(document.createElement("br"), section.childNodes[0]);
+          section.insertBefore(document.createElement("br"), section.childNodes[0]);
+          section.insertBefore(document.createElement("br"), section.childNodes[0]);
+          section.insertBefore(document.createElement("br"), section.childNodes[0]);
+          section.insertBefore(document.createElement("br"), section.childNodes[0]);
+          section.insertBefore(document.createElement("br"), section.childNodes[0]);
+          section.style.marginBottom = "100px";
+          // insert behind last
+          //lastSection.parentElement.insertAfter(section, lastSection);
+          lastSection.insertAdjacentElement("afterend", section);
+        }
+    }
 
-            element.style.pageBreakBefore = "always";
-            element.style.pageBreakAfter = "always";
-            element.insertBefore(document.createElement("br"), element.childNodes[0]);
-            element.insertBefore(document.createElement("br"), element.childNodes[0]);
-            element.insertBefore(document.createElement("br"), element.childNodes[0]);
-            element.insertBefore(document.createElement("br"), element.childNodes[0]);
-            element.insertBefore(document.createElement("br"), element.childNodes[0]);
-            element.insertBefore(document.createElement("br"), element.childNodes[0]);
-            element.insertBefore(document.createElement("br"), element.childNodes[0]);
-            element.insertBefore(document.createElement("br"), element.childNodes[0]);
-            element.style.marginBottom = "100px";
-            parent.appendChild(element);
-            /* var div = document.createElement("div");
-            div.style.pageBreakBefore = "always";
-            div.style.pageBreakAfter = "always";
-            //div.style.marginTop = "100px";
-            div.appendChild(document.createElement("br"));
-            div.appendChild(document.createElement("br"));
-            div.appendChild(document.createElement("br"));
-            div.appendChild(document.createElement("br"));
-            div.appendChild(element);
-            div.style.marginBottom = "100px";
-            parent.appendChild(div); */
-          }
-        });
+    function FJCTPmovePoiSectionBeforeSection(html, sectionId, sectionIdToInsertBefore) {
+        debug(true, "FJCTPmovePoiSectionBeforeSection -> moving section: " + sectionId + " before section: " + sectionIdToInsertBefore);
+        var section = FJCTPgetPoiSectionNode(html, sectionId);
+        var beforeSection = FJCTPgetPoiSectionNode(html, sectionIdToInsertBefore);
+        if (section && sectionIdToInsertBefore) {
+          debug(true, "FJCTPmovePoiSectionBeforeSection - moving");
+          // remove from old position
+          var parent = section.parentElement;
+          parent.removeChild(section);
+          // insert behind last
+          beforeSection.insertAdjacentElement("beforebegin", section);
+        }
     }
 
     //----------------------------------------------------------------------------------------------------
@@ -2136,7 +2119,7 @@
       return script.replace(/'map-?\d*'/g, originalScript.match(/'map'/));
     }
 
-    function FJCTPupgradeMap(dochtml) {
+    function FJCTPupgradeMap(dochtml, hideMapInitially) {
       debug(true, "FJCTPupgradeMap");
 
       var mapDiv = dochtml.querySelector("div.olMap");
@@ -2227,8 +2210,41 @@
             mapPoiSection.onmouseover = function() {divHeightControls.style.visibility = "visible";};
             mapPoiSection.onmouseout  = function() {divHeightControls.style.visibility = "hidden";};
           }
+        
+          // start in normal size
+          if (divHeightControls) {
+            divHeightControls.firstElementChild.click();
+          }
+          // start hidden
+          if (hideMapInitially) {
+            hideButton.onclick();
+          }
         }
       }
+    }
+
+    function FJCTPmodifyEmbeddedYoutubeVideos(dochtml) {
+      debug(true, "FJCTPmodifyEmbeddedYoutubeVideos");
+      Array.prototype.forEach.call(dochtml.querySelectorAll('iframe[src*="youtube"]'), function (element) {
+        var videoframe = element;
+        var videoSection = element.parentElement;
+        var hideShowButton = document.createElement('button');
+        hideShowButton.textContent = "hide video";
+        hideShowButton.style = "width: 100%; z-index: 2000; padding: 0px; visibility: hidden";
+        //hideShowButton.style.visibility = "hidden";
+        hideShowButton.onclick = function() {
+          if (videoframe.style.display == "none") {
+            videoframe.style.display = "";
+            hideShowButton.textContent = "hide video";
+          } else {
+            videoframe.style.display = "none";
+            hideShowButton.textContent = "show video";
+          }
+        };
+        videoSection.insertBefore(hideShowButton, videoframe);
+        videoSection.onmouseover = function() {hideShowButton.style.visibility = "visible";};
+        videoSection.onmouseout  = function() {hideShowButton.style.visibility = "hidden";};
+      });
     }
 
     //----------------------------------------------------------------------------------------------------
@@ -2373,6 +2389,7 @@
         FJCTPmodifyRockEventsSection(dochtml);
 
         // (3) specific content manipulations
+        var hideMap = false;
         if (isSearchResultPage) {
           FJCTPcleanListEntries(dochtml);
         }
@@ -2428,8 +2445,8 @@
             // div.poi-section 4 "Beschreibung"        : Beschreibung - Zufahrt - Zusteig
             // div.poi-section 5 "Rock-Events"         : Rock-Events
             // div.poi-section 6 "Sektoren"            : Sektoren
-            FJCTPremoveFirstPoiSection(dochtml, "Rock-Events");
-            FJCTPremovePoiSection/*FJCTPmovePoiSectionToEnd*/(dochtml, "map");
+            FJCTPmovePoiSectionToEnd(dochtml, "Rock-Events");
+            //FJCTPmovePoiSectionToEnd(dochtml, "map");
             FJCTPcleanListEntries(dochtml);
         }
         else if (isGragPage) {
@@ -2441,13 +2458,14 @@
             // div.poi-section 6 "Informationen von"   : Informationen von ...
             // div.poi-section 7 "Routeninformationen" : Routeninformationen (Balkendiagramm)
             // div.poi-section 8 "Routen"              : Routen
+            FJCTPmoveSperrungenBeforeRoutes(dochtml);
             if (FJCTPcontainsMapParkingPosition(dochtml)) {
               FJCTPmovePoiSectionToEnd(dochtml, "map");
             } else {
-              FJCTPremovePoiSection(dochtml, "map");
+              hideMap=true; FJCTPmovePoiSectionToEnd(dochtml, "map");  //FJCTPremovePoiSection(dochtml, "map");
             }
             FJCTPremovePoiSection(dochtml, "Zonierung");
-            //FJCTPremovePoiSection(dochtml, "Rock-Events");
+            FJCTPremoveNthPoiSection(dochtml, "Rock-Events", 2); FJCTPmovePoiSectionBeforeSection(dochtml, "Rock-Events", "Routen");
             FJCTPremovePoiSection(dochtml, "Informationen von");
             FJCTPremovePoiSection(dochtml, "Routeninformationen");
             FJCTPremoveKommentare(dochtml);
@@ -2502,9 +2520,10 @@
         FJCTPremoveElement(dochtml, "div#lightbox");
         FJCTPremoveElement(dochtml, "div.no-image"); //remove upload missing image div
         FJCTPremoveEmptyTextBetweenPoiSections(dochtml);
-
+        FJCTPmodifyEmbeddedYoutubeVideos(dochtml);
+        
         // (6) reorganize, replace or augment content
-        FJCTPupgradeMap(dochtml);
+        FJCTPupgradeMap(dochtml, hideMap);
         FJCTPmodifyRouteDescriptions(dochtml, processEnd);
 
         debug(true, "FJCTPmodifyDocument:: finished Processing");
