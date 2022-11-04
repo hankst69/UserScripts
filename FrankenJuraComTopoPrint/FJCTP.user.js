@@ -1,4 +1,4 @@
-// FJTP - FrankenJuraTopoPrint (content_20180707)
+// FJTP - FrankenJuraTopoPrint (content_20180712)
 
 (function content() {
 
@@ -1736,12 +1736,14 @@
     }
 
     function FJCTPMapCreation() {
+      // this is code for OpenLayers Release 2.12
       var map;
       var markerLayer;
       var polygonLayer;
       var mapHover;
       var iconNumber = 1;
       var numberedIcons = true;
+      var currentHighlightedFeature;
 
       OpenLayers.ImgPath = '/images/openLayers/';
 
@@ -1780,6 +1782,8 @@
         //createMarker(11.380327,49.650933,'parkplatz');
         //createMarker(11.55159,49.54212,'/klettern/poi/1115','Bodenbergwand','crag');
         var backgroundGraphicUrl;
+        var highlightedBackgroundGraphicUrl = '/images/poi/poi_' + type + '.png';
+        var unhighlightedBackgroundGraphicUrl = highlightedBackgroundGraphicUrl;
         if (typeof name === 'undefined' && typeof type === 'undefined') {
           // grag page:
           var latlon = lat + ", " + lon;
@@ -1787,21 +1791,99 @@
           name = href + " (" + latlon + ")";
           href = "https://maps.google.de/maps?q=" + latlon;
           numberIcon = '/images/number/blank.png';
-          backgroundGraphicUrl = '/images/poi/poi_' + type + '.png';
         } else {
           // overview page:
-          backgroundGraphicUrl = ''; //'/images/poi/poi_' + type + '.png';
+          unhighlightedBackgroundGraphicUrl = '';
         }
+        backgroundGraphicUrl = unhighlightedBackgroundGraphicUrl;
 
         var markerAttributes = {title: name, href: href};
-        var markerImage = {externalGraphic: numberIcon, graphicWidth: width, graphicHeight: height, graphicXOffset: xOffset, graphicYOffset: yOffset, backgroundGraphic: backgroundGraphicUrl, backgroundWidth: width, backgroundHeight: height, backgroundXOffset: xOffset, backgroundYOffset: yOffset};
+        var markerImage = {graphicZIndex: 2, backgroundGraphicZIndex: 1, externalGraphic: numberIcon, graphicWidth: width, graphicHeight: height, graphicXOffset: xOffset, graphicYOffset: yOffset, backgroundGraphic: backgroundGraphicUrl, backgroundWidth: width, backgroundHeight: height, backgroundXOffset: xOffset, backgroundYOffset: yOffset, highlightedBackgroundGraphicUrl: highlightedBackgroundGraphicUrl, unhighlightedBackgroundGraphicUrl: unhighlightedBackgroundGraphicUrl};
         var markerFeature = new OpenLayers.Feature.Vector(markerPoint, markerAttributes, markerImage);
         markerLayer.addFeatures(markerFeature);
       }
 
-      function onFeatureSelect(evt) {
+      function onMarkerSelected(evt) {
+        //alert("onMarkerSelected:\n " + evt.feature.attributes.title + " \n" + evt.feature.attributes.href + " \nbackgroundUnhighlighted: " + evt.feature.style.unhighlightedBackgroundGraphicUrl + " \nbackgroundHighlightd: " + evt.feature.style.highlightedBackgroundGraphicUrl + " \nbackground: " + evt.feature.style.backgroundGraphicUrl);
+        var markerFeature = evt.feature;
+        var markerTitle = markerFeature.attributes.title;
+        var markerHref = markerFeature.attributes.href;
+        //window.location.href = markerHref;
+        window.open(markerHref);
+        onMarkerUnhighlighted(evt);
+      }
+
+      function highlightFeature(title) {
+        if (title == null) {
+          return;
+        }
+        var features = markerLayer.getFeaturesByAttribute('title', title);
+        Array.prototype.forEach.call(features, function (feature) {
+          if (currentHighlightedFeature != feature) {
+            hideFeaturePopup(currentHighlightedFeature);
+          }
+          currentHighlightedFeature = feature;
+          showFeaturePopup(feature);
+        });
+      }
+
+      function showFeaturePopup(feature) {
+        if (feature.popup) {
+          return;
+        }
+        var popup = new OpenLayers.Popup('popup',
+          OpenLayers.LonLat.fromString(feature.geometry.toShortString()),
+          null,
+          "<div style='white-space: nowrap'>" + feature.attributes.title + "</div>",
+          //"<div style='white-space: nowrap'><a href='" + feature.attributes.href + "'target='_blank'>" + feature.attributes.title + '</a></div>',
+          //"<div style='white-space: nowrap' onClick='(function(){window.open(" + feature.attributes.href + ");})();'>" + feature.attributes.title + "</div>",
+          false,
+          null
+        );
+        popup.autoSize = true;
+        feature.popup = popup;
+        map.addPopup(popup);
+        setTimeout(function(){hideFeaturePopup(feature);}, 2500);
+      }
+
+      function hideFeaturePopup(feature) {
+        if (feature == null) {
+          return;
+        }
+        if (feature.popup == null) {
+          return;
+        }
+        map.removePopup(feature.popup);
+        feature.popup.destroy();
+        feature.popup = null;
+      }
+
+      function onMarkerHighlighted(evt) {
+        //alert("onMarkerHighlighted: " + evt.feature.attributes.title + "  " + evt.feature.attributes.href);
         var feature = evt.feature;
-        alert(feature.attributes.href);
+        if (currentHighlightedFeature != feature) {
+          hideFeaturePopup(currentHighlightedFeature);
+        }
+        currentHighlightedFeature = feature;
+        showFeaturePopup(feature);
+
+        if (feature.style.backgroundGraphicUrl != feature.style.highlightedBackgroundGraphicUrl)
+        {
+          //markerLayer.removeFeatures(feature);
+          //feature.style.backgroundGraphicUrl = feature.style.highlightedBackgroundGraphicUrl;
+          //feature.attributes.title = "## " + feature.attributes.title + " ##";
+          //var modifiedFeature = new OpenLayers.Feature.Vector(feature.geometry, feature.attributes, feature.style);
+          //markerLayer.addFeatures(modifiedFeature);
+          //setTimeout(function(){markerLayer.removeFeatures(feature); feature.style.backgroundGraphicUrl = feature.style.unhighlightedBackgroundGraphicUrl; markerLayer.addFeatures(feature);}, 1000);
+          
+          feature.style.backgroundGraphicUrl = feature.style.highlightedBackgroundGraphicUrl;
+          //markerLayer.drawFeature(feature, feature.style);
+        }
+      }
+
+      function onMarkerUnhighlighted(evt) {
+        //alert("onMarkerUnhighlighted: " + evt.feature.attributes.title + "  " + evt.feature.attributes.href);
+        setTimeout(function(){hideFeaturePopup(evt.feature);}, 1000);
       }
 
       function drawMap() {
@@ -1833,42 +1915,16 @@
           hover: true,
           highlightOnly: true
         });
-        hoverControl.events.on({
-          'featurehighlighted':function(evt){
-            var feature = evt.feature;
-            var popup = new OpenLayers.Popup('popup',
-                OpenLayers.LonLat.fromString(feature.geometry.toShortString()),
-                null,
-                "<div style='white-space: nowrap'>" + feature.attributes.title + '</div>',
-                null,
-                true
-            );
-            popup.autoSize = true;
-            feature.popup = popup;
-            map.addPopup(popup);
-          },
-          'featureunhighlighted':function(evt){
-            var feature = evt.feature;
-            if (feature.popup) {
-              map.removePopup(feature.popup);
-              feature.popup.destroy();
-              feature.popup = null;
-            }
-          }
-        });
         map.addControl(hoverControl);
         hoverControl.activate();
+        hoverControl.events.on({'featurehighlighted': onMarkerHighlighted});
+        hoverControl.events.on({'featureunhighlighted': onMarkerUnhighlighted});
 
         var selectControl = new OpenLayers.Control.SelectFeature(markerLayer);
         map.addControl(selectControl);
         selectControl.activate();
-
-        markerLayer.events.on({
-          'featureselected':function(evt){
-            //window.location.href = evt.feature.attributes.href;
-            window.open(evt.feature.attributes.href);
-          }
-        });
+        //markerLayer.events.register("featureselected", markerLayer, onMarkerSelected);
+        markerLayer.events.on({'featureselected': onMarkerSelected}); 
 
         //var points;
         //...
@@ -1898,6 +1954,12 @@
           map.zoomToExtent(markerLayer.getDataExtent()); 
           map.zoomOut(); 
         }, 250);
+        
+        Array.prototype.forEach.call(window.document.documentElement.querySelectorAll("table>tbody>tr a"), function (element) {
+          if (element.tagName == "A" && element.href.indexOf("/poi/") > 0) {
+            element.onmouseover = function() {highlightFeature(element.textContent)};
+          }
+        });
       }
 
       //$(document).ready(function() {
