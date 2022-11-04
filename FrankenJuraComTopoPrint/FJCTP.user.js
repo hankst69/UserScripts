@@ -1,4 +1,4 @@
-// FJTP - FrankenJuraTopoPrint (content_20180806)
+// FJTP - FrankenJuraTopoPrint (content_20180918)
 
 (function content() {
 
@@ -1401,11 +1401,13 @@
             debug(false, "FJCTPremoveKommentare --> removing " + child.tagName + "(" + child.textContent.substr(0,15) + ")");
             var childParent = child.parentElement;
             childParent.removeChild(child);
-            while (childParent.childNodes.length < 1 || childParent.tagName == "FORM") {
+            while (childParent && (childParent.childNodes.length < 1 || childParent.tagName == "FORM")) {
               debug(false, "FJCTPremoveKommentare --> removing also the childs parent node since it is empty now");
               var tmpChild = childParent;
               childParent = childParent.parentElement;
-              childParent.removeChild(tmpChild);
+              if (childParent) {
+                childParent.removeChild(tmpChild);
+              }
             }
           }
         }
@@ -2000,9 +2002,14 @@
         //iconNumber = 1;
         //createMarker(11.376929,49.6532,'crag');
         //createMarker(11.380327,49.650933, 'parkplatz');
-        //
         //createMarker(11.55159,49.54212,'/klettern/poi/1115','Bodenbergwand','crag');
         //createMarker(11.56155,49.51129,'/klettern/poi/1053','Brosinnadel','crag');
+
+        //var points;
+        //points = new Array();
+        //points.push([11.344546, 49.558082]);
+        //points.push([11.337164, 49.528339]);
+        //createLineString(points);
 
         //map.zoomToExtent(markerLayer.getDataExtent());
       }
@@ -2034,13 +2041,23 @@
       script = script.substring(0,script.lastIndexOf("}"));
       script += "\n\n function createMapMarkersAndPolygons() {\n  iconNumber = 1;";
       var createMarkerCalls = originalScript.match(/createMarker+.*(?=;)/g);
-      for (i = 0; i < createMarkerCalls.length; i++) {
-        if (createMarkerCalls[i].indexOf("centroid.x,centroid.y,'/klettern/region/'") < 0) {
-          script += "\n  " + createMarkerCalls[i];
+      if (createMarkerCalls != null) {
+        for (i = 0; i < createMarkerCalls.length; i++) {
+          if (createMarkerCalls[i].indexOf("centroid.x,centroid.y,'/klettern/region/'") < 0) {
+            script += "\n  " + createMarkerCalls[i];
+          }
         }
       }
+      var createLineStringCall = originalScript.match(/createLineString+.*(points)/g);
+      if (createLineStringCall != null && createLineStringCall.lemgth > 0) {
+        // todo:
+      }
       script += "\n}"
-      return script.replace(/'map-?\d*'/g, originalScript.match(/'map-?\d*'/));
+      var originalScriptMapNameMatches = originalScript.match(/'map-?\d*'/);
+      if (originalScriptMapNameMatches != null && originalScriptMapNameMatches.lemgth > 0) {
+        return script.replace(/'map-?\d*'/g, originalScript.match(/'map-?\d*'/));
+      }
+      return script.replace(/'map-?\d*'/g, originalScript.match(/'map'/));
     }
 
     function FJCTPupgradeMap(dochtml) {
