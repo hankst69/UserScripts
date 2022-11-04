@@ -1,4 +1,4 @@
-// FJTP - FrankenJuraTopoPrint (content_20200805)
+// FJTP - FrankenJuraTopoPrint (content_20210518)
 
 (function content() {
 
@@ -70,123 +70,6 @@
       });
       return result;
     } 
-
-    function removeUrlParameter(uri, name) {
-      var newUri = uri.trim();
-      var paramsIdx = newUri.indexOf("?");
-      debug(false, "removeUrlParameter -> paramsIdx=" + paramsIdx);
-      if (paramsIdx > 0) {
-        var paramIdx = newUri.indexOf(name + "=");
-        debug(false, "removeUrlParameter -> paramIdx=" + paramIdx);
-        if (paramIdx > paramsIdx) {
-          // replace existing param value
-          var finalUri = newUri.substr(paramIdx);
-          debug(false, "removeUrlParameter -> finalUri=" + finalUri);
-          var paramEndIdx = finalUri.indexOf("&");
-          if (paramEndIdx > 0) {
-            newUri = newUri.substr(0,paramIdx) + newUri.substr(paramEndIdx);
-          }
-          else {
-            newUri = newUri.substr(0,paramIdx);
-          }
-        }
-      }
-      debug(false, "removeUrlParameter -> newUri=" + newUri);
-      return newUri;
-    }
-
-    function addUrlParameter(uri, name, value) {
-      var newUri = uri.trim();
-      var paramsIdx = newUri.indexOf("?");
-      if (paramsIdx > 0) {
-        var paramIdx = newUri.indexOf(name + "=");
-        if (paramIdx > paramsIdx) {
-          // replace existing param value
-          // ...todo...
-        }
-        else {
-          // add param to param list
-          if (newUri.endsWith("?") || newUri.endsWith("&")) {
-            newUri = newUri + name + "=" + value;
-          }
-          else {
-            newUri = newUri + "&" + name + "=" + value;
-          }
-        }
-      }
-      else {
-        // add new param list
-        var newUri = uri.trim();
-        if (newUri.endsWith("/")) {
-          newUri = newUri + "?" + name + "=" + value;
-        }
-        else {
-          newUri = newUri + "/?" + name + "=" + value;
-        }
-      }
-      return newUri;
-    }
-    
-    function getAllUrlParams(url) {
-      // https://www.sitepoint.com/get-url-parameters-with-javascript/
-      // get query string from url (optional) or window
-      var queryString = url ? url.split('?')[1] : window.location.search.slice(1);
-    
-      // we'll store the parameters here
-      var obj = {};
-    
-      // if query string exists
-      if (queryString) {
-    
-        // stuff after # is not part of query string, so get rid of it
-        queryString = queryString.split('#')[0];
-    
-        // split our query string into its component parts
-        var arr = queryString.split('&');
-    
-        for (var i=0; i<arr.length; i++) {
-          // separate the keys and the values
-          var a = arr[i].split('=');
-    
-          // in case params look like: list[]=thing1&list[]=thing2
-          var paramNum = undefined;
-          var paramName = a[0].replace(/\[\d*\]/, function(v) {
-            paramNum = v.slice(1,-1);
-            return '';
-          });
-    
-          // set parameter value (use 'true' if empty)
-          var paramValue = typeof(a[1])==='undefined' ? true : a[1];
-    
-          // (optional) keep case consistent
-          paramName = paramName.toLowerCase();
-          paramValue = paramValue.toLowerCase();
-    
-          // if parameter name already exists
-          if (obj[paramName]) {
-            // convert value to array (if still string)
-            if (typeof obj[paramName] === 'string') {
-              obj[paramName] = [obj[paramName]];
-            }
-            // if no array index number specified...
-            if (typeof paramNum === 'undefined') {
-              // put the value on the end of the array
-              obj[paramName].push(paramValue);
-            }
-            // if array index number specified...
-            else {
-              // put the value at that index number
-              obj[paramName][paramNum] = paramValue;
-            }
-          }
-          // if param name doesn't exist yet, set it
-          else {
-            obj[paramName] = paramValue;
-          }
-        }
-      }
-      return obj;
-    }
 
     function setCookie(cname, cvalue, exdays) {
         var d = new Date();
@@ -656,7 +539,7 @@
         });
         var verticalImage = null;
         Array.prototype.forEach.call(html.querySelectorAll("div.image-vertical"), function (element) {
-            debug(false, "removing div.image-vertical");
+            debug(false, "hiding div.image-vertical");
             if (!verticalImage) {
               verticalImage = html.querySelector("div.image-vertical img");
             }
@@ -665,7 +548,7 @@
         });
         var horizontalImage = null;
         Array.prototype.forEach.call(html.querySelectorAll("div.image-horizontal"), function (element) {
-            debug(false, "removing div.image-vertical");
+          debug(false, "hiding div.image-vertical");
             if (!horizontalImage) {
               horizontalImage = html.querySelector("div.image-horizontal img");
             }
@@ -701,6 +584,21 @@
           img.style.float = "right";
           img.style.width = c_ImageWidth;
           img.style.maxWidth = c_ImageMaxWidth;
+          // add hover function to switch between topo and to foto
+          var fotoImage = verticalImage || horizontalImage;
+          var topoImageSrc = img.src;
+          if (fotoImage) {
+            img.onmouseover = function () {
+              img.src = fotoImage.src;
+              //img.style.width = (fotoImage.naturalWidth < c_ImageWidthLimit ? fotoImage.naturalWidth : c_ImageWidthLimit) + "px";
+              //img.style.height = (fotoImage.naturalHeight < c_ImageHeightLimit ? fotoImage.naturalHeight : c_ImageHeightLimit) + "px";
+            }
+            img.onmouseout = function () {
+              img.src = topoImageSrc;
+              //img.style.width = (img.naturalWidth < c_ImageWidthLimit ? img.naturalWidth : c_ImageWidthLimit) + "px";
+              //img.style.height = (img.naturalHeight < c_ImageHeightLimit ? img.naturalHeight : c_ImageHeightLimit) + "px";
+            }
+          }
           // increase image width, in case the natural image width is smaller than the available space
           //if (img.naturalWidth < c_ImageWidthLimit){
           img.onerror = function() {
@@ -715,7 +613,7 @@
               img.style.width = (img.naturalWidth < c_ImageWidthLimit ? img.naturalWidth : c_ImageWidthLimit) + "px";
               img.style.maxWidth = c_ImageMaxWidth;
             }
-          }          
+          }
        }
     }
 
@@ -2582,9 +2480,9 @@
         FJCTPremoveElement(dochtml, "div#side-content-wrapper");
         FJCTPremoveElement(dochtml, "div#side-content-main-wrapper");
         FJCTPremoveElement(dochtml, "div.poi-section ~ br");
-      //FJCTPremoveElement(dochtml, "div.poi-section ~ hr");
       //FJCTPremoveElement(dochtml, "div~hr");
         FJCTPremoveElement(dochtml, "hr");
+        FJCTPremoveElement(dochtml, "a.nav-container");                        //Navigate to parking button
 
         // (5) adapt layouting for optimal printing
         // remove images and color from body (background)
