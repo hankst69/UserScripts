@@ -1,4 +1,4 @@
-// FJTP - FrankenJuraTopoPrint (content_20180731)
+// FJTP - FrankenJuraTopoPrint (content_20180731_offlineHideMap)
 
 (function content() {
 
@@ -2005,6 +2005,15 @@
       }
 
       initialize();
+      
+      function FJCTPhideMap() {
+        debug(true, "FJCTPhideMap");
+        map.parentElement.parentElement.removeChild(map.parentElement);
+      }
+
+      function FJCTPshowControlsOnHoover() {
+        debug(true, "FJCTPshowControlsOnHoover");
+      }
     }
 
     function FJCTPgetMapCreationScript(originalScript) {
@@ -2077,7 +2086,7 @@
           hideButton.style.zIndex = 2000;
           hideButton.style.padding = "5px 5px 5px 5px";
           hideButton.style.visibility = "hidden";
-          hideButton.onclick = function() { /*FJCTPremovePoiSection(dochtml,"map"); map.parentElement.removeChild(map);*/ map.parentElement.parentElement.removeChild(map.parentElement); };
+          hideButton.onclick = FJCTPhideMap();
           mapView.appendChild(hideButton);
           
           mapView.onmouseover = function() {zoomButtons.style.visibility = "visible"; hideButton.style.visibility = "visible";};
