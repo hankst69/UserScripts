@@ -1,4 +1,4 @@
-// FJTP - FrankenJuraTopoPrint (content_20200724)
+// FJTP - FrankenJuraTopoPrint (content_20200805)
 
 (function content() {
 
@@ -2385,7 +2385,7 @@
           });
         }
         if (!isAnyOfValidPages) {
-          Array.prototype.forEach.call(document.documentElement.querySelectorAll("div#content>div.columns>div#content-center>div#breadcrumb-container>ul#breadcrumb>li:nth-of-type(2)"), function (element) {
+          Array.prototype.forEach.call(document.documentElement.querySelectorAll("div#content>div.columns>div#content-center>div#breadcrumb-container>div#breadcrumb-header>h2"), function (element) {
             isGragPage = true; isAnyOfValidPages = true;
             debug(true, "FJCTPmodifyDocument -> isGragPage");
           });
