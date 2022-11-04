@@ -1,4 +1,4 @@
-// FJTP - FrankenJuraTopoPrint (content_20190827)
+// FJTP - FrankenJuraTopoPrint (content_20190903)
 
 (function content() {
 
@@ -976,14 +976,64 @@
 
     function FJCTPmodifyRouteDescriptionsPreHook(html) {
         debug(true, "FJCTPmodifyRouteDescriptionsPreHook");
+        
+        // manipulate route list DOM up to 2019-07:
+        // (1) kickout "Routennamen sind anklickbar"
+        Array.prototype.forEach.call(html.querySelectorAll("div.poi-section>h4+p"), function (element) {
+            if (element.previousElementSibling.textContent == "Routen") {
+                debug(false, element.textContent);
+                if (element.textContent.length > 0 && element.textContent.indexOf("Routennamen sind anklickbar") >= 0) {
+                    element.parentElement.removeChild(element);
+                }
+            }
+        });
+        // (2) kickout route info images (! or eye)
+        Array.prototype.forEach.call(html.querySelectorAll("ol.route-list>li>img"), function (element) {
+            debug(false, "removing a: " + element.attributes.getNamedItem("src").value);
+            element.parentElement.removeChild(element);
+        });
+
+        // manipulate route list DOM from 2019-08:
+        // (1) kickout "Topo Image"
+        var routeSection = FJCTPgetPoiSectionNode(html, "Routen");
+        if (routeSection) {
+          var topoImage = routeSection.querySelector("img#topo_image");
+          if (topoImage) {
+            routeSection.removeChild(topoImage);
+          }
+        }
+        // (2) move li elemts under ol
+        Array.prototype.forEach.call(html.querySelectorAll("ol.route-list>div>li"), function (element) {
+          var ol = element.parentElement.parentElement;
+          element.parentElement.removeChild(element);
+          ol.appendChild(element);
+        });
+        Array.prototype.forEach.call(html.querySelectorAll("ol.route-list>div"), function (element) {
+          element.parentElement.removeChild(element);
+        });
+        // (3) flatten li div div structure
+        Array.prototype.forEach.call(html.querySelectorAll("ol.route-list>li>div"), function (element) {
+          var li = element.parentElement;
+          var routeInfoDiv = element.querySelector("ol.route-list>li div.poi-link-text");
+          var personalInfoDiv = element.querySelector("ol.route-list>li div.poi-link-user-info");
+          var routeInfo = routeInfoDiv ? routeInfoDiv.innerHTML : '';
+          var personalInfo = personalInfoDiv ? personalInfoDiv.innerHTML : '';
+          var idx = routeInfo.indexOf('<a href');
+          var routeInfo2 = (idx >= 0) ? routeInfo.substring(idx) : routeInfo;
+          li.innerHTML = routeInfo2 + '<br><span>' + personalInfo + '</span>';
+        });
+        
         Array.prototype.forEach.call(html.querySelectorAll("ol.route-list>li>a:nth-of-type(1)"), function (element) {
             if (element.className == "blue") {
                 element.className = "";
             }
+            if (element.className == "green-text") {
+                element.className = "";
+            }
         });
-
         Array.prototype.forEach.call(html.querySelectorAll("ol.route-list"), function (element) {
             element.style.listStyleType = "none";
+            element.style.display = "block";
         });
 
         var num = 0;
@@ -1005,22 +1055,6 @@
 
     function FJCTPmodifyRouteDescriptions(html, callback) {
         debug(true, "FJCTPmodifyRouteDescriptions");
-        // kickout "Routennamen sind anklickbar"
-        Array.prototype.forEach.call(html.querySelectorAll("div.poi-section>h4+p"), function (element) {
-            if (element.previousElementSibling.textContent == "Routen") {
-                debug(false, element.textContent);
-                if (element.textContent.length > 0 && element.textContent.indexOf("Routennamen sind anklickbar") >= 0) {
-                    element.parentElement.removeChild(element);
-                }
-            }
-        });
-
-        // kickout route info images (! or eye)
-        Array.prototype.forEach.call(html.querySelectorAll("ol.route-list>li>img"), function (element) {
-            debug(false, "removing a: " + element.attributes.getNamedItem("src").value);
-            element.parentElement.removeChild(element);
-        });
-
         FJCTPmodifyRouteDescriptionsAsync(html, callback);
     }
 
@@ -2483,25 +2517,26 @@
           }
         }
         else if (isOverviewPage) {
-            // div.poi-section 1 "Rock-Events"         : Rock-Events
-            // div.poi-section 2 "poi-table-small"     : Fels-Tabelle
-            // div.poi-section 3 "map"                 : Karte (OpenStreetMap)
+            // div.poi-section 1 "poi-gallery-btn"     : 
+            // div.poi-section 2 "Rock-Events"         : Rock-Events
+            // div.poi-section 3 "Sektoren"            : Sektoren
             // div.poi-section 4 "Beschreibung"        : Beschreibung - Zufahrt - Zusteig
             // div.poi-section 5 "Rock-Events"         : Rock-Events
             // div.poi-section 6 "Sektoren"            : Sektoren
+            FJCTPremoveNthPoiSection(dochtml, "Sektoren", 2);
             FJCTPmovePoiSectionToEnd(dochtml, "Rock-Events");
-            //FJCTPmovePoiSectionToEnd(dochtml, "map");
             FJCTPcleanListEntries(dochtml);
         }
         else if (isGragPage) {
-            // div.poi-section 1 "poi-table-small"     : Fels-Tabelle
-            // div.poi-section 2 "map"                 : Karte (OpenStreetMap)
-            // div.poi-section 3 "Beschreibung"        : Beschreibung - Zufahrt - Zusteig
-            // div.poi-section 4 "Zonierung"           : Zonierung - Aktuelle Sperrungen
-            // div.poi-section 5 "Rock-Events"         : Rock-Events
-            // div.poi-section 6 "Informationen von"   : Informationen von ...
-            // div.poi-section 7 "Routeninformationen" : Routeninformationen (Balkendiagramm)
-            // div.poi-section 8 "Routen"              : Routen
+            // div.poi-section 1 "poi-gallery-btn"     : 
+            // div.poi-section 2 "Rock-Events"         : Rock-Events
+            // div.poi-section 3 "map"                 : Karte (OpenStreetMap)
+            // div.poi-section 4 "Zufahrt"             : Zufahrt (Beschreibung - Zufahrt - Zusteig)
+            // div.poi-section 5 "Zonierung"           : Zonierung - Aktuelle Sperrungen
+            // div.poi-section 6 "Rock-Events"         : Rock-Events
+            // div.poi-section 7 "unknown"             : 
+            // div.poi-section 8 "Routeninformationen" : Routeninformationen (Balkendiagramm)
+            // div.poi-section 9 "Routen"              : Routen
             FJCTPmoveSperrungenBeforeRoutes(dochtml);
             if (FJCTPcontainsMapParkingPosition(dochtml)) {
               FJCTPmovePoiSectionToEnd(dochtml, "map");
@@ -2509,16 +2544,17 @@
               hideMap=true; FJCTPmovePoiSectionToEnd(dochtml, "map");  //FJCTPremovePoiSection(dochtml, "map");
             }
             FJCTPremovePoiSection(dochtml, "Zonierung");
-            FJCTPremoveNthPoiSection(dochtml, "Rock-Events", 2); FJCTPmovePoiSectionBeforeSection(dochtml, "Rock-Events", "Routen");
+            FJCTPremoveNthPoiSection(dochtml, "Rock-Events", 2); 
+            FJCTPmovePoiSectionBeforeSection(dochtml, "Rock-Events", "Routen");
             FJCTPremovePoiSection(dochtml, "Informationen von");
             FJCTPremovePoiSection(dochtml, "Routeninformationen");
             FJCTPremoveKommentare(dochtml);
         }
         else if (isRoutePage) {
-            // div.poi-section 1 "poi-table-small"     : Fels-Tabelle
-            // div.poi-section 2 "Anmerkung"           : Anmerkung - Information
-            // div.poi-section 3 "Rock-Events"         : Rock-Events
-            // div.poi-section 4 "Interaktiv"          : Interaktiv
+            // div.poi-section 1 "Hier klicken um ein" : 
+            // div.poi-section 2 "map"                 : Karte (OpenStreetMap)
+            // div.poi-section 3 "Beschreibung"        : Beschreibung - Zufahrt - Zusteig
+            // div.poi-section 4 "Rock-Events"         : Rock-Events
             FJCTPremovePoiSection(dochtml, "Interaktiv");
         }
         else if (isHitFormPage) {
