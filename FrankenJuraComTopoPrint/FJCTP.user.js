@@ -1,4 +1,4 @@
-// FJTP - FrankenJuraTopoPrint (content_20180918)
+// FJTP - FrankenJuraTopoPrint (content_20180928)
 
 (function content() {
 
@@ -1395,8 +1395,16 @@
         debug(true, "FJCTPremoveKommentare -> removing any element that contains the text 'Kommentar'");
         var allChilds = getChildTreeAsNodeList(html);
         debug(false, "FJCTPremoveKommentare getChildTreeAsNodeList.length: " + allChilds.length);
+        // test every leaf node
         for (var child of allChilds) {
-          // test every leaf node
+          // special case of leaf node containing the string ' sein um Kommentare verfassen zu können.'
+          if (child.childNodes.length < 1 && child.textContent.indexOf(" sein um Kommentare verfassen zu können.") >= 0) {
+            debug(false, "FJCTPremoveKommentare --> removing " + child.tagName + "(" + child.textContent.substr(0,15) + ")");
+            var childParent = child.parentElement;
+            var childParentParent = childParent.parentElement;
+            childParentParent.removeChild(childParent);
+          }
+          // general case of leaf nodes containing the string 'Kommentar'
           if (child.childNodes.length < 1 && child.textContent.indexOf("Kommentar") >= 0) {
             debug(false, "FJCTPremoveKommentare --> removing " + child.tagName + "(" + child.textContent.substr(0,15) + ")");
             var childParent = child.parentElement;
@@ -1996,30 +2004,25 @@
         markerLayer.events.on({'featureselected': onMarkerSelected}); 
 
         //var points;
-        //...
-        //createPolygon(points,,,);
-
         //iconNumber = 1;
         //createMarker(11.376929,49.6532,'crag');
         //createMarker(11.380327,49.650933, 'parkplatz');
         //createMarker(11.55159,49.54212,'/klettern/poi/1115','Bodenbergwand','crag');
-        //createMarker(11.56155,49.51129,'/klettern/poi/1053','Brosinnadel','crag');
-
-        //var points;
         //points = new Array();
         //points.push([11.344546, 49.558082]);
         //points.push([11.337164, 49.528339]);
+        //createPolygon(points,,,);
         //createLineString(points);
-
         //map.zoomToExtent(markerLayer.getDataExtent());
       }
 
       function initialize() {
-        //alert('initialize started');
+        //alert('initialize started (map creation)');
         drawMap();
         window.map = map;
         createMapMarkersAndPolygons();
         setTimeout(function() {
+          //alert('initialize (deleayed map update)');
           map.updateSize(); 
           map.zoomToExtent(markerLayer.getDataExtent()); 
           map.zoomOut(); 
@@ -2049,12 +2052,16 @@
         }
       }
       var createLineStringCall = originalScript.match(/createLineString+.*(points)/g);
-      if (createLineStringCall != null && createLineStringCall.lemgth > 0) {
+      if (createLineStringCall != null && createLineStringCall.length > 0) {
+        // todo:
+      }
+      var createPolygonCall = originalScript.match(/createPolygon+.*(points)/g);
+      if (createPolygonCall != null && createPolygonCall.length > 0) {
         // todo:
       }
       script += "\n}"
       var originalScriptMapNameMatches = originalScript.match(/'map-?\d*'/);
-      if (originalScriptMapNameMatches != null && originalScriptMapNameMatches.lemgth > 0) {
+      if (originalScriptMapNameMatches != null && originalScriptMapNameMatches.length > 0) {
         return script.replace(/'map-?\d*'/g, originalScript.match(/'map-?\d*'/));
       }
       return script.replace(/'map-?\d*'/g, originalScript.match(/'map'/));
@@ -2266,6 +2273,7 @@
 
         // (3) specific content manipulations
         if (isSearchResultPage) {
+          FJCTPcleanListEntries(dochtml);
         }
         //else if (isRegionPage) {
         //  // !! has no Poi-Sections !!
