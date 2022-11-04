@@ -1,4 +1,4 @@
-// FJTP - FrankenJuraTopoPrint (content_20180731_offlineHideMap)
+// FJTP - FrankenJuraTopoPrint (content_20180806)
 
 (function content() {
 
@@ -1372,7 +1372,7 @@
     }
 
     function FJCTPcleanListEntries(html) {
-        debug(true, "FJCTPcleanListEntries -> removing free content icons and changing link targéts");
+        debug(true, "FJCTPcleanListEntries -> removing free content icons and changing link targets");
         var allChilds = getChildTreeAsNodeList(html);
         debug(false, "FJCTPcleanListEntries getChildTreeAsNodeList.length: " + allChilds.length);
         for (var child of allChilds) {
@@ -1387,6 +1387,26 @@
           if (child.tagName == "A" && child.href.indexOf("/poi/") > 0) {
             debug(false, "FJCTPcleanListEntries --> modify poi url target)");
             child.target = "_blank";
+          }
+        }
+    }
+
+    function FJCTPremoveKommentare(html) {
+        debug(true, "FJCTPremoveKommentare -> removing any element that contains the text 'Kommentar'");
+        var allChilds = getChildTreeAsNodeList(html);
+        debug(false, "FJCTPremoveKommentare getChildTreeAsNodeList.length: " + allChilds.length);
+        for (var child of allChilds) {
+          // test every leaf node
+          if (child.childNodes.length < 1 && child.textContent.indexOf("Kommentar") >= 0) {
+            debug(false, "FJCTPremoveKommentare --> removing " + child.tagName + "(" + child.textContent.substr(0,15) + ")");
+            var childParent = child.parentElement;
+            childParent.removeChild(child);
+            while (childParent.childNodes.length < 1 || childParent.tagName == "FORM") {
+              debug(false, "FJCTPremoveKommentare --> removing also the childs parent node since it is empty now");
+              var tmpChild = childParent;
+              childParent = childParent.parentElement;
+              childParent.removeChild(tmpChild);
+            }
           }
         }
     }
@@ -2005,15 +2025,6 @@
       }
 
       initialize();
-      
-      function FJCTPhideMap() {
-        debug(true, "FJCTPhideMap");
-        map.parentElement.parentElement.removeChild(map.parentElement);
-      }
-
-      function FJCTPshowControlsOnHoover() {
-        debug(true, "FJCTPshowControlsOnHoover");
-      }
     }
 
     function FJCTPgetMapCreationScript(originalScript) {
@@ -2086,7 +2097,7 @@
           hideButton.style.zIndex = 2000;
           hideButton.style.padding = "5px 5px 5px 5px";
           hideButton.style.visibility = "hidden";
-          hideButton.onclick = FJCTPhideMap();
+          hideButton.onclick = function() { /*FJCTPremovePoiSection(dochtml,"map"); map.parentElement.removeChild(map);*/ map.parentElement.parentElement.removeChild(map.parentElement); };
           mapView.appendChild(hideButton);
           
           mapView.onmouseover = function() {zoomButtons.style.visibility = "visible"; hideButton.style.visibility = "visible";};
@@ -2311,6 +2322,7 @@
             //FJCTPremovePoiSection(dochtml, "Rock-Events");
             FJCTPremovePoiSection(dochtml, "Informationen von");
             FJCTPremovePoiSection(dochtml, "Routeninformationen");
+            FJCTPremoveKommentare(dochtml);
         }
         else if (isRoutePage) {
             // div.poi-section 1 "poi-table-small"     : Fels-Tabelle
