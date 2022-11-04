@@ -1,4 +1,4 @@
-// FJTP - FrankenJuraTopoPrint (content_20180703)
+// FJTP - FrankenJuraTopoPrint (content_20180704)
 
 (function content() {
 
@@ -1655,191 +1655,173 @@
         }
     }
 
+    function FJCTPMapCreation() {
+  		var map;
+  		var markerLayer;
+  		var polygonLayer;
+  		var mapHover;
+  		var iconNumber = 1;
+  		var numberedIcons = true;
 
-    function FJCTPgetMapCreationScript(originalScript) {
-      debug(true, "FJCTPgetMapCreationScript");
-      var script = "\
-  		var map; \n\
-  		var markerLayer; \n\
-  		var polygonLayer; \n\
-  		var mapHover; \n\
-  		var iconNumber = 1; \n\
-  		var numberedIcons = true; \n\
-  	  \n\
-  		OpenLayers.ImgPath = '/images/openLayers/'; \n\
-  	  \n\
-  		function createPolygon(points, id, name, type) { \n\
-  			var site_points = new Array(); \n\
-  			for(var i = 0; i < points.length; i++) { \n\
-  				site_points.push(new OpenLayers.Geometry.Point(points[i][0], points[i][1])); \n\
-  			} \n\
-  			var linear_ring = new OpenLayers.Geometry.LinearRing(site_points); \n\
-  			var centroid = linear_ring.getCentroid(); \n\
-  			createMarker(centroid.x,centroid.y,'/klettern/region/'+id,name,'region/region_'+type); \n\
-  			linear_ring.transform(new OpenLayers.Projection('EPSG:4326'), map.getProjectionObject()); \n\
-  			var polygonFeature = new OpenLayers.Feature.Vector(new OpenLayers.Geometry.Polygon([linear_ring]), null); \n\
-  			polygonLayer.addFeatures([polygonFeature]); \n\
-  		} \n\
-      \n\
-  		function createMarker(lon,lat,href,name,type) { \n\
-  	    var markerPoint = new OpenLayers.Geometry.Point(lon,lat).transform( \n\
-  				new OpenLayers.Projection('EPSG:4326'),  \n\
-  				map.getProjectionObject() \n\
-  			); \n\
-  			\n\
-  			var width = 21; \n\
-  			var height = 26; \n\
-  			var xOffset = -width/2; \n\
-  			var yOffset = -height/2; \n\
-  			\n\
-  			var numberIcon; \n\
-  			if(numberedIcons) { \n\
-  				numberIcon = '/images/number/'+iconNumber+'.png'; \n\
-  			} else { \n\
-  				numberIcon = '/images/number/blank.png'; \n\
-  			} \n\
-  			iconNumber = iconNumber + 1; \n\
-        \n\
-  			var markerAttributes = {title: name, href: href}; \n\
-  			//var markerImage = {externalGraphic: numberIcon, graphicWidth: width, graphicHeight: height, graphicXOffset: xOffset, graphicYOffset: yOffset, backgroundGraphic: '/images/poi/poi_'+type+'.png', backgroundWidth: width, backgroundHeight: height, backgroundXOffset: xOffset, backgroundYOffset: yOffset}; \n\
-  			var markerImage = {externalGraphic: numberIcon, graphicWidth: width, graphicHeight: height, graphicXOffset: xOffset, graphicYOffset: yOffset, backgroundGraphic: '', backgroundWidth: width, backgroundHeight: height, backgroundXOffset: xOffset, backgroundYOffset: yOffset}; \n\
-  			var markerFeature = new OpenLayers.Feature.Vector(markerPoint, markerAttributes, markerImage); \n\
-  			\n\
-  			markerLayer.addFeatures(markerFeature); \n\
-  		} \n\
-  		\n\
-  		function onFeatureSelect(evt) { \n\
-  			var feature = evt.feature; \n\
-  			alert(feature.attributes.href); \n\
-  		} \n\
-  		\n\
-  		function drawMap() { \n\
-  		  var mapControls = [  \n\
-  		    	new OpenLayers.Control.Navigation({ \n\
-  					'zoomWheelEnabled': false, \n\
-  				}), \n\
-  				new OpenLayers.Control.Zoom() \n\
-  			]; \n\
-  		  \n\
-  			map = new OpenLayers.Map('map-64', { controls: mapControls, theme: null }); \n\
-  			var mapnik = new OpenLayers.Layer.OSM('Mapnik','/osm/tileproxy.php?layer=OSM_MAPNIK&path=${z}/${x}/${y}.png'); \n\
-  			map.addLayer(mapnik); \n\
-  			\n\
-  			polygonLayer = new OpenLayers.Layer.Vector('Vector Layer'); \n\
-  			var style = OpenLayers.Util.extend({}, OpenLayers.Feature.Vector.style['default']); \n\
-  			style.fillColor = '#ee9900'; \n\
-  			style.fillOpacity = 0.5; \n\
-  			style.strokeWidth = 2;  \n\
-  			style.strokeColor = '#f5b300'; \n\
-  			style.strokeOpacity = 0.9; \n\
-  			polygonLayer.style = style; \n\
-  	 		\n\
-  	 		map.addLayer(polygonLayer); \n\
-  			\n\
-  			markerLayer = new OpenLayers.Layer.Vector('Markers'); \n\
-  			map.addLayer(markerLayer); \n\
-  			\n\
-  			var hoverControl = new OpenLayers.Control.SelectFeature(markerLayer, { \n\
-  				hover: true, \n\
-  				highlightOnly: true \n\
-  			}); \n\
-  			hoverControl.events.on({ \n\
-  				'featurehighlighted':function(evt){ \n\
-  					var feature = evt.feature; \n\
-  					var popup = new OpenLayers.Popup('popup', \n\
-  							OpenLayers.LonLat.fromString(feature.geometry.toShortString()), \n\
-  							null, \n\
-  							\"<div style='white-space: nowrap'>\" + feature.attributes.title + '</div>', \n\
-  							null, \n\
-  							true \n\
-  					); \n\
-  					popup.autoSize = true; \n\
-  					feature.popup = popup; \n\
-  					map.addPopup(popup); \n\
-  				}, \n\
-  				'featureunhighlighted':function(evt){ \n\
-  					var feature = evt.feature; \n\
-  					if (feature.popup) { \n\
-  						map.removePopup(feature.popup); \n\
-  						feature.popup.destroy(); \n\
-  						feature.popup = null; \n\
-  					} \n\
-  				} \n\
-  			}); \n\
-  			map.addControl(hoverControl); \n\
-  			hoverControl.activate(); \n\
-        \n\
-  			var selectControl = new OpenLayers.Control.SelectFeature(markerLayer); \n\
-  			map.addControl(selectControl); \n\
-  			selectControl.activate(); \n\
-  			\n\
-  			markerLayer.events.on({ \n\
-  				'featureselected':function(evt){ \n\
-  					//window.location.href = evt.feature.attributes.href; \n\
-  					window.open(evt.feature.attributes.href); \n\
-  				} \n\
-  			}); \n\
-  			\n\
-  			var points; \n\
-  			\n\
-  			iconNumber = 1; \n\
-  			";
-        
+  		OpenLayers.ImgPath = '/images/openLayers/';
+
+  		function createPolygon(points, id, name, type) {
+  			var site_points = new Array();
+  			for(var i = 0; i < points.length; i++) {
+  				site_points.push(new OpenLayers.Geometry.Point(points[i][0], points[i][1]));
+  			}
+  			var linear_ring = new OpenLayers.Geometry.LinearRing(site_points);
+  			var centroid = linear_ring.getCentroid();
+  			createMarker(centroid.x,centroid.y,'/klettern/region/'+id,name,'region/region_'+type);
+  			linear_ring.transform(new OpenLayers.Projection('EPSG:4326'), map.getProjectionObject());
+  			var polygonFeature = new OpenLayers.Feature.Vector(new OpenLayers.Geometry.Polygon([linear_ring]), null);
+  			polygonLayer.addFeatures([polygonFeature]);
+  		}
+
+  		function createMarker(lon,lat,href,name,type) {
+  	    var markerPoint = new OpenLayers.Geometry.Point(lon,lat).transform(
+  				new OpenLayers.Projection('EPSG:4326'), 
+  				map.getProjectionObject()
+  			);
+  			var width = 21;
+  			var height = 26;
+  			var xOffset = -width/2;
+  			var yOffset = -height/2;
+  			var numberIcon;
+  			if(numberedIcons) {
+  				numberIcon = '/images/number/'+iconNumber+'.png';
+  			} else {
+  				numberIcon = '/images/number/blank.png';
+  			}
+  			iconNumber = iconNumber + 1;
+  			var markerAttributes = {title: name, href: href};
+  			//var markerImage = {externalGraphic: numberIcon, graphicWidth: width, graphicHeight: height, graphicXOffset: xOffset, graphicYOffset: yOffset, backgroundGraphic: '/images/poi/poi_'+type+'.png', backgroundWidth: width, backgroundHeight: height, backgroundXOffset: xOffset, backgroundYOffset: yOffset};
+  			var markerImage = {externalGraphic: numberIcon, graphicWidth: width, graphicHeight: height, graphicXOffset: xOffset, graphicYOffset: yOffset, backgroundGraphic: '', backgroundWidth: width, backgroundHeight: height, backgroundXOffset: xOffset, backgroundYOffset: yOffset};
+  			var markerFeature = new OpenLayers.Feature.Vector(markerPoint, markerAttributes, markerImage);
+  			markerLayer.addFeatures(markerFeature);
+  		}
+
+  		function onFeatureSelect(evt) {
+  			var feature = evt.feature;
+  			alert(feature.attributes.href);
+  		}
+
+  		function drawMap() {
+  		  var mapControls = [ 
+  		    	new OpenLayers.Control.Navigation({
+  					'zoomWheelEnabled': false,
+  				}),
+  				new OpenLayers.Control.Zoom()
+  			];
+  		 
+  			map = new OpenLayers.Map('map-64', { controls: mapControls, theme: null });
+  			var mapnik = new OpenLayers.Layer.OSM('Mapnik','/osm/tileproxy.php?layer=OSM_MAPNIK&path=${z}/${x}/${y}.png');
+  			map.addLayer(mapnik);
+
+  			polygonLayer = new OpenLayers.Layer.Vector('Vector Layer');
+  			var style = OpenLayers.Util.extend({}, OpenLayers.Feature.Vector.style['default']);
+  			style.fillColor = '#ee9900';
+  			style.fillOpacity = 0.5;
+  			style.strokeWidth = 2; 
+  			style.strokeColor = '#f5b300';
+  			style.strokeOpacity = 0.9;
+  			polygonLayer.style = style;
+  	 		map.addLayer(polygonLayer);
+
+  			markerLayer = new OpenLayers.Layer.Vector('Markers');
+  			map.addLayer(markerLayer);
+
+  			var hoverControl = new OpenLayers.Control.SelectFeature(markerLayer, {
+  				hover: true,
+  				highlightOnly: true
+  			});
+  			hoverControl.events.on({
+  				'featurehighlighted':function(evt){
+  					var feature = evt.feature;
+  					var popup = new OpenLayers.Popup('popup',
+  							OpenLayers.LonLat.fromString(feature.geometry.toShortString()),
+  							null,
+  							"<div style='white-space: nowrap'>" + feature.attributes.title + '</div>',
+  							null,
+  							true
+  					);
+  					popup.autoSize = true;
+  					feature.popup = popup;
+  					map.addPopup(popup);
+  				},
+  				'featureunhighlighted':function(evt){
+  					var feature = evt.feature;
+  					if (feature.popup) {
+  						map.removePopup(feature.popup);
+  						feature.popup.destroy();
+  						feature.popup = null;
+  					}
+  				}
+  			});
+  			map.addControl(hoverControl);
+  			hoverControl.activate();
+       
+  			var selectControl = new OpenLayers.Control.SelectFeature(markerLayer);
+  			map.addControl(selectControl);
+  			selectControl.activate();
+
+  			markerLayer.events.on({
+  				'featureselected':function(evt){
+  					//window.location.href = evt.feature.attributes.href;
+  					window.open(evt.feature.attributes.href);
+  				}
+  			});
+
+  			//var points;
+  			//...
+  			//createPolygon(points,,,);
+
+  			//iconNumber = 1;
+			  //createMarker(11.376929,49.6532,'crag');
+				//createMarker(11.380327,49.650933, 'parkplatz');
+  			//
   			//createMarker(11.55159,49.54212,'/klettern/poi/1115','Bodenbergwand','crag');
   			//createMarker(11.56155,49.51129,'/klettern/poi/1053','Brosinnadel','crag');
   			//createMarker(11.57142,49.5061,'/klettern/poi/1041','Dohlenwand','crag');
   			//createMarker(11.58156,49.52932,'/klettern/poi/1047','Etzelwanger Wand 01 - Linker Teil','crag');
   			//createMarker(11.58175,49.52927,'/klettern/poi/1048','Etzelwanger Wand 02 - Rechter Teil','crag');
   			//createMarker(11.55158,49.53774,'/klettern/poi/1113','Gemeindefels','crag');
-  			//createMarker(11.55884,49.51472,'/klettern/poi/1042','Hammertalwand - Linker Teil','crag');
-  			//createMarker(11.55873,49.51458,'/klettern/poi/1046','Hammertalwand - Rechter Teil','crag');
-  			//createMarker(11.55085,49.54005,'/klettern/poi/1148','Köhlerwand','crag');
-  			//createMarker(11.5597,49.51608,'/klettern/poi/1058','Lehenhammerwände 01 - Linke Wand','crag');
-  			//createMarker(11.55984,49.51626,'/klettern/poi/1049','Lehenhammerwände 02 - Rechte Wand','crag');
-  			//createMarker(11.55814,49.51283,'/klettern/poi/1056','Lehenstein','crag');
-  			//createMarker(11.55915,49.51556,'/klettern/poi/1050','Neidstallwand','crag');
-  			//createMarker(11.56132,49.51166,'/klettern/poi/1055','Oeder Fels','crag');
-  			//createMarker(11.56216,49.51026,'/klettern/poi/1052','Oeder Schlucht 01','crag');
-  			//createMarker(11.56216,49.51026,'/klettern/poi/14562','Oeder Schlucht 02','crag');
-  			//createMarker(11.56147,49.51143,'/klettern/poi/1054','Oeder Wand','crag');
-  			//createMarker(11.56118,49.51502,'/klettern/poi/1057','Riesturm','crag');
-  			//createMarker(11.585639,49.537359,'/klettern/poi/15227','Rupprechtstein','crag');
-  			//createMarker(11.57841,49.53314,'/klettern/poi/1045','Sieben Brüder','crag');
-  			//createMarker(11.55534,49.5405,'/klettern/poi/1114','Starenfels 01 - Stairway to Heaven','crag');
-  			//createMarker(11.55525,49.54043,'/klettern/poi/1126','Starenfels 02 - Knockin´ on Heavens Door','crag');
-  			//createMarker(11.55513,49.54037,'/klettern/poi/1127','Starenfels 03 - Sterbender Schwan','crag');
-  			//createMarker(11.56307,49.51009,'/klettern/poi/1051','Sulzbacher Wand','crag');
-  			//
-    		//function initialize() {
-    		//  drawMap();
-    		//}
-        //
-    		//$(document).ready(function() {
-    		//	initialize();
-    		//});
 
+  			//map.zoomToExtent(markerLayer.getDataExtent());
+  		}
+     
+  		//function initialize() {
+  		//  //alert('initialize started');
+  		//  drawMap();
+  		//}
+
+  		//$(document).ready(function() {
+  		//	initialize();
+  		//});
+     
+      drawMap();
+      window.map = map;
+			createMapMarkersAndPolygons();
+      setTimeout(function() {
+        map.updateSize(); 
+        map.zoomToExtent(markerLayer.getDataExtent()); 
+        map.zoomOut(); 
+      }, 250);
+    }
+
+    function FJCTPgetMapCreationScript(originalScript) {
+      debug(true, "FJCTPgetMapCreationScript");
+      
+      var script = FJCTPMapCreation.toString();
+      script = script.substring(script.indexOf("{")+1);
+      script = script.substring(0,script.lastIndexOf("}"));
+      
+      script += "\n\n function createMapMarkersAndPolygons() {\n  iconNumber = 1;\n";
       var createMarkerCalls = originalScript.match(/createMarker+.*(?=;)/g);
     	for (i = 1; i < createMarkerCalls.length; i++) {
         script += "\n" + createMarkerCalls[i];
     	}
-
-      script += "\n\
-  			//map.zoomToExtent(markerLayer.getDataExtent()); \n\
-  		} \n\
-      \n\
-  		//function initialize() { \n\
-      //  alert('initialize started'); \n\
-  	  //  drawMap(); \n\
-  		//} \n\
-      \n\
-  		//$(document).ready(function() { \n\
-  		//	initialize(); \n\
-  		//}); \n\
-      \n\
-      drawMap(); \n\
-      window.map = map; \n\
-      setTimeout(function(){ map.updateSize(); map.zoomToExtent(markerLayer.getDataExtent()); map.zoomOut(); }, 250); \n\
-      ";
+      script += "\n}"
 
       //return script;
       return script.replace(/'map-.*'/g, originalScript.match(/'map-.*'/));
