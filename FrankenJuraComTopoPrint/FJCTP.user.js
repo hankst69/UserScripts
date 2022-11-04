@@ -1,4 +1,4 @@
-// FJTP - FrankenJuraTopoPrint (content_20190613)
+// FJTP - FrankenJuraTopoPrint (content_20190626)
 
 (function content() {
 
@@ -2082,31 +2082,52 @@
         // add highlighting of pois from list hoovering
         var mapDiv = window.document.documentElement.querySelector("div.olMap");
         Array.prototype.forEach.call(window.document.documentElement.querySelectorAll("table>tbody"), function (tableBody) {
-          var table = tableBody.parentElement;
           Array.prototype.forEach.call(tableBody.querySelectorAll("tr a"), function (element) {
             if (element.tagName == "A" && element.href.indexOf("/poi/") > 0) {
               element.onmouseover = function() {
                 console.log("FJCTP - highlighting POI in MAP");
                 highlightFeature(element.textContent);
-                var mapHeight = mapDiv.offsetHeight;
-                var tableLine = element.parentElement;
-                if (mapHeight > 0) {
-                  var topOffsetLimit = mapDiv.offsetTop + mapHeight + 100;
-                  var topOffsetLine = table.offsetTop + tableLine.offsetTop;
-                  var lineHeight = tableLine.offsetHeight;
-                  var scrollHeight = lineHeight * 1.5;
-                  if (topOffsetLine > topOffsetLimit) {
-                    table.style.marginTop = Math.floor((topOffsetLimit - topOffsetLine)/scrollHeight) * scrollHeight + "px";
-                  }
-                  else {
-                    table.style.marginTop = 0;
-                  }
-                }
-                else {
-                  table.style.marginTop = 0;
-                }
               };
             }
+          });
+          var table = tableBody.parentElement;
+          Array.prototype.forEach.call(tableBody.querySelectorAll("tr"), function (element) {
+            element.onmouseover = function() {
+              var mapHeight = mapDiv.offsetHeight;
+              var mapOffset = mapDiv.offsetTop;
+              var tableLine = element;
+              var lineHeight = tableLine.offsetHeight;
+              var lineOffset = table.offsetTop + tableLine.offsetTop;
+              var scrollHeight = lineHeight;
+              if (mapHeight > 0) {
+                if (lineOffset > (window.innerHeight - 1.0*lineHeight)) { //if ((lineOffset - mapOffset - mapHeight) >= 10.5*lineHeight) {
+                  var marginpx = table.style.marginTop;
+                  var margin = 0;
+                  var idx = marginpx.indexOf("px");
+                  if (idx > 0) {
+                      margin = parseFloat(marginpx.substring(0, idx));
+                  }
+                  margin -= scrollHeight;
+                  table.style.marginTop = margin + "px";;
+                }
+                else if ((lineOffset - mapOffset - mapHeight) < 0.5*lineHeight) {
+                  var marginpx = table.style.marginTop;
+                  var margin = 0;
+                  var idx = marginpx.indexOf("px");
+                  if (idx > 0) {
+                      margin = parseFloat(marginpx.substring(0, idx));
+                  }
+                  margin += scrollHeight;
+                  if (margin > 0) {
+                    margin = 0;
+                  }
+                  table.style.marginTop = margin + "px";
+                }
+              }
+              else {
+                table.style.marginTop = 0;
+              }
+            };
           });
         });
       }
