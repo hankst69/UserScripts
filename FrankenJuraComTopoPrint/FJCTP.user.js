@@ -1,4 +1,4 @@
-// FJTP - FrankenJuraTopoPrint (content_20190611)
+// FJTP - FrankenJuraTopoPrint (content_20190613)
 
 (function content() {
 
@@ -1553,13 +1553,13 @@
           section.style.pageBreakBefore = "always";
           section.style.pageBreakAfter = "always";
           section.insertBefore(document.createElement("br"), section.childNodes[0]);
-          section.insertBefore(document.createElement("br"), section.childNodes[0]);
-          section.insertBefore(document.createElement("br"), section.childNodes[0]);
-          section.insertBefore(document.createElement("br"), section.childNodes[0]);
-          section.insertBefore(document.createElement("br"), section.childNodes[0]);
-          section.insertBefore(document.createElement("br"), section.childNodes[0]);
-          section.insertBefore(document.createElement("br"), section.childNodes[0]);
-          section.insertBefore(document.createElement("br"), section.childNodes[0]);
+          //section.insertBefore(document.createElement("br"), section.childNodes[0]);
+          //section.insertBefore(document.createElement("br"), section.childNodes[0]);
+          //section.insertBefore(document.createElement("br"), section.childNodes[0]);
+          //section.insertBefore(document.createElement("br"), section.childNodes[0]);
+          //section.insertBefore(document.createElement("br"), section.childNodes[0]);
+          //section.insertBefore(document.createElement("br"), section.childNodes[0]);
+          //section.insertBefore(document.createElement("br"), section.childNodes[0]);
           section.style.marginBottom = "100px";
           // insert behind last
           //lastSection.parentElement.insertAfter(section, lastSection);
@@ -2079,10 +2079,35 @@
           map.zoomToExtent(markerLayer.getDataExtent()); 
           map.zoomOut(); 
         }, 450);
-        Array.prototype.forEach.call(window.document.documentElement.querySelectorAll("table>tbody>tr a"), function (element) {
-          if (element.tagName == "A" && element.href.indexOf("/poi/") > 0) {
-            element.onmouseover = function() {highlightFeature(element.textContent)};
-          }
+        // add highlighting of pois from list hoovering
+        var mapDiv = window.document.documentElement.querySelector("div.olMap");
+        Array.prototype.forEach.call(window.document.documentElement.querySelectorAll("table>tbody"), function (tableBody) {
+          var table = tableBody.parentElement;
+          Array.prototype.forEach.call(tableBody.querySelectorAll("tr a"), function (element) {
+            if (element.tagName == "A" && element.href.indexOf("/poi/") > 0) {
+              element.onmouseover = function() {
+                console.log("FJCTP - highlighting POI in MAP");
+                highlightFeature(element.textContent);
+                var mapHeight = mapDiv.offsetHeight;
+                var tableLine = element.parentElement;
+                if (mapHeight > 0) {
+                  var topOffsetLimit = mapDiv.offsetTop + mapHeight + 100;
+                  var topOffsetLine = table.offsetTop + tableLine.offsetTop;
+                  var lineHeight = tableLine.offsetHeight;
+                  var scrollHeight = lineHeight * 1.5;
+                  if (topOffsetLine > topOffsetLimit) {
+                    table.style.marginTop = Math.floor((topOffsetLimit - topOffsetLine)/scrollHeight) * scrollHeight + "px";
+                  }
+                  else {
+                    table.style.marginTop = 0;
+                  }
+                }
+                else {
+                  table.style.marginTop = 0;
+                }
+              };
+            }
+          });
         });
       }
 
@@ -2166,58 +2191,50 @@
           var mapPoiSection = map.parentElement;
           var divHeightControls = dochtml.querySelector("div.set-height-container:first-of-type");
           
-          zoomButtons.style.visibility = "hidden";
-          
-          var hideButton = document.createElement('button');
-          hideButton.textContent = "hide map";
-          //hideButton.style = "position: absolute; left: 500px; top: 8px; z-index: 2000; padding: 5px 5px 5px 5px;";
-          hideButton.style = "position: absolute; width: 70%; left: 15%; top: 0px; z-index: 2000; padding: 0px;";
-          hideButton.style.visibility = "hidden";
-
-          hideButton.onclick = function() {
-            Array.prototype.forEach.call(mapPoiSection.children, function (element) {
-                element.style.display = "none";
-            });
-            
-            var showButton = document.createElement('button');
-            showButton.textContent = "show map";
-            showButton.style = "width: 100%; z-index: 2000; padding: 0px;";
-            showButton.style.visibility = "hidden";
-            showButton.onclick = function() {
-              Array.prototype.forEach.call(mapPoiSection.children, function (element) {
-                  element.style.display = "";
-              });
-              mapPoiSection.removeChild(showButton);
-            };
-            
-            mapPoiSection.insertBefore(showButton, mapPoiSection.childNodes[0]);
-
-            if (divHeightControls) {
-              divHeightControls.style.visibility = "hidden";
-              mapPoiSection.onmouseover = function() {divHeightControls.style.visibility = "visible"; showButton.style.visibility = "visible";};
-              mapPoiSection.onmouseout  = function() {divHeightControls.style.visibility = "hidden"; showButton.style.visibility = "hidden";};
+          var hideShowButton = document.createElement('button');
+          hideShowButton.textContent = "hide map";
+          hideShowButton.style = "position: absolute; width: 70%; left: 15%; top: 0px; z-index: 2000; padding: 0px;";
+          hideShowButton.style.visibility = "hidden";
+          mapView.insertBefore(hideShowButton, mapView.childNodes[0]);
+          hideShowButton.onclick = function() {
+            var show = map.style.display == "none";
+            if (show) {
+              map.style.display = "";
+              if (divHeightControls) {divHeightControls.style.display = ""; }
+              hideShowButton.textContent = "hide map";
+              hideShowButton.style = "position: absolute; width: 70%; left: 15%; top: 0px; z-index: 2000; padding: 0px;";
+              hideShowButton.parentElement.removeChild(hideShowButton);
+              mapView.insertBefore(hideShowButton, mapView.childNodes[0]);
             } else {
-              mapPoiSection.onmouseover = function() {showButton.style.visibility = "visible";};
-              mapPoiSection.onmouseout  = function() {showButton.style.visibility = "hidden";};
+              map.style.display = "none";
+              if (divHeightControls) {divHeightControls.style.display = "none"; }
+              hideShowButton.textContent = "show map";
+              hideShowButton.style = "width: 100%; z-index: 2000; padding: 0px; visibility: hidden";
+              hideShowButton.parentElement.removeChild(hideShowButton);
+              mapPoiSection.insertBefore(hideShowButton, map);
             }
           };
 
-          mapView.appendChild(hideButton);
-          mapView.onmouseover = function() {zoomButtons.style.visibility = "visible"; hideButton.style.visibility = "visible";};
-          mapView.onmouseout  = function() {zoomButtons.style.visibility = "hidden"; hideButton.style.visibility = "hidden";};
           if (divHeightControls) {
             divHeightControls.style.visibility = "hidden";
-            mapPoiSection.onmouseover = function() {divHeightControls.style.visibility = "visible";};
-            mapPoiSection.onmouseout  = function() {divHeightControls.style.visibility = "hidden";};
+            mapPoiSection.onmouseover = function() {divHeightControls.style.visibility = "visible"; if (map.style.display == "none") {hideShowButton.style.visibility = "visible";}};
+            mapPoiSection.onmouseout  = function() {divHeightControls.style.visibility = "hidden"; hideShowButton.style.visibility = "hidden"; };
+          } else {
+            mapPoiSection.onmouseover = function() {if (map.style.display == "none") {hideShowButton.style.visibility = "visible";}};
+            mapPoiSection.onmouseout  = function() {hideShowButton.style.visibility = "hidden";};
           }
-        
+
+          zoomButtons.style.visibility = "hidden";
+          mapView.onmouseover = function() {zoomButtons.style.visibility = "visible"; hideShowButton.style.visibility = "visible";};
+          mapView.onmouseout  = function() {zoomButtons.style.visibility = "hidden"; hideShowButton.style.visibility = "hidden";};
+
           // start in normal size
           if (divHeightControls) {
             divHeightControls.firstElementChild.click();
           }
           // start hidden
           if (hideMapInitially) {
-            hideButton.onclick();
+            hideShowButton.onclick();
           }
         }
       }
