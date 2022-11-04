@@ -1,4 +1,4 @@
-// FJTP - FrankenJuraTopoPrint (content_20180704)
+// FJTP - FrankenJuraTopoPrint (content_20180705)
 
 (function content() {
 
@@ -1109,227 +1109,6 @@
         return poi;
     }
 
-    function FJTCPgoogleMapsTileCoordsToLonDegree(zoom, xtile, ytile) {
-        debug(false, "FJTCPgoogleMapsTileCoordsToLonDegree");
-        //tileproxy.php
-        //http://www.drweb.de/magazin/tipps-tricks-mit-openstreetmap/      
-
-        //OSM tiles server
-        //http://wiki.openstreetmap.org/wiki/Tiles
-
-        //coordinates <> OSM tiles
-        //http://wiki.openstreetmap.org/wiki/Slippy_map_tilenames#Lon..2Flat._to_tile_numbers
-        //
-        //Tile numbers to lon./lat.
-        //n = 2 ^ zoom
-        //lon_deg = xtile / n * 360.0 - 180.0
-        //lat_rad = arctan(sinh(Ï€ * (1 - 2 * ytile / n)))
-        //lat_deg = lat_rad * 180.0 / Ï€
-
-        if (zoom == undefined || xtile == undefined || ytile == undefined) {
-            return undefined;
-        }
-
-        var n = Math.pow(2, zoom);
-        var lon_deg = xtile / n * 360.0 - 180.0;
-        //var lat_rad = Math.atan(MathSinh(Math.PI * (1 - 2 * ytile / n)));
-        //var lat_deg = lat_rad * 180.0 / Math.PI;
-        return lon_deg;
-    }
-    function FJTCPgoogleMapsTileCoordsToLatDegree(zoom, xtile, ytile) {
-        debug(false, "FJTCPgoogleMapsTileCoordsToLatDegree");
-        if (zoom == undefined || xtile == undefined || ytile == undefined) {
-            return undefined;
-        }
-        var n = Math.pow(2, zoom);
-        //var lon_deg = xtile / n * 360.0 - 180.0;
-        var lat_rad = Math.atan(MathSinh(Math.PI * (1 - 2 * ytile / n)));
-        var lat_deg = lat_rad * 180.0 / Math.PI;
-        return lat_deg;
-    }
-
-    function FJTCPreadGpsLocation(html) {
-        debug(true, "FJTCPreadGpsLocation");
-        //tileproxy.php
-        //http://www.drweb.de/magazin/tipps-tricks-mit-openstreetmap/      
-
-        //OSM tiles server
-        //http://wiki.openstreetmap.org/wiki/Tiles
-
-        //coordinates <> OSM tiles
-        //http://wiki.openstreetmap.org/wiki/Slippy_map_tilenames#Lon..2Flat._to_tile_numbers
-        //
-        //Tile numbers to lon./lat.
-        //n = 2 ^ zoom
-        //lon_deg = xtile / n * 360.0 - 180.0
-        //lat_rad = arctan(sinh(Ï€ * (1 - 2 * ytile / n)))
-        //lat_deg = lat_rad * 180.0 / Ï€
-
-        //WeiÃŸenstein: 
-        // https://www.frankenjura.com/klettern/poi/992
-        //
-        // after page load:
-        //   <div id="map" style="width: 570px; height: 240px;" class="olMap">
-        //     <div id="OpenLayers.Map_4_OpenLayers_ViewPort" class="olMapViewport olControlDragPanActive olControlZoomBoxActive olControlPinchZoomActive olControlNavigationActive" style="position: relative; overflow: hidden; width: 100%; height: 100%;">
-        //       <div id="OpenLayers.Map_4_OpenLayers_Container" style="position: absolute; width: 100px; height: 100px; z-index: 749; left: 0px; top: 0px;">
-        //         <div id="OpenLayers.Layer.OSM_15" dir="ltr" class="olLayerDiv olLayerGrid" style="position: absolute; width: 100%; height: 100%; z-index: 100; left: 0%; top: 0%;">
-        //           <img class="olTileImage" src="/osm/tileproxy.php?layer=OSM_MAPNIK&amp;path=13/4358/2791.png" crossorigin="anonymous" style="visibility: inherit; opacity: 1; position: absolute; left: 182%; top: 78%; width: 256%; height: 256%;">
-        //           <img class="olTileImage" src="/osm/tileproxy.php?layer=OSM_MAPNIK&amp;path=13/4358/2790.png" crossorigin="anonymous" style="visibility: inherit; opacity: 1; position: absolute; left: 182%; top: -178%; width: 256%; height: 256%;">
-        //           <img class="olTileImage" src="/osm/tileproxy.php?layer=OSM_MAPNIK&amp;path=13/4357/2791.png" crossorigin="anonymous" style="visibility: inherit; opacity: 1; position: absolute; left: -74%; top: 78%; width: 256%; height: 256%;">
-        //           <img class="olTileImage" src="/osm/tileproxy.php?layer=OSM_MAPNIK&amp;path=13/4357/2790.png" crossorigin="anonymous" style="visibility: inherit; opacity: 1; position: absolute; left: -74%; top: -178%; width: 256%; height: 256%;">
-        //           <img class="olTileImage" src="/osm/tileproxy.php?layer=OSM_MAPNIK&amp;path=13/4359/2791.png" crossorigin="anonymous" style="visibility: inherit; opacity: 1; position: absolute; left: 438%; top: 78%; width: 256%; height: 256%;">
-        //           <img class="olTileImage" src="/osm/tileproxy.php?layer=OSM_MAPNIK&amp;path=13/4359/2790.png" crossorigin="anonymous" style="visibility: inherit; opacity: 1; position: absolute; left: 438%; top: -178%; width: 256%; height: 256%;">
-        //           <img class="olTileImage" src="/osm/tileproxy.php?layer=OSM_MAPNIK&amp;path=13/4360/2791.png" crossorigin="anonymous" style="visibility: inherit; opacity: 1; position: absolute; left: 694%; top: 78%; width: 256%; height: 256%;">
-        //           <img class="olTileImage" src="/osm/tileproxy.php?layer=OSM_MAPNIK&amp;path=13/4360/2790.png" crossorigin="anonymous" style="visibility: inherit; opacity: 1; position: absolute; left: 694%; top: -178%; width: 256%; height: 256%;">
-        //         </div>
-        //         <div id="OpenLayers.Layer.Markers_25" dir="ltr" class="olLayerDiv" style="position: absolute; width: 100%; height: 100%; z-index: 330;">
-        //           <div id="OL_Icon_27" style="position: absolute; width: 21px; height: 26px; left: 274.5px; top: 94px;">
-        //             <img id="OL_Icon_27_innerImage" class="olAlphaImg" src="/images/poi/poi_crag.png" style="position: relative; width: 21px; height: 26px;">
-        //           </div>
-        //         </div>
-        //       </div>
-        //     </div>
-        //   </div>
-        // -> https://www.frankenjura.com/osm/tileproxy.php?layer=OSM_MAPNIK&path=13/4358/2791.png
-        // -> zoom = 13
-        // -> xtile = 4358
-        // -> ytile = 2791
-        // -> calculated: 49.639177, 11.513672
-        //          real: 49.634616, 11.531333
-
-        //debug(true, "FJTCPreadGpsLocation");
-        //Array.prototype.forEach.call(html.querySelectorAll("div.poi-section>div#map>div>div>div>img.olTileImage"), function (element) {
-        //    debug(false, "div.poi-section>div#map>div>div>div>img.olTileImage");
-        //});
-        //Array.prototype.forEach.call(html.querySelectorAll("div.poi-section>div#map"), function (element) {
-        //    debug(false, "div#map");
-        //});
-        //Array.prototype.forEach.call(html.querySelectorAll("div.olLayerDiv olLayerGrid"), function (element) {
-        //    debug(false, "div.olLayerDiv olLayerGrid");
-        //});
-        //Array.prototype.forEach.call(html.querySelectorAll("div#OpenLayers.Layer.OSM_15"), function (element) {
-        //    debug(false, "div#OpenLayers.Layer.OSM_15");
-        //});
-        //Array.prototype.forEach.call(html.querySelectorAll("div#map>div>div>dic>img"), function (element) {
-        //    debug(false, "map->img");
-        //});
-        //Array.prototype.forEach.call(html.querySelectorAll("img.olTileImage"), function (element) {
-        //    debug(false, "img.olTileImage");
-        //});
-        //Array.prototype.forEach.call(html.querySelectorAll('img[src*="/osm/tileproxy.php"]'), function (element) {
-        //    debug(false, "img src*=tileproxy.php");
-        //});
-
-        var cragLeft;
-        var cragTop;
-        var cragWidth;
-        var cragHeight;
-        Array.prototype.forEach.call(html.querySelectorAll("img.olAlphaImg"), function (element) {
-            cragLeft = NumberFromStyleValue(element.parentElement.style.left);
-            cragTop = NumberFromStyleValue(element.parentElement.style.top);
-            cragWidth = NumberFromStyleValue(element.parentElement.style.width);
-            cragHeight = NumberFromStyleValue(element.parentElement.style.height);
-        });
-        if (cragLeft == undefined || cragTop == undefined)
-            return "";
-
-        var lon;
-        var lat;
-        Array.prototype.forEach.call(html.querySelectorAll("img.olTileImage:nth-of-type(1)"), function (element) {
-            var firstTileLeft = NumberFromStyleValue(element.style.left);
-            var firstTileTop = NumberFromStyleValue(element.style.top);
-            var firstTileWidth = NumberFromStyleValue(element.style.width);
-            var firstTileHeight = NumberFromStyleValue(element.style.height);
-
-            var imgSrc = element.src;
-            // ...tileproxy.php?layer=OSM_MAPNIK&amp;path=13/4358/2791.png
-
-            var tileCoords = imgSrc.substring(imgSrc.indexOf("path") + 5);
-            var tileCoords = tileCoords.substring(0, tileCoords.indexOf("."/*".png"*/));
-            // 13/4358/2791
-            debug(false, "imgSrc: " + imgSrc);
-            debug(false, "tileCoords: " + tileCoords);
-
-            var zoomString = tileCoords.substring(0, tileCoords.indexOf("/"));
-            tileCoords = tileCoords.substring(zoomString.length + 1);
-            var tileXString = tileCoords.substring(0, tileCoords.indexOf("/"));
-            tileCoords = tileCoords.substring(tileXString.length + 1);
-            var tileYString = tileCoords; //tileCoords.substring(0, tileCoords.indexOf("."));
-            var firstTileZoom = parseFloat(zoomString);
-            var firstTileX = parseFloat(tileXString);
-            var firstTileY = parseFloat(tileYString);
-
-            var rightTileX = firstTileX + 1;
-            var bottomTileY = firstTileY + 1;
-
-            var firstTileLon = FJTCPgoogleMapsTileCoordsToLonDegree(firstTileZoom, firstTileX, firstTileY);
-            var firstTileLat = FJTCPgoogleMapsTileCoordsToLatDegree(firstTileZoom, firstTileX, firstTileY);
-            var rightTileLon = FJTCPgoogleMapsTileCoordsToLonDegree(firstTileZoom, rightTileX, firstTileY);
-            var bottomTileLat = FJTCPgoogleMapsTileCoordsToLatDegree(firstTileZoom, firstTileX, bottomTileY);
-
-            debug(false, "firstTileZoom: " + firstTileZoom);
-            debug(false, "firstTileX: " + firstTileX);
-            debug(false, "firstTileY: " + firstTileY);
-            debug(false, "rightTileX: " + rightTileX);
-            debug(false, "bottomTileY: " + bottomTileY);
-            debug(false, "cragLeft: " + cragLeft);
-            debug(false, "cragTop: " + cragTop);
-            debug(false, "firstTileWidth: " + firstTileWidth);
-            debug(false, "firstTileHeight: " + firstTileHeight);
-            debug(false, "firstTileLon: " + firstTileLon);
-            debug(false, "firstTileLat: " + firstTileLat);
-            debug(false, "rightTileLon: " + rightTileLon);
-            debug(false, "bottomTileLat: " + bottomTileLat);
-
-            if (cragLeft != undefined && firstTileLon != undefined && rightTileLon != undefined && firstTileLeft != undefined && firstTileWidth != undefined &&
-                cragTop != undefined && firstTileLat != undefined && bottomTileLat != undefined && firstTileTop != undefined && firstTileHeight != undefined) {
-
-                var leftCrag = cragLeft;
-                var topCrag = cragTop;
-                if (cragWidth != undefined) {
-                    leftCrag += cragWidth / 2.0;
-                }
-                if (cragHeight != undefined) {
-                    topCrag += cragHeight;
-                }
-
-                debug(false, "leftCrag: " + leftCrag);
-                debug(false, "topCrag: " + topCrag);
-                //verbose = false;
-
-                lon = firstTileLon + (leftCrag - firstTileLeft) * (rightTileLon - firstTileLon) / firstTileWidth;
-                lat = firstTileLat + (topCrag - firstTileTop) * (bottomTileLat - firstTileLat) / firstTileHeight;
-            }
-        });
-
-        if (lat != undefined && lon != undefined) {
-            return lat.toFixed(6) + ", " + lon.toFixed(6);
-        }
-
-        return ""; //"???????";
-        // fallback: return left/top of first tile
-        //return (ylat[0][1]).toFixed(6) + ", " + (xlon[0][1]).toFixed(6);
-    }
-    
-    function MathSinh(x) {
-        return (Math.exp(x) - Math.exp(x * -1)) / 2;
-    }
-
-    function NumberFromStyleValue(styleValue) {
-        if (styleValue == undefined) {
-            return undefined;
-        }
-        var idx = styleValue.indexOf("%");
-        if (idx > 0) {
-            return parseFloat(styleValue.substring(0, idx));
-        }
-        var idx = styleValue.indexOf("px");
-        if (idx > 0) {
-            return parseFloat(styleValue.substring(0, idx));
-        }
-        return undefined;
-    }
-
     function FJCTPadaptElementStyles(html) {
         debug(true, "FJCTPadaptElementStyles");
         // prepare divs
@@ -1639,6 +1418,18 @@
         });
     }
 
+    function FJCTPmovePoiSectionToEnd(html, sectionId) {
+        debug(true, "FJCTPmovePoiSectionToEnd -> moving section: " + sectionId);
+        Array.prototype.forEach.call(html.querySelectorAll("div.poi-section"), function (element) {
+            if (FJCTPgetPoiSectionId(element) == sectionId) {
+              debug(true, "FJCTPremovePoiSections -> section removed");
+              var parent = element.parentElement;
+              parent.removeChild(element);
+              parent.appendChild(element);
+            }
+        });
+    }
+
     function FJCTPcleanListEntries(html) {
         debug(true, "FJCTPcleanListEntries -> removing free content icons and changing link targéts");
         var allChilds = getChildTreeAsNodeList(html);
@@ -1653,6 +1444,230 @@
             child.target = "_blank";
           }
         }
+    }
+
+    //----------------------------------------------------------------------------------------------------
+    // START of MAP manipulation stuff ...
+
+    function FJTCPgoogleMapsTileCoordsToLonDegree(zoom, xtile, ytile) {
+        debug(false, "FJTCPgoogleMapsTileCoordsToLonDegree");
+        //tileproxy.php
+        //http://www.drweb.de/magazin/tipps-tricks-mit-openstreetmap/      
+
+        //OSM tiles server
+        //http://wiki.openstreetmap.org/wiki/Tiles
+
+        //coordinates <> OSM tiles
+        //http://wiki.openstreetmap.org/wiki/Slippy_map_tilenames#Lon..2Flat._to_tile_numbers
+        //
+        //Tile numbers to lon./lat.
+        //n = 2 ^ zoom
+        //lon_deg = xtile / n * 360.0 - 180.0
+        //lat_rad = arctan(sinh(Ï€ * (1 - 2 * ytile / n)))
+        //lat_deg = lat_rad * 180.0 / Ï€
+
+        if (zoom == undefined || xtile == undefined || ytile == undefined) {
+            return undefined;
+        }
+
+        var n = Math.pow(2, zoom);
+        var lon_deg = xtile / n * 360.0 - 180.0;
+        //var lat_rad = Math.atan(MathSinh(Math.PI * (1 - 2 * ytile / n)));
+        //var lat_deg = lat_rad * 180.0 / Math.PI;
+        return lon_deg;
+    }
+
+    function FJTCPgoogleMapsTileCoordsToLatDegree(zoom, xtile, ytile) {
+        debug(false, "FJTCPgoogleMapsTileCoordsToLatDegree");
+        if (zoom == undefined || xtile == undefined || ytile == undefined) {
+            return undefined;
+        }
+        var n = Math.pow(2, zoom);
+        //var lon_deg = xtile / n * 360.0 - 180.0;
+        var lat_rad = Math.atan(MathSinh(Math.PI * (1 - 2 * ytile / n)));
+        var lat_deg = lat_rad * 180.0 / Math.PI;
+        return lat_deg;
+    }
+
+    function FJTCPreadGpsLocation(html) {
+        debug(true, "FJTCPreadGpsLocation");
+        //tileproxy.php
+        //http://www.drweb.de/magazin/tipps-tricks-mit-openstreetmap/      
+
+        //OSM tiles server
+        //http://wiki.openstreetmap.org/wiki/Tiles
+
+        //coordinates <> OSM tiles
+        //http://wiki.openstreetmap.org/wiki/Slippy_map_tilenames#Lon..2Flat._to_tile_numbers
+        //
+        //Tile numbers to lon./lat.
+        //n = 2 ^ zoom
+        //lon_deg = xtile / n * 360.0 - 180.0
+        //lat_rad = arctan(sinh(Ï€ * (1 - 2 * ytile / n)))
+        //lat_deg = lat_rad * 180.0 / Ï€
+
+        //WeiÃŸenstein: 
+        // https://www.frankenjura.com/klettern/poi/992
+        //
+        // after page load:
+        //   <div id="map" style="width: 570px; height: 240px;" class="olMap">
+        //     <div id="OpenLayers.Map_4_OpenLayers_ViewPort" class="olMapViewport olControlDragPanActive olControlZoomBoxActive olControlPinchZoomActive olControlNavigationActive" style="position: relative; overflow: hidden; width: 100%; height: 100%;">
+        //       <div id="OpenLayers.Map_4_OpenLayers_Container" style="position: absolute; width: 100px; height: 100px; z-index: 749; left: 0px; top: 0px;">
+        //         <div id="OpenLayers.Layer.OSM_15" dir="ltr" class="olLayerDiv olLayerGrid" style="position: absolute; width: 100%; height: 100%; z-index: 100; left: 0%; top: 0%;">
+        //           <img class="olTileImage" src="/osm/tileproxy.php?layer=OSM_MAPNIK&amp;path=13/4358/2791.png" crossorigin="anonymous" style="visibility: inherit; opacity: 1; position: absolute; left: 182%; top: 78%; width: 256%; height: 256%;">
+        //           <img class="olTileImage" src="/osm/tileproxy.php?layer=OSM_MAPNIK&amp;path=13/4358/2790.png" crossorigin="anonymous" style="visibility: inherit; opacity: 1; position: absolute; left: 182%; top: -178%; width: 256%; height: 256%;">
+        //           <img class="olTileImage" src="/osm/tileproxy.php?layer=OSM_MAPNIK&amp;path=13/4357/2791.png" crossorigin="anonymous" style="visibility: inherit; opacity: 1; position: absolute; left: -74%; top: 78%; width: 256%; height: 256%;">
+        //           <img class="olTileImage" src="/osm/tileproxy.php?layer=OSM_MAPNIK&amp;path=13/4357/2790.png" crossorigin="anonymous" style="visibility: inherit; opacity: 1; position: absolute; left: -74%; top: -178%; width: 256%; height: 256%;">
+        //           <img class="olTileImage" src="/osm/tileproxy.php?layer=OSM_MAPNIK&amp;path=13/4359/2791.png" crossorigin="anonymous" style="visibility: inherit; opacity: 1; position: absolute; left: 438%; top: 78%; width: 256%; height: 256%;">
+        //           <img class="olTileImage" src="/osm/tileproxy.php?layer=OSM_MAPNIK&amp;path=13/4359/2790.png" crossorigin="anonymous" style="visibility: inherit; opacity: 1; position: absolute; left: 438%; top: -178%; width: 256%; height: 256%;">
+        //           <img class="olTileImage" src="/osm/tileproxy.php?layer=OSM_MAPNIK&amp;path=13/4360/2791.png" crossorigin="anonymous" style="visibility: inherit; opacity: 1; position: absolute; left: 694%; top: 78%; width: 256%; height: 256%;">
+        //           <img class="olTileImage" src="/osm/tileproxy.php?layer=OSM_MAPNIK&amp;path=13/4360/2790.png" crossorigin="anonymous" style="visibility: inherit; opacity: 1; position: absolute; left: 694%; top: -178%; width: 256%; height: 256%;">
+        //         </div>
+        //         <div id="OpenLayers.Layer.Markers_25" dir="ltr" class="olLayerDiv" style="position: absolute; width: 100%; height: 100%; z-index: 330;">
+        //           <div id="OL_Icon_27" style="position: absolute; width: 21px; height: 26px; left: 274.5px; top: 94px;">
+        //             <img id="OL_Icon_27_innerImage" class="olAlphaImg" src="/images/poi/poi_crag.png" style="position: relative; width: 21px; height: 26px;">
+        //           </div>
+        //         </div>
+        //       </div>
+        //     </div>
+        //   </div>
+        // -> https://www.frankenjura.com/osm/tileproxy.php?layer=OSM_MAPNIK&path=13/4358/2791.png
+        // -> zoom = 13
+        // -> xtile = 4358
+        // -> ytile = 2791
+        // -> calculated: 49.639177, 11.513672
+        //          real: 49.634616, 11.531333
+
+        //debug(true, "FJTCPreadGpsLocation");
+        //Array.prototype.forEach.call(html.querySelectorAll("div.poi-section>div#map>div>div>div>img.olTileImage"), function (element) {
+        //    debug(false, "div.poi-section>div#map>div>div>div>img.olTileImage");
+        //});
+        //Array.prototype.forEach.call(html.querySelectorAll("div.poi-section>div#map"), function (element) {
+        //    debug(false, "div#map");
+        //});
+        //Array.prototype.forEach.call(html.querySelectorAll("div.olLayerDiv olLayerGrid"), function (element) {
+        //    debug(false, "div.olLayerDiv olLayerGrid");
+        //});
+        //Array.prototype.forEach.call(html.querySelectorAll("div#OpenLayers.Layer.OSM_15"), function (element) {
+        //    debug(false, "div#OpenLayers.Layer.OSM_15");
+        //});
+        //Array.prototype.forEach.call(html.querySelectorAll("div#map>div>div>dic>img"), function (element) {
+        //    debug(false, "map->img");
+        //});
+        //Array.prototype.forEach.call(html.querySelectorAll("img.olTileImage"), function (element) {
+        //    debug(false, "img.olTileImage");
+        //});
+        //Array.prototype.forEach.call(html.querySelectorAll('img[src*="/osm/tileproxy.php"]'), function (element) {
+        //    debug(false, "img src*=tileproxy.php");
+        //});
+        var cragLeft;
+        var cragTop;
+        var cragWidth;
+        var cragHeight;
+        Array.prototype.forEach.call(html.querySelectorAll("img.olAlphaImg"), function (element) {
+            cragLeft = NumberFromStyleValue(element.parentElement.style.left);
+            cragTop = NumberFromStyleValue(element.parentElement.style.top);
+            cragWidth = NumberFromStyleValue(element.parentElement.style.width);
+            cragHeight = NumberFromStyleValue(element.parentElement.style.height);
+        });
+        if (cragLeft == undefined || cragTop == undefined)
+            return "";
+
+        var lon;
+        var lat;
+        Array.prototype.forEach.call(html.querySelectorAll("img.olTileImage:nth-of-type(1)"), function (element) {
+            var firstTileLeft = NumberFromStyleValue(element.style.left);
+            var firstTileTop = NumberFromStyleValue(element.style.top);
+            var firstTileWidth = NumberFromStyleValue(element.style.width);
+            var firstTileHeight = NumberFromStyleValue(element.style.height);
+
+            var imgSrc = element.src;
+            // ...tileproxy.php?layer=OSM_MAPNIK&amp;path=13/4358/2791.png
+
+            var tileCoords = imgSrc.substring(imgSrc.indexOf("path") + 5);
+            var tileCoords = tileCoords.substring(0, tileCoords.indexOf("."/*".png"*/));
+            // 13/4358/2791
+            debug(false, "imgSrc: " + imgSrc);
+            debug(false, "tileCoords: " + tileCoords);
+
+            var zoomString = tileCoords.substring(0, tileCoords.indexOf("/"));
+            tileCoords = tileCoords.substring(zoomString.length + 1);
+            var tileXString = tileCoords.substring(0, tileCoords.indexOf("/"));
+            tileCoords = tileCoords.substring(tileXString.length + 1);
+            var tileYString = tileCoords; //tileCoords.substring(0, tileCoords.indexOf("."));
+            var firstTileZoom = parseFloat(zoomString);
+            var firstTileX = parseFloat(tileXString);
+            var firstTileY = parseFloat(tileYString);
+
+            var rightTileX = firstTileX + 1;
+            var bottomTileY = firstTileY + 1;
+
+            var firstTileLon = FJTCPgoogleMapsTileCoordsToLonDegree(firstTileZoom, firstTileX, firstTileY);
+            var firstTileLat = FJTCPgoogleMapsTileCoordsToLatDegree(firstTileZoom, firstTileX, firstTileY);
+            var rightTileLon = FJTCPgoogleMapsTileCoordsToLonDegree(firstTileZoom, rightTileX, firstTileY);
+            var bottomTileLat = FJTCPgoogleMapsTileCoordsToLatDegree(firstTileZoom, firstTileX, bottomTileY);
+
+            debug(false, "firstTileZoom: " + firstTileZoom);
+            debug(false, "firstTileX: " + firstTileX);
+            debug(false, "firstTileY: " + firstTileY);
+            debug(false, "rightTileX: " + rightTileX);
+            debug(false, "bottomTileY: " + bottomTileY);
+            debug(false, "cragLeft: " + cragLeft);
+            debug(false, "cragTop: " + cragTop);
+            debug(false, "firstTileWidth: " + firstTileWidth);
+            debug(false, "firstTileHeight: " + firstTileHeight);
+            debug(false, "firstTileLon: " + firstTileLon);
+            debug(false, "firstTileLat: " + firstTileLat);
+            debug(false, "rightTileLon: " + rightTileLon);
+            debug(false, "bottomTileLat: " + bottomTileLat);
+
+            if (cragLeft != undefined && firstTileLon != undefined && rightTileLon != undefined && firstTileLeft != undefined && firstTileWidth != undefined &&
+                cragTop != undefined && firstTileLat != undefined && bottomTileLat != undefined && firstTileTop != undefined && firstTileHeight != undefined) {
+
+                var leftCrag = cragLeft;
+                var topCrag = cragTop;
+                if (cragWidth != undefined) {
+                    leftCrag += cragWidth / 2.0;
+                }
+                if (cragHeight != undefined) {
+                    topCrag += cragHeight;
+                }
+
+                debug(false, "leftCrag: " + leftCrag);
+                debug(false, "topCrag: " + topCrag);
+                //verbose = false;
+
+                lon = firstTileLon + (leftCrag - firstTileLeft) * (rightTileLon - firstTileLon) / firstTileWidth;
+                lat = firstTileLat + (topCrag - firstTileTop) * (bottomTileLat - firstTileLat) / firstTileHeight;
+            }
+        });
+
+        if (lat != undefined && lon != undefined) {
+            return lat.toFixed(6) + ", " + lon.toFixed(6);
+        }
+
+        return ""; //"???????";
+        // fallback: return left/top of first tile
+        //return (ylat[0][1]).toFixed(6) + ", " + (xlon[0][1]).toFixed(6);
+    }
+    
+    function MathSinh(x) {
+        return (Math.exp(x) - Math.exp(x * -1)) / 2;
+    }
+
+    function NumberFromStyleValue(styleValue) {
+        if (styleValue == undefined) {
+            return undefined;
+        }
+        var idx = styleValue.indexOf("%");
+        if (idx > 0) {
+            return parseFloat(styleValue.substring(0, idx));
+        }
+        var idx = styleValue.indexOf("px");
+        if (idx > 0) {
+            return parseFloat(styleValue.substring(0, idx));
+        }
+        return undefined;
     }
 
     function FJCTPMapCreation() {
@@ -1678,8 +1693,8 @@
   			polygonLayer.addFeatures([polygonFeature]);
   		}
 
-  		function createMarker(lon,lat,href,name,type) {
-  	    var markerPoint = new OpenLayers.Geometry.Point(lon,lat).transform(
+  		function createMarker(lon, lat, href, name, type) {
+  			var markerPoint = new OpenLayers.Geometry.Point(lon,lat).transform(
   				new OpenLayers.Projection('EPSG:4326'), 
   				map.getProjectionObject()
   			);
@@ -1694,9 +1709,27 @@
   				numberIcon = '/images/number/blank.png';
   			}
   			iconNumber = iconNumber + 1;
+
+        //handle createMarker polymorphism (grag page vs overview page)
+  			//createMarker(11.376929,49.6532,'crag');
+  			//createMarker(11.380327,49.650933,'parkplatz');
+  			//createMarker(11.55159,49.54212,'/klettern/poi/1115','Bodenbergwand','crag');
+  			var backgroundGraphicUrl;
+  			if (typeof name === 'undefined' && typeof type === 'undefined') {
+  			  // grag page:
+  			  var latlon = lat + ", " + lon;
+  			  type = href;
+  			  name = href + " (" + latlon + ")";
+  			  href = "https://maps.google.de/maps?q=" + latlon;
+  			  numberIcon = '/images/number/blank.png';
+  			  backgroundGraphicUrl = '/images/poi/poi_' + type + '.png';
+  			} else {
+  			  // overview page:
+  			  backgroundGraphicUrl = ''; //'/images/poi/poi_' + type + '.png';
+  			}
+
   			var markerAttributes = {title: name, href: href};
-  			//var markerImage = {externalGraphic: numberIcon, graphicWidth: width, graphicHeight: height, graphicXOffset: xOffset, graphicYOffset: yOffset, backgroundGraphic: '/images/poi/poi_'+type+'.png', backgroundWidth: width, backgroundHeight: height, backgroundXOffset: xOffset, backgroundYOffset: yOffset};
-  			var markerImage = {externalGraphic: numberIcon, graphicWidth: width, graphicHeight: height, graphicXOffset: xOffset, graphicYOffset: yOffset, backgroundGraphic: '', backgroundWidth: width, backgroundHeight: height, backgroundXOffset: xOffset, backgroundYOffset: yOffset};
+  			var markerImage = {externalGraphic: numberIcon, graphicWidth: width, graphicHeight: height, graphicXOffset: xOffset, graphicYOffset: yOffset, backgroundGraphic: backgroundGraphicUrl, backgroundWidth: width, backgroundHeight: height, backgroundXOffset: xOffset, backgroundYOffset: yOffset};
   			var markerFeature = new OpenLayers.Feature.Vector(markerPoint, markerAttributes, markerImage);
   			markerLayer.addFeatures(markerFeature);
   		}
@@ -1707,13 +1740,13 @@
   		}
 
   		function drawMap() {
-  		  var mapControls = [ 
-  		    	new OpenLayers.Control.Navigation({
-  					'zoomWheelEnabled': false,
+  			var mapControls = [ 
+  				new OpenLayers.Control.Navigation({
+  					'zoomWheelEnabled': false, 
   				}),
   				new OpenLayers.Control.Zoom()
   			];
-  		 
+
   			map = new OpenLayers.Map('map-64', { controls: mapControls, theme: null });
   			var mapnik = new OpenLayers.Layer.OSM('Mapnik','/osm/tileproxy.php?layer=OSM_MAPNIK&path=${z}/${x}/${y}.png');
   			map.addLayer(mapnik);
@@ -1726,7 +1759,7 @@
   			style.strokeColor = '#f5b300';
   			style.strokeOpacity = 0.9;
   			polygonLayer.style = style;
-  	 		map.addLayer(polygonLayer);
+  			map.addLayer(polygonLayer);
 
   			markerLayer = new OpenLayers.Layer.Vector('Markers');
   			map.addLayer(markerLayer);
@@ -1760,7 +1793,7 @@
   			});
   			map.addControl(hoverControl);
   			hoverControl.activate();
-       
+
   			var selectControl = new OpenLayers.Control.SelectFeature(markerLayer);
   			map.addControl(selectControl);
   			selectControl.activate();
@@ -1777,8 +1810,8 @@
   			//createPolygon(points,,,);
 
   			//iconNumber = 1;
-			  //createMarker(11.376929,49.6532,'crag');
-				//createMarker(11.380327,49.650933, 'parkplatz');
+  			//createMarker(11.376929,49.6532,'crag');
+  			//createMarker(11.380327,49.650933, 'parkplatz');
   			//
   			//createMarker(11.55159,49.54212,'/klettern/poi/1115','Bodenbergwand','crag');
   			//createMarker(11.56155,49.51129,'/klettern/poi/1053','Brosinnadel','crag');
@@ -1789,44 +1822,95 @@
 
   			//map.zoomToExtent(markerLayer.getDataExtent());
   		}
-     
-  		//function initialize() {
-  		//  //alert('initialize started');
-  		//  drawMap();
-  		//}
+
+  		function initialize() {
+  			//alert('initialize started');
+  			drawMap();
+  			window.map = map;
+  			createMapMarkersAndPolygons();
+  			setTimeout(function() {
+  				map.updateSize(); 
+  				map.zoomToExtent(markerLayer.getDataExtent()); 
+  				map.zoomOut(); 
+  			}, 250);
+  		}
 
   		//$(document).ready(function() {
   		//	initialize();
   		//});
-     
-      drawMap();
-      window.map = map;
-			createMapMarkersAndPolygons();
-      setTimeout(function() {
-        map.updateSize(); 
-        map.zoomToExtent(markerLayer.getDataExtent()); 
-        map.zoomOut(); 
-      }, 250);
-    }
+  		initialize();
+  	}
 
     function FJCTPgetMapCreationScript(originalScript) {
       debug(true, "FJCTPgetMapCreationScript");
-      
       var script = FJCTPMapCreation.toString();
       script = script.substring(script.indexOf("{")+1);
       script = script.substring(0,script.lastIndexOf("}"));
-      
-      script += "\n\n function createMapMarkersAndPolygons() {\n  iconNumber = 1;\n";
+      script += "\n\n function createMapMarkersAndPolygons() {\n  iconNumber = 1;";
       var createMarkerCalls = originalScript.match(/createMarker+.*(?=;)/g);
-    	for (i = 1; i < createMarkerCalls.length; i++) {
-        script += "\n" + createMarkerCalls[i];
+    	for (i = 0; i < createMarkerCalls.length; i++) {
+    	  if (createMarkerCalls[i].indexOf("centroid.x,centroid.y,'/klettern/region/'") < 0) {
+          script += "\n  " + createMarkerCalls[i];
+        }
     	}
       script += "\n}"
-
-      //return script;
-      return script.replace(/'map-.*'/g, originalScript.match(/'map-.*'/));
+      return script.replace(/'map-?\d*'/g, originalScript.match(/'map-?\d*'/));
     }
 
+    function FJCTPupgradeMap(dochtml) {
+      debug(true, "FJCTPupgradeMap");
+
+      var mapDiv = dochtml.querySelector("div.olMap");
+      if (mapDiv == null) {
+        // there is no OpenLayers map, we can just stop here
+        return;
+      }
+      mapDiv.style.height = "640px";
+
+      var mapViewport = dochtml.querySelector("div.olMapViewport");
+      if (mapViewport != null) {
+        mapViewport.parentElement.removeChild(mapViewport);
+        Array.prototype.forEach.call(dochtml.querySelectorAll("script"), function (element) {
+            var contentMatches = element.textContent.match(/OpenLayers/gi);
+            if (contentMatches != null && contentMatches.length > 0) {
+                debug(false, "FJCTPupgradeMap --> copying scripts that creates OpenLayers map");
+                var script = document.createElement('script');
+                //script.async = true;
+                //script.src = src;
+                //script.addEventListener('load',  () => alert('Script loaded.'));
+                //script.addEventListener('error', () => alert('Error loading script.'));
+                //script.addEventListener('abort', () => alert('Script loading aborted.'));
+                script.defer = "defer";
+                script.textContent = FJCTPgetMapCreationScript(element.textContent);
+                //script.textContent = element.textContent + " window.map = map;" + "setTimeout(function(){map.updateSize();},250);";
+                element.parentElement.removeChild(element);
+                document.head.appendChild(script);
+                //script.parentElement.removeChild(script);
+            }
+        });
+      }
+
+      var allChilds = getChildTreeAsNodeList(dochtml);
+      // improving map display
+      for (var child of allChilds) {
+        if (child.tagName == "A" && child.href.indexOf("openstreetmap") >= 0) {
+          debug(false, "FJCTPupgradeMap --> remove OS copyright link");
+          child.parentElement.removeChild(child);
+        }
+        if (child.tagName == "DIV" && child.id.indexOf("OpenLayers.Control.Zoom") >= 0) {
+          debug(false, "FJCTPupgradeMap --> hiding OS Zoom buttons");
+          var zoomButtons = child;
+          zoomButtons.parentElement.onmouseover = function() {for(var button of zoomButtons.childNodes){button.style.visibility = "visible";}};
+          zoomButtons.parentElement.onmouseout  = function() {for(var button of zoomButtons.childNodes){button.style.visibility = "hidden";}};
+          for(var button of zoomButtons.childNodes) {
+            button.style.visibility = "hidden";
+          }
+        }
+      }
+    }
+
+    //----------------------------------------------------------------------------------------------------
+    // START of main routine (FJCTPmodifyDocument)
 
     function FJCTPmodifyDocument(document) {
         debug(true, "FJCTPmodifyDocument");
@@ -1977,54 +2061,8 @@
         //}
         else if (isRegionPage || isGebietPage) {
           FJCTPcleanListEntries(dochtml);
-          
-          var mapDiv = dochtml.querySelector("div.olMap");
-          if (mapDiv != null) {
-            mapDiv.style.height = "640px";
-          }
-
-          var mapViewport = dochtml.querySelector("div.olMapViewport");
-          if (mapViewport != null) {
-            mapViewport.parentElement.removeChild(mapViewport);
-            Array.prototype.forEach.call(dochtml.querySelectorAll("script"), function (element) {
-                var contentMatches = element.textContent.match(/OpenLayers/gi);
-                if (contentMatches != null && contentMatches.length > 0) {
-                    debug(false, "copying scripts that creates OpenLayers map");
-                    var script = document.createElement('script');
-                    //script.async = true;
-                    //script.src = src;
-                    //script.addEventListener('load',  () => alert('Script loaded.'));
-                    //script.addEventListener('error', () => alert('Error loading script.'));
-                    //script.addEventListener('abort', () => alert('Script loading aborted.'));
-                    //script.defer = "defer";
-                    script.textContent = FJCTPgetMapCreationScript(element.textContent);
-                    //script.textContent = element.textContent + " window.map = map;" + "setTimeout(function(){map.updateSize();},250);";
-                    
-                    element.parentElement.removeChild(element);
-                    document.head.appendChild(script);
-                    //script.parentElement.removeChild(script);
-                }
-            });
-          }
 
           var allChilds = getChildTreeAsNodeList(dochtml); //debug(false, "FJCTPmodifyGebietPage getChildTreeAsNodeList.length: " + allChilds.length);
-          debug(false, "FJCTPmodifyGebietPage --> improving map display");
-          for (var child of allChilds) {
-            if (child.tagName == "A" && child.href.indexOf("openstreetmap") >= 0) {
-              debug(false, "FJCTPmodifyGebietPage --> remove OS copyright link");
-              child.parentElement.removeChild(child);
-            }
-            if (child.tagName == "DIV" && child.id.indexOf("OpenLayers.Control.Zoom") >= 0) {
-              debug(false, "FJCTPmodifyGebietPage --> hiding OS Zoom buttons");
-              var zoomButtons = child;
-              zoomButtons.parentElement.onmouseover = function() {for(var button of zoomButtons.childNodes){button.style.visibility = "visible";}};
-              zoomButtons.parentElement.onmouseout  = function() {for(var button of zoomButtons.childNodes){button.style.visibility = "hidden";}};
-              for(var button of zoomButtons.childNodes) {
-                button.style.visibility = "hidden";
-              }
-            }
-          }
-            
           debug(false, "FJCTPmodifyGebietPage --> deleting first empty line from list");
           var firstTableRow = dochtml.querySelector("table.search-results>tbody>tr:first-child");
           if (firstTableRow != null) {
@@ -2066,7 +2104,8 @@
             // div.poi-section 3 "Beschreibung"        : Beschreibung - Zufahrt - Zusteig
             // div.poi-section 4 "Rock-Events"         : Rock-Events
             // div.poi-section 5 "Sektoren"            : Sektoren
-            FJCTPremovePoiSection(dochtml, "map");
+            //FJCTPremovePoiSection(dochtml, "map");
+            FJCTPmovePoiSectionToEnd(dochtml, "map");
             FJCTPcleanListEntries(dochtml);
         }
         else if (isGragPage) {
@@ -2133,13 +2172,13 @@
         FJCTPremoveElement(dochtml, "div#lightbox");
 
         // (6) reorganize, replace or augment content
+        FJCTPupgradeMap(dochtml);
         FJCTPmodifyRouteDescriptions(dochtml, processEnd);
 
         debug(true, "FJCTPmodifyDocument:: finished Processing");
     }
 
 
-    // END of all functions
     //----------------------------------------------------------------------------------------------------
     // START of document processing
 
