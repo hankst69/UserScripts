@@ -1,17 +1,14 @@
-// FJTP - FrankenJuraTopoPrint (content_20190626)
+// FJTP - FrankenJuraTopoPrint (content_20190827)
 
 (function content() {
 
-    //var c_LeftBorder    =   "70px";
-    //var c_PageWidth     = "1100px"; //table with + maxWith of TopImage must not exceed topoPageWidth
-    //var c_TableWidth    =  "439px";
-    //var c_ImageWidth    =  "600px";
-    //var c_ImageMaxWidth =  "660px";
-    var c_LeftBorder    =   "50px";
-    var c_PageWidth     = "1000px";
-    var c_TableWidth    =  "420px";
-    var c_ImageWidth    =  580; //"580px";
-    var c_ImageMaxWidth =  "580px";
+    //table with + maxWith of TopoImage must not exceed PageWidth
+    var c_LeftBorder      =   "50px";
+    var c_PageWidth       = "1000px";
+    var c_TableWidth      =  "420px";
+    var c_ImageWidthLimit =  580;
+    var c_ImageWidth      =  "580px";
+    var c_ImageMaxWidth   =  "580px";
     
     //--------------------------------------------------------------------------------------------------
     // basic script functions
@@ -704,6 +701,8 @@
           img.style.float = "right";
           img.style.width = c_ImageWidth;
           img.style.maxWidth = c_ImageMaxWidth;
+          // increase image width, in case the natural image width is smaller than the available space
+          //if (img.naturalWidth < c_ImageWidthLimit){
           img.onerror = function() {
             // image did not load
             // remove image and replace with horizontal or vertical image instead:
@@ -713,7 +712,7 @@
               poiTable.parentElement.appendChild(img);
               // adapt floating and size:
               img.style.float = "right";
-              img.style.width = img.naturalWidth < c_ImageWidth ? img.naturalWidth : c_ImageWidth;
+              img.style.width = (img.naturalWidth < c_ImageWidthLimit ? img.naturalWidth : c_ImageWidthLimit) + "px";
               img.style.maxWidth = c_ImageMaxWidth;
             }
           }          
@@ -2100,17 +2099,13 @@
               var lineOffset = table.offsetTop + tableLine.offsetTop;
               var scrollHeight = lineHeight;
               if (mapHeight > 0) {
-                if (lineOffset > (window.innerHeight - 1.0*lineHeight)) { //if ((lineOffset - mapOffset - mapHeight) >= 10.5*lineHeight) {
-                  var marginpx = table.style.marginTop;
-                  var margin = 0;
-                  var idx = marginpx.indexOf("px");
-                  if (idx > 0) {
-                      margin = parseFloat(marginpx.substring(0, idx));
-                  }
-                  margin -= scrollHeight;
-                  table.style.marginTop = margin + "px";;
+                console.log("FJTP - scrolling list");
+                var upperLimit = mapOffset + mapHeight + 0.5*lineHeight;
+                var lowerLimit = mapOffset + mapHeight + 6.5*lineHeight; //window.innerHeight - 1.0*lineHeight;
+                if (upperLimit >= lowerLimit) {
+                  lowerLimit = upperLimit + 3.0*lineHeight;
                 }
-                else if ((lineOffset - mapOffset - mapHeight) < 0.5*lineHeight) {
+                if (lineOffset < upperLimit) {
                   var marginpx = table.style.marginTop;
                   var margin = 0;
                   var idx = marginpx.indexOf("px");
@@ -2121,6 +2116,16 @@
                   if (margin > 0) {
                     margin = 0;
                   }
+                  table.style.marginTop = margin + "px";;
+                }
+                else if (lineOffset > lowerLimit) {
+                  var marginpx = table.style.marginTop;
+                  var margin = 0;
+                  var idx = marginpx.indexOf("px");
+                  if (idx > 0) {
+                      margin = parseFloat(marginpx.substring(0, idx));
+                  }
+                  margin -= scrollHeight;
                   table.style.marginTop = margin + "px";
                 }
               }
@@ -2318,7 +2323,8 @@
           });
         }
         if (!isAnyOfValidPages) {
-          Array.prototype.forEach.call(document.documentElement.querySelectorAll("div#content>div.columns>div#content-center>div#current-topo-wrapper"), function (element) {
+          //Array.prototype.forEach.call(document.documentElement.querySelectorAll("div#content>div.columns>div#content-center>div#current-topo-wrapper"), function (element) {
+          Array.prototype.forEach.call(document.documentElement.querySelectorAll("div#content>div.columns>div#content-center>div.poi-section>div.box-wrapper"), function (element) {
             isRoutePage = true; isAnyOfValidPages = true;
             debug(true, "FJCTPmodifyDocument -> isRoutePage");
           });
