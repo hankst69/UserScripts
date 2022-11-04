@@ -1,4 +1,4 @@
-// FJTP - FrankenJuraTopoPrint (content_20180706)
+// FJTP - FrankenJuraTopoPrint (content_20180707)
 
 (function content() {
 
@@ -492,18 +492,22 @@
         });
 
         // add GPS position
-        var gpsCoords = FJTCPreadGpsLocation(html);
-        if (gpsCoords.length > 0) {
+        var gpsData = FJTCPreadGpsLocations(html);
+        if (gpsData != null && gpsData.cragLatLon != null && gpsData.cragLatLon.length > 0) {
             Array.prototype.forEach.call(html.querySelectorAll( /*"div.poi-section>*/"table.poi-table-small>tbody>tr#first-original-row"), function(element) {
                 var tr2 = document.createElement("tr");
                 var th2 = document.createElement("th");
                 var td2 = document.createElement("td");
                 th2.textContent = "GPS:";
-                //td2.textContent = gpsCoords;
+                //td2.textContent = gpsData.cragLatLon;
                 var anchor = document.createElement("a");
-                anchor.href = "https://maps.google.de/maps?q=" + gpsCoords;
+                if (gpsData.parkingLatLon != null && gpsData.parkingLatLon.length > 0) {
+                  anchor.href = "https://www.google.de/maps/dir/" + gpsData.parkingLatLon + "/" + gpsData.cragLatLon;
+                } else {
+                  anchor.href = "https://maps.google.de/maps?q=" + gpsData.cragLatLon;
+                }
                 anchor.target = "_blank";
-                anchor.text = gpsCoords;
+                anchor.text = gpsData.cragLatLon;
                 anchor.style.fontWeight = "normal";
                 td2.appendChild(anchor);
                 tr2.appendChild(th2);
@@ -1472,7 +1476,7 @@
     }
 
     //----------------------------------------------------------------------------------------------------
-    // START of MAP manipulation stuff ...
+    // START of Google TILE MAP handling ...
 
     function FJTCPgoogleMapsTileCoordsToLonDegree(zoom, xtile, ytile) {
         debug(false, "FJTCPgoogleMapsTileCoordsToLonDegree");
@@ -1514,8 +1518,27 @@
         return lat_deg;
     }
 
-    function FJTCPreadGpsLocation(html) {
-        debug(true, "FJTCPreadGpsLocation");
+    function MathSinh(x) {
+        return (Math.exp(x) - Math.exp(x * -1)) / 2;
+    }
+
+    function NumberFromStyleValue(styleValue) {
+        if (styleValue == undefined) {
+            return undefined;
+        }
+        var idx = styleValue.indexOf("%");
+        if (idx > 0) {
+            return parseFloat(styleValue.substring(0, idx));
+        }
+        var idx = styleValue.indexOf("px");
+        if (idx > 0) {
+            return parseFloat(styleValue.substring(0, idx));
+        }
+        return undefined;
+    }
+        
+    function FJTCPreadGpsLocationFromCenterOfMapTiles(html) {
+        debug(true, "FJTCPreadGpsLocationFromCenterOfMapTiles");
         //tileproxy.php
         //http://www.drweb.de/magazin/tipps-tricks-mit-openstreetmap/      
 
@@ -1563,28 +1586,6 @@
         // -> calculated: 49.639177, 11.513672
         //          real: 49.634616, 11.531333
 
-        //debug(true, "FJTCPreadGpsLocation");
-        //Array.prototype.forEach.call(html.querySelectorAll("div.poi-section>div#map>div>div>div>img.olTileImage"), function (element) {
-        //    debug(false, "div.poi-section>div#map>div>div>div>img.olTileImage");
-        //});
-        //Array.prototype.forEach.call(html.querySelectorAll("div.poi-section>div#map"), function (element) {
-        //    debug(false, "div#map");
-        //});
-        //Array.prototype.forEach.call(html.querySelectorAll("div.olLayerDiv olLayerGrid"), function (element) {
-        //    debug(false, "div.olLayerDiv olLayerGrid");
-        //});
-        //Array.prototype.forEach.call(html.querySelectorAll("div#OpenLayers.Layer.OSM_15"), function (element) {
-        //    debug(false, "div#OpenLayers.Layer.OSM_15");
-        //});
-        //Array.prototype.forEach.call(html.querySelectorAll("div#map>div>div>dic>img"), function (element) {
-        //    debug(false, "map->img");
-        //});
-        //Array.prototype.forEach.call(html.querySelectorAll("img.olTileImage"), function (element) {
-        //    debug(false, "img.olTileImage");
-        //});
-        //Array.prototype.forEach.call(html.querySelectorAll('img[src*="/osm/tileproxy.php"]'), function (element) {
-        //    debug(false, "img src*=tileproxy.php");
-        //});
         var cragLeft;
         var cragTop;
         var cragWidth;
@@ -1595,8 +1596,10 @@
             cragWidth = NumberFromStyleValue(element.parentElement.style.width);
             cragHeight = NumberFromStyleValue(element.parentElement.style.height);
         });
-        if (cragLeft == undefined || cragTop == undefined)
-            return "";
+        if (cragLeft == undefined || cragTop == undefined) {
+            //return null;
+            return {longitude: null, latitude: null};
+        }
 
         var lon;
         var lat;
@@ -1667,34 +1670,57 @@
             }
         });
 
-        if (lat != undefined && lon != undefined) {
-            return lat.toFixed(6) + ", " + lon.toFixed(6);
-        }
+        return {longitude: lon, latitude: lat};
+    }
 
-        return ""; //"???????";
-        // fallback: return left/top of first tile
-        //return (ylat[0][1]).toFixed(6) + ", " + (xlon[0][1]).toFixed(6);
+    //----------------------------------------------------------------------------------------------------
+    // START of MAP manipulation stuff ...
+
+    function FJTCPformatLocationToLatLonCoords(location) {
+        return location != null && location.latitude != null && location.longitude != null 
+          ? location.latitude.toFixed(6) + ", " + location.longitude.toFixed(6) 
+          : "";
     }
     
-    function MathSinh(x) {
-        return (Math.exp(x) - Math.exp(x * -1)) / 2;
+    function FJTCPreadLocationfromCreatMarkerCommand(commandstring) {
+        //commandstring = "createMarker(11.376929,49.6532,"
+        var stripped = commandstring.substring(commandstring.indexOf("(")+1);
+        var lon = stripped.substring(0, stripped.indexOf(","));
+        stripped = stripped.substring(stripped.indexOf(",")+1);
+        var lat = stripped.substring(0, stripped.indexOf(","));
+        return {longitude: parseFloat(lon), latitude: parseFloat(lat)};
     }
 
-    function NumberFromStyleValue(styleValue) {
-        if (styleValue == undefined) {
-            return undefined;
-        }
-        var idx = styleValue.indexOf("%");
-        if (idx > 0) {
-            return parseFloat(styleValue.substring(0, idx));
-        }
-        var idx = styleValue.indexOf("px");
-        if (idx > 0) {
-            return parseFloat(styleValue.substring(0, idx));
-        }
-        return undefined;
-    }
+    function FJTCPreadGpsLocations(html) {
+        debug(true, "FJTCPreadGpsLocations");
+        //createMarker(11.376929,49.6532,'crag');
+        //createMarker(11.380327,49.650933,'parkplatz');
+        var cragLocation = {longitude: null, latitude: null};
+        var parkingLocation = {longitude: null, latitude: null};
+        Array.prototype.forEach.call(html.querySelectorAll("script"), function (element) {
+          var gragMatches = element.textContent.match(/createMarker\s*\(.*(?='crag')/g);
+          if (gragMatches != null && gragMatches.length > 0) {
+            cragLocation = FJTCPreadLocationfromCreatMarkerCommand(gragMatches[0]);
+          }
+          var parkingMatches = element.textContent.match(/createMarker\s*\(.*(?='parkplatz')/g);
+          if (parkingMatches != null && parkingMatches.length > 0) {
+            parkingLocation = FJTCPreadLocationfromCreatMarkerCommand(parkingMatches[0]);
+          }
+        });
 
+        if (cragLocation.longitude == null || cragLocation.latitude == null) {
+          cragLocation = FJTCPreadGpsLocationFromCenterOfMapTiles(html);
+        }
+        
+        return {
+          cragLat: cragLocation.latitude, 
+          cragLon: cragLocation.longitude, 
+          cragLatLon: FJTCPformatLocationToLatLonCoords(cragLocation),
+          parkingLat: parkingLocation.latitude,  
+          parkingLon: parkingLocation.longitude, 
+          parkingLatLon: FJTCPformatLocationToLatLonCoords(parkingLocation) };
+    }
+    
     function FJCTPcontainsMapParkingPosition(dochtml) {
         var hasParking = false;
         Array.prototype.forEach.call(dochtml.querySelectorAll("script"), function (element) {
