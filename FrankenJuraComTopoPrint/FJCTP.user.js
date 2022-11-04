@@ -1,4 +1,4 @@
-// FJTP - FrankenJuraTopoPrint (content_20180714)
+// FJTP - FrankenJuraTopoPrint (content_20180731)
 
 (function content() {
 
@@ -1478,6 +1478,10 @@
             element.insertBefore(document.createElement("br"), element.childNodes[0]);
             element.insertBefore(document.createElement("br"), element.childNodes[0]);
             element.insertBefore(document.createElement("br"), element.childNodes[0]);
+            element.insertBefore(document.createElement("br"), element.childNodes[0]);
+            element.insertBefore(document.createElement("br"), element.childNodes[0]);
+            element.insertBefore(document.createElement("br"), element.childNodes[0]);
+            element.insertBefore(document.createElement("br"), element.childNodes[0]);
             element.style.marginBottom = "100px";
             parent.appendChild(element);
             /* var div = document.createElement("div");
@@ -1702,7 +1706,7 @@
           : "";
     }
     
-    function FJTCPreadLocationfromCreatMarkerCommand(commandstring) {
+    function FJTCPreadLocationfromCreateMarkerCommand(commandstring) {
         //commandstring = "createMarker(11.376929,49.6532,"
         var stripped = commandstring.substring(commandstring.indexOf("(")+1);
         var lon = stripped.substring(0, stripped.indexOf(","));
@@ -1720,11 +1724,11 @@
         Array.prototype.forEach.call(html.querySelectorAll("script"), function (element) {
           var gragMatches = element.textContent.match(/createMarker\s*\(.*(?='crag')/g);
           if (gragMatches != null && gragMatches.length > 0) {
-            cragLocation = FJTCPreadLocationfromCreatMarkerCommand(gragMatches[0]);
+            cragLocation = FJTCPreadLocationfromCreateMarkerCommand(gragMatches[0]);
           }
           var parkingMatches = element.textContent.match(/createMarker\s*\(.*(?='parkplatz')/g);
           if (parkingMatches != null && parkingMatches.length > 0) {
-            parkingLocation = FJTCPreadLocationfromCreatMarkerCommand(parkingMatches[0]);
+            parkingLocation = FJTCPreadLocationfromCreateMarkerCommand(parkingMatches[0]);
           }
         });
 
