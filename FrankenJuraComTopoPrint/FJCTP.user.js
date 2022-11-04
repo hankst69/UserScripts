@@ -1,4 +1,4 @@
-// FJTP - FrankenJuraTopoPrint (content_20190605)
+// FJTP - FrankenJuraTopoPrint (content_20190607)
 
 (function content() {
 
@@ -10,7 +10,7 @@
     var c_LeftBorder    =   "50px";
     var c_PageWidth     = "1000px";
     var c_TableWidth    =  "420px";
-    var c_ImageWidth    =  "580px";
+    var c_ImageWidth    =  580; //"580px";
     var c_ImageMaxWidth =  "580px";
     
     //--------------------------------------------------------------------------------------------------
@@ -657,13 +657,23 @@
             debug(false, "removing img: " + element.attributes.getNamedItem("src").value);
             element.parentElement.removeChild(element);
         });
+        var verticalImage = null;
         Array.prototype.forEach.call(html.querySelectorAll("div.image-vertical"), function (element) {
             debug(false, "removing div.image-vertical");
-            element.parentElement.removeChild(element);
+            if (!verticalImage) {
+              verticalImage = html.querySelector("div.image-vertical img");
+            }
+            //element.parentElement.removeChild(element);
+            element.style.display = "none";
         });
+        var horizontalImage = null;
         Array.prototype.forEach.call(html.querySelectorAll("div.image-horizontal"), function (element) {
             debug(false, "removing div.image-vertical");
-            element.parentElement.removeChild(element);
+            if (!horizontalImage) {
+              horizontalImage = html.querySelector("div.image-horizontal img");
+            }
+            //element.parentElement.removeChild(element);
+            element.style.display = "none";
         });
 
         Array.prototype.forEach.call(html.querySelectorAll("div.poi-section>h4+p"), function (element) {
@@ -683,17 +693,31 @@
         img.src = poiSrc;
         img.alt = "Topo " + poiId;
         img.style.margin = "0";
-        //Array.prototype.forEach.call(html.querySelectorAll("div.poi-section>table.poi-table-small"), function(element) {
-        Array.prototype.forEach.call(html.querySelectorAll("table.poi-table-small"), function(element) {
-            debug(false, "adding div.image-vertical>img behind table.poi-table-small");
-            element.parentElement.appendChild(img);
-            // adapt floating and width:
-            element.style.float = "left";
-            element.style.width = c_TableWidth;
-            img.style.float = "right";
-            img.style.width = c_ImageWidth;
-            img.style.maxWidth = c_ImageMaxWidth;
-        });
+        
+        var poiTable = html.querySelector("table.poi-table-small");
+        if (poiTable) {
+          debug(false, "adding grag image>img behind table.poi-table-small");
+          poiTable.parentElement.appendChild(img);
+          // adapt floating and width:
+          poiTable.style.float = "left";
+          poiTable.style.width = c_TableWidth;
+          img.style.float = "right";
+          img.style.width = c_ImageWidth;
+          img.style.maxWidth = c_ImageMaxWidth;
+          img.onerror = function() {
+            // image did not load
+            // remove image and replace with horizontal or vertical image instead:
+            poiTable.parentElement.removeChild(img);
+            img = verticalImage ? verticalImage : horizontalImage;
+            if (img) {
+              poiTable.parentElement.appendChild(img);
+              // adapt floating and size:
+              img.style.float = "right";
+              img.style.width = img.naturalWidth < c_ImageWidth ? img.naturalWidth : c_ImageWidth;
+              img.style.maxWidth = c_ImageMaxWidth;
+            }
+          }          
+       }
     }
 
     function FJCTPtrimText(text) {
@@ -997,9 +1021,9 @@
             //border-radius: 50%; width: 12px; height: 12px; padding: 2px; border: 1px solid; text-align: center;
             //border-radius: 50%; padding: 2px 5px; border: 1px solid; text-align: center;
             if (num > 9)
-                element.innerHTML = "<span style=\"border-radius: 50%; padding: 2px 3px; border: 1px solid; text-align: center;\">" + num + "</span> &nbsp;" + FJCTPtrimText(element.innerHTML);
+                element.innerHTML = "<span style=\"border-radius: 50%; padding: 1px 3px; border: 1px solid; text-align: center;\">" + num + "</span> &nbsp;" + FJCTPtrimText(element.innerHTML);
             else
-                element.innerHTML = "<span style=\"border-radius: 50%; padding: 2px 5px; border: 1px solid; text-align: center;\">" + num + "</span> &nbsp;" + FJCTPtrimText(element.innerHTML);
+                element.innerHTML = "<span style=\"border-radius: 50%; padding: 1px 6px; border: 1px solid; text-align: center;\">" + num + "</span> &nbsp;" + FJCTPtrimText(element.innerHTML);
         });
     }
 
@@ -1201,6 +1225,7 @@
             element.style.margin = "0 0 0 0"; //"0 0 10px 0";
             element.style.width = topoPageWidth;
             element.style.color = "#202020"; //"#777777";
+            element.style.lineHeight = "1em";
         });
 
         Array.prototype.forEach.call(html.querySelectorAll("div#content-center p"), function (element) {
@@ -1222,6 +1247,7 @@
             // adapt floating and width to meet topoPageWidth:
             element.style.float = "left";
             element.style.width = c_TableWidth;
+            element.style.lineHeight = "1.4em";
         });
         // adapt topo image style
         Array.prototype.forEach.call(html.querySelectorAll("div.poi-section>table.poi-table-small>img"), function(element) {
@@ -1245,13 +1271,13 @@
         Array.prototype.forEach.call(html.querySelectorAll("th"), function (element) {
             element.style.width = "150px";
             element.style.height = "25px"; //28px;
-            element.style.lineHeight = "";
+            //element.style.lineHeight = "1.4em";
         });
 
         // adapt ul style
         Array.prototype.forEach.call(html.querySelectorAll("ul"), function (element) {
             element.style.margin = "0 0 0px 0";
-            element.style.lineHeight = "";
+            element.style.lineHeight = "1.2em";
             element.style.color = "#202020"; //"#777777";
         });
 
@@ -1259,21 +1285,20 @@
         Array.prototype.forEach.call(html.querySelectorAll("p"), function (element) {
             //element.style.margin = "0 0 0px 0";
             element.style.margin = "0 0 10px 0";
-            element.style.lineHeight = "";
+            element.style.lineHeight = "1.1em";
         });
 
         // adapt h4 style
         Array.prototype.forEach.call(html.querySelectorAll("h4"), function (element) {
-            //element.style.margin = "6px 0 6px 0";
-            element.style.margin = "0px 0 6px 0";
-            element.style.lineHeight = "";
+            element.style.margin = "0px 0 2px 0";
+            element.style.lineHeight = "1em";
         });
 
         // adapt route-list ol style
         Array.prototype.forEach.call(html.querySelectorAll("ol.route-list"), function (element) {
             element.style.width = topoPageWidth;
             element.style.margin = "0 0 0px 0";
-            element.style.lineHeight = "";
+            element.style.lineHeight = "1.1em"; //"1.2em"
         });
         // adapt route-list li style
         Array.prototype.forEach.call(html.querySelectorAll("ol.route-list>li"), function (element) {
@@ -1459,6 +1484,11 @@
             }
             else if (firstElementTagName == "DIV") {
               sectionId = element.firstElementChild.id;
+              if (sectionId.length < 1) {
+                if (element.firstElementChild.firstElementChild) {
+                  sectionId = element.firstElementChild.firstElementChild.id;
+                }
+              }
             }
           }
           if (sectionId.length < 1) {
@@ -1512,10 +1542,22 @@
     }
 
     function FJCTPremovePoiSection(html, sectionId) {
-        debug(true, "FJCTPremovePoiSections -> removing section: " + sectionId);
+        debug(true, "FJCTPremovePoiSection -> removing section: " + sectionId);
         Array.prototype.forEach.call(html.querySelectorAll("div.poi-section"), function (element) {
           if (FJCTPgetPoiSectionId(element) == sectionId) {
             debug(true, "FJCTPremovePoiSections -> section removed");
+            element.parentElement.removeChild(element);
+          }
+        });
+    }
+
+    function FJCTPremoveFirstPoiSection(html, sectionId) {
+        debug(true, "FJCTPremoveFirstPoiSection -> removing section: " + sectionId);
+        var done = false;
+        Array.prototype.forEach.call(html.querySelectorAll("div.poi-section"), function (element) {
+          if (!done && FJCTPgetPoiSectionId(element) == sectionId) {
+            done = true;
+            debug(true, "FJCTPremoveFirstPoiSection -> section removed");
             element.parentElement.removeChild(element);
           }
         });
@@ -2138,46 +2180,53 @@
           var zoomButtons = child;
           var mapView = zoomButtons.parentElement;
           var map = mapView.parentElement;
+          var mapPoiSection = map.parentElement;
+          var divHeightControls = dochtml.querySelector("div.set-height-container:first-of-type");
+          
           zoomButtons.style.visibility = "hidden";
           
           var hideButton = document.createElement('button');
           hideButton.textContent = "hide map";
-          hideButton.style.position = "absolute";
-          hideButton.style.left = "500px";
-          hideButton.style.top = "8px";
-          hideButton.style.zIndex = 2000;
-          hideButton.style.padding = "5px 5px 5px 5px";
+          //hideButton.style = "position: absolute; left: 500px; top: 8px; z-index: 2000; padding: 5px 5px 5px 5px;";
+          hideButton.style = "position: absolute; width: 70%; left: 15%; top: 0px; z-index: 2000; padding: 0px;";
           hideButton.style.visibility = "hidden";
-          //hideButton.onclick = function() { map.parentElement.parentElement.removeChild(map.parentElement); };
+
           hideButton.onclick = function() {
-            var mapDivSection = map.parentElement;
-            //mapDivSection.style.display = "none";
-            Array.prototype.forEach.call(map.parentElement.children, function (element) {
+            Array.prototype.forEach.call(mapPoiSection.children, function (element) {
                 element.style.display = "none";
             });
             
             var showButton = document.createElement('button');
             showButton.textContent = "show map";
-            //showButton.style.position = "absolute";
-            showButton.style.left = "500px";
-            showButton.style.top = "8px";
-            showButton.style.zIndex = 2000;
-            showButton.style.padding = "5px 5px 5px 5px";
+            showButton.style = "width: 100%; z-index: 2000; padding: 0px;";
             showButton.style.visibility = "hidden";
             showButton.onclick = function() {
-              Array.prototype.forEach.call(mapDivSection.children, function (element) {
+              Array.prototype.forEach.call(mapPoiSection.children, function (element) {
                   element.style.display = "";
               });
-              mapDivSection.removeChild(showButton);
+              mapPoiSection.removeChild(showButton);
             };
-            mapDivSection.insertBefore(showButton, mapDivSection.childNodes[0]);
-            mapDivSection.onmouseover = function() {showButton.style.visibility = "visible";};
-            mapDivSection.onmouseout  = function() {showButton.style.visibility = "hidden";};
+            
+            mapPoiSection.insertBefore(showButton, mapPoiSection.childNodes[0]);
+
+            if (divHeightControls) {
+              divHeightControls.style.visibility = "hidden";
+              mapPoiSection.onmouseover = function() {divHeightControls.style.visibility = "visible"; showButton.style.visibility = "visible";};
+              mapPoiSection.onmouseout  = function() {divHeightControls.style.visibility = "hidden"; showButton.style.visibility = "hidden";};
+            } else {
+              mapPoiSection.onmouseover = function() {showButton.style.visibility = "visible";};
+              mapPoiSection.onmouseout  = function() {showButton.style.visibility = "hidden";};
+            }
           };
 
           mapView.appendChild(hideButton);
           mapView.onmouseover = function() {zoomButtons.style.visibility = "visible"; hideButton.style.visibility = "visible";};
           mapView.onmouseout  = function() {zoomButtons.style.visibility = "hidden"; hideButton.style.visibility = "hidden";};
+          if (divHeightControls) {
+            divHeightControls.style.visibility = "hidden";
+            mapPoiSection.onmouseover = function() {divHeightControls.style.visibility = "visible";};
+            mapPoiSection.onmouseout  = function() {divHeightControls.style.visibility = "hidden";};
+          }
         }
       }
     }
@@ -2373,11 +2422,13 @@
           }
         }
         else if (isOverviewPage) {
-            // div.poi-section 1 "poi-table-small"     : Fels-Tabelle
-            // div.poi-section 2 "map"                 : Karte (OpenStreetMap)
-            // div.poi-section 3 "Beschreibung"        : Beschreibung - Zufahrt - Zusteig
-            // div.poi-section 4 "Rock-Events"         : Rock-Events
-            // div.poi-section 5 "Sektoren"            : Sektoren
+            // div.poi-section 1 "Rock-Events"         : Rock-Events
+            // div.poi-section 2 "poi-table-small"     : Fels-Tabelle
+            // div.poi-section 3 "map"                 : Karte (OpenStreetMap)
+            // div.poi-section 4 "Beschreibung"        : Beschreibung - Zufahrt - Zusteig
+            // div.poi-section 5 "Rock-Events"         : Rock-Events
+            // div.poi-section 6 "Sektoren"            : Sektoren
+            FJCTPremoveFirstPoiSection(dochtml, "Rock-Events");
             FJCTPremovePoiSection/*FJCTPmovePoiSectionToEnd*/(dochtml, "map");
             FJCTPcleanListEntries(dochtml);
         }
