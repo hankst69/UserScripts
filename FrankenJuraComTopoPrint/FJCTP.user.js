@@ -1,7 +1,18 @@
-// FJTP - FrankenJuraTopoPrint (content_20180928)
+// FJTP - FrankenJuraTopoPrint (content_20190605)
 
 (function content() {
 
+    //var c_LeftBorder    =   "70px";
+    //var c_PageWidth     = "1100px"; //table with + maxWith of TopImage must not exceed topoPageWidth
+    //var c_TableWidth    =  "439px";
+    //var c_ImageWidth    =  "600px";
+    //var c_ImageMaxWidth =  "660px";
+    var c_LeftBorder    =   "50px";
+    var c_PageWidth     = "1000px";
+    var c_TableWidth    =  "420px";
+    var c_ImageWidth    =  "580px";
+    var c_ImageMaxWidth =  "580px";
+    
     //--------------------------------------------------------------------------------------------------
     // basic script functions
 
@@ -460,6 +471,7 @@
             });
             if (starsImage != undefined) {
                 debug(false, "moving crag stars: " + element.textContent);
+                starsImage.style.height = "25px";
                 // misuse grag stars as anchor for login/logout
                 //<a href="/klettern/personal/login">Anmelden</a>
                 //<a href="/klettern/personal/logout">Logout</a>
@@ -568,16 +580,6 @@
           Array.prototype.forEach.call(html.querySelectorAll("table#cssGraph:nth-of-type(1)"), function (element) {
               routeInfoTable = element;
           });
-          //Array.prototype.forEach.call(html.querySelectorAll("table#cssGraph:nth-of-type(1)>tbody>tr:nth-of-type(1)"), function (element) {
-          //    var firstChild = element.firstChild;
-          //    debug(false, "FJCTPmodifyHeadlineAndGragTable - remove first " + firstChild + " from first row from RoutInfoTable");
-          //    element.removeChild(firstChild);
-          //});
-          //Array.prototype.forEach.call(html.querySelectorAll("table#cssGraph:nth-of-type(1)>tbody>tr:nth-of-type(2)"), function (element) {
-          //    var firstChild = element.firstChild;
-          //    debug(false, "FJCTPmodifyHeadlineAndGragTable - remove first " + firstChild + " from second row from RoutInfoTable");
-          //    element.removeChild(firstChild);
-          //});
           Array.prototype.forEach.call(html.querySelectorAll("table#cssGraph:nth-of-type(1)>tbody>tr:nth-of-type(1)>td:nth-of-type(1)"), function (element) {
               debug(false, "FJCTPmodifyHeadlineAndGragTable - remove first td from first row from RoutInfoTable");
               element.parentElement.removeChild(element);
@@ -596,13 +598,14 @@
           });
           if (routeInfoTable != undefined) {
               routeInfoTable.parentElement.removeChild(routeInfoTable);
+              routeInfoTable.style.width = c_TableWidth;
               Array.prototype.forEach.call(html.querySelectorAll( /*"div.poi-section>*/"table.poi-table-small>tbody:nth-of-type(1)"), function (element) {
-                  var br = document.createElement("br");
+                  //var br = document.createElement("br");
                   var tr = document.createElement("tr");
                   var td = document.createElement("td");
                   td.colSpan = "2";
                   td.appendChild(routeInfoTable);
-                  td.appendChild(br);
+                  //td.appendChild(br);
                   tr.appendChild(td);
                   element.appendChild(tr);
               });
@@ -686,10 +689,10 @@
             element.parentElement.appendChild(img);
             // adapt floating and width:
             element.style.float = "left";
-            element.style.width = "439px";
-            //img.style.float = "right";
-            img.style.width = "550px";
-            img.style.maxWidth = "580px";  //table with + maxWith of TopImage must not exceed 1200px
+            element.style.width = c_TableWidth;
+            img.style.float = "right";
+            img.style.width = c_ImageWidth;
+            img.style.maxWidth = c_ImageMaxWidth;
         });
     }
 
@@ -1030,7 +1033,7 @@
     function FJCTPreadRouteFirstAscenter(html) {
         debug(true, "FJCTPreadRouteFirstAscenter");
         var firstAscenter = "";
-        Array.prototype.forEach.call(html.querySelectorAll("div.poi-section>table>tbody>tr>th+td"), function (element) {
+        Array.prototype.forEach.call(html.querySelectorAll("div.poi-section table>tbody>tr>th+td"), function (element) {
             if (element.previousElementSibling.textContent == "Erstbegehung:") { 
                 var text = FJTCPcleanTextContent(element.textContent);
                 if (text.length > 0) {
@@ -1178,7 +1181,7 @@
             element.style.fontSize = "20px";
         });
 
-        var topoPageWidth = "1100px"; //-> table with + maxWith of TopImage must not exceed 1200px
+        var topoPageWidth = c_PageWidth;
         
         Array.prototype.forEach.call(html.querySelectorAll("div#content"), function (element) {
             element.style.borderStyle = "hidden";
@@ -1195,7 +1198,7 @@
         Array.prototype.forEach.call(html.querySelectorAll("div.poi-section"), function (element) {
             element.style.borderStyle = "hidden";
             element.style.padding = "0 0 0 0";
-            element.style.margin = "0 0 0 0";
+            element.style.margin = "0 0 0 0"; //"0 0 10px 0";
             element.style.width = topoPageWidth;
             element.style.color = "#202020"; //"#777777";
         });
@@ -1213,19 +1216,20 @@
         // adapt table style
         Array.prototype.forEach.call(html.querySelectorAll("table.poi-table-small"), function (element) {
             element.style.lineHeight = "";
-            element.style.marginBottom = "5px";
+            //element.style.margin = "0 0 0 0";
+            element.style.marginBottom = "15px";
             //element.style.borderStyle = "1px solid black";
             // adapt floating and width to meet topoPageWidth:
             element.style.float = "left";
-            element.style.width = "439px"; //table with + maxWith of TopImage must not exceed topoPageWidth
+            element.style.width = c_TableWidth;
         });
         // adapt topo image style
         Array.prototype.forEach.call(html.querySelectorAll("div.poi-section>table.poi-table-small>img"), function(element) {
             // adapt floating and width to meet topoPageWidth:
             element.style.margin = "0 0 0 0";
-            //element.style.float = "right";
-            element.style.width    = "600px"; //table with + maxWith of TopImage must not exceed topoPageWidth
-            element.style.maxWidth = "660px"; //table with + maxWith of TopImage must not exceed topoPageWidth
+            element.style.float = "right";
+            element.style.width    = c_ImageWidth;
+            element.style.maxWidth = c_ImageMaxWidth;
         });
 
         // adapt stars image style
@@ -1240,6 +1244,7 @@
         // adapt th style
         Array.prototype.forEach.call(html.querySelectorAll("th"), function (element) {
             element.style.width = "150px";
+            element.style.height = "25px"; //28px;
             element.style.lineHeight = "";
         });
 
@@ -1482,6 +1487,28 @@
           debug(true, "FJCTPlistPoiSections -> section " + num + " '" + FJCTPgetPoiSectionId(element) + "'");
           num++;
         });
+    }
+
+    function FJCTPremoveEmptyTextBetweenPoiSections(html) {
+        debug(true, "FJCTPremoveEmptyTextBetweenPoiSections");
+        //'
+        //
+        //&#65279;
+        //				'        
+        var firstSection = null;
+        Array.prototype.forEach.call(html.querySelectorAll("div.poi-section"), function (element) {
+          if (!firstSection) {firstSection = element;}
+        });
+        if (firstSection) {
+          var parent = firstSection.parentElement;
+          Array.prototype.forEach.call(parent.childNodes, function (child) {
+            if (child.tagName != "DIV") {
+              if (!child.textContent || child.textContent.trim().length < 1) {
+                parent.removeChild(child);
+              }
+            }
+          });
+        }
     }
 
     function FJCTPremovePoiSection(html, sectionId) {
@@ -2026,7 +2053,7 @@
           map.updateSize(); 
           map.zoomToExtent(markerLayer.getDataExtent()); 
           map.zoomOut(); 
-        }, 250);
+        }, 450);
         Array.prototype.forEach.call(window.document.documentElement.querySelectorAll("table>tbody>tr a"), function (element) {
           if (element.tagName == "A" && element.href.indexOf("/poi/") > 0) {
             element.onmouseover = function() {highlightFeature(element.textContent)};
@@ -2121,9 +2148,34 @@
           hideButton.style.zIndex = 2000;
           hideButton.style.padding = "5px 5px 5px 5px";
           hideButton.style.visibility = "hidden";
-          hideButton.onclick = function() { /*FJCTPremovePoiSection(dochtml,"map"); map.parentElement.removeChild(map);*/ map.parentElement.parentElement.removeChild(map.parentElement); };
+          //hideButton.onclick = function() { map.parentElement.parentElement.removeChild(map.parentElement); };
+          hideButton.onclick = function() {
+            var mapDivSection = map.parentElement;
+            //mapDivSection.style.display = "none";
+            Array.prototype.forEach.call(map.parentElement.children, function (element) {
+                element.style.display = "none";
+            });
+            
+            var showButton = document.createElement('button');
+            showButton.textContent = "show map";
+            //showButton.style.position = "absolute";
+            showButton.style.left = "500px";
+            showButton.style.top = "8px";
+            showButton.style.zIndex = 2000;
+            showButton.style.padding = "5px 5px 5px 5px";
+            showButton.style.visibility = "hidden";
+            showButton.onclick = function() {
+              Array.prototype.forEach.call(mapDivSection.children, function (element) {
+                  element.style.display = "";
+              });
+              mapDivSection.removeChild(showButton);
+            };
+            mapDivSection.insertBefore(showButton, mapDivSection.childNodes[0]);
+            mapDivSection.onmouseover = function() {showButton.style.visibility = "visible";};
+            mapDivSection.onmouseout  = function() {showButton.style.visibility = "hidden";};
+          };
+
           mapView.appendChild(hideButton);
-          
           mapView.onmouseover = function() {zoomButtons.style.visibility = "visible"; hideButton.style.visibility = "visible";};
           mapView.onmouseout  = function() {zoomButtons.style.visibility = "hidden"; hideButton.style.visibility = "hidden";};
         }
@@ -2376,9 +2428,10 @@
         FJCTPremoveElement(dochtml, "div#content-right");                      //Werbung in rechter Spalte
         FJCTPremoveElement(dochtml, "div#content-right-wrapper");              //Werbung in rechter Spalte
         FJCTPremoveElement(dochtml, "div#footer");                             //Login,Kontak,Werbung,Impressum
-        //FJCTPremoveElement(dochtml, "div#side-content");
-        FJCTPhideElement(dochtml, "div#side-content");
+        //FJCTPhideElement(dochtml, "div#side-content");
+        FJCTPremoveElement(dochtml, "div#side-content");
         FJCTPremoveElement(dochtml, "div#side-content-wrapper");
+        FJCTPremoveElement(dochtml, "div#side-content-main-wrapper");
         FJCTPremoveElement(dochtml, "div.poi-section ~ br");
       //FJCTPremoveElement(dochtml, "div.poi-section ~ hr");
       //FJCTPremoveElement(dochtml, "div~hr");
@@ -2396,6 +2449,8 @@
         FJCTPkickoutDivBetweenBodyAndDiv(dochtml, "content");
         FJCTPremoveElement(dochtml, "div#lightboxOverlay");
         FJCTPremoveElement(dochtml, "div#lightbox");
+        FJCTPremoveElement(dochtml, "div.no-image"); //remove upload missing image div
+        FJCTPremoveEmptyTextBetweenPoiSections(dochtml);
 
         // (6) reorganize, replace or augment content
         FJCTPupgradeMap(dochtml);
