@@ -2,18 +2,12 @@
    "manifest_version": 2,
    "name": "FrankenJura.Com Topo Printing",
    "permissions": [ 
-        //"tabs", 
-        //"contextMenus", 
-        //"unlimitedStorage",
         "http://www.frankenjura.com/*", 
         "https://www.frankenjura.com/*"
    ],
-   "version": "1.0.0",
+   "version": "1.0.1",
    
    "web_accessible_resources": [ 
-        //"pages/banner.html", 
-        //"pages/banner.css", 
-        //"scripts/content/banner.js", 
         "resources/icon_16.png" 
    ],
    
@@ -27,9 +21,6 @@
 
    "background": {
       "scripts": [ 
-        //"scripts/bg/background.js",
-        //"scripts/bg/config.js", 
-        //"scripts/bg/ui.js"
       ]
    },
    
@@ -40,13 +31,9 @@
    
    "content_scripts": [ {
       "all_frames": true,
-      "js": [ 
-        "FJCTP.user.js"
-        //"scripts/frameworks/jquery.min.js",
-        //"scripts/content/docprocessor.js",
-        //"scripts/content/content.js",
-        //"scripts/content/util.js"
-      ],
+    "js": [
+      "FJCTP.user.js"
+    ],
       "matches": [ 
         "https://www.frankenjura.com/*", 
         "http://www.frankenjura.com/*"
