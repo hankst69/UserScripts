@@ -5,7 +5,7 @@
 // @include     https://www.redbull.com/*
 // @copyright   2019, savnt
 // @license     MIT
-// @version     0.1.5
+// @version     0.1.6
 // @grant       none
 // @inject-into page
 // ==/UserScript==
@@ -95,6 +95,9 @@ function CodeToInject(chromeExensionScriptUrl){
       if (url.toLowerCase().startsWith("http")) {
         return url;
       }
+      if (url.toLowerCase().startsWith("blob")) {
+        return url;
+      }
       var a = document.createElement('a');
       a.href = url;
       return a.href;
@@ -129,22 +132,21 @@ function CodeToInject(chromeExensionScriptUrl){
       if (trimedLine.toUpperCase().startsWith('EXT-X-STREAM-INF:')) {
         var subLines = trimedLine.substr('EXT-X-STREAM-INF:'.length).split('\n');
         if (subLines.length > 1) {
-          var params = subLines[0].split(',').trim();
-          var url = subLines[1];
+          var params = subLines[0].split(',');
+          var url = subLines[1].trim();
           var resolution = null;
           params.forEach((param) => {
-            if (param.toUpperCase().startsWith('RESOLUTION=')) {
-              resolution = param.substr('RESOLUTION='.length);
+            if (param.trim().toUpperCase().startsWith('RESOLUTION=')) {
+              resolution = param.trim().substr('RESOLUTION='.length);
             }
           });
           // complement url if necessary
-          if (url && !(url.trim().toLowerCase().startsWith('http'))) {
+          if (url && !(url.toLowerCase().startsWith('http'))) {
             var lastSlashPos = m3u8Url.lastIndexOf('/');
             if (lastSlashPos > 0) {
               var baseUrl = m3u8Url.substr(0,lastSlashPos);
-              var compUrl = url.trim();
-              var needSlash = !compUrl.startsWith('/');
-              url = baseUrl + (needSlash ? '/' : '') + compUrl;
+              var needSlash = !url.startsWith('/');
+              url = baseUrl + (needSlash ? '/' : '') + url;
             }
           }
           // extract videoHeight from resolutuion parameter
@@ -168,8 +170,9 @@ function CodeToInject(chromeExensionScriptUrl){
     return qualities;
   }
 
-  async function createAdFreeVodPlayList(m3u8Url) {
-    debug("loadM3U8PlayListQualities()");
+
+  async function createAdFreeVodPlayList(m3u8Url, quality) {
+    debug("createAdFreeVodPlayList()");
     var m3u8PlayList = await loadCorsResource(m3u8Url);
     //parse:
     // #EXT-X-PLAYLIST-TYPE:VOD
@@ -177,52 +180,98 @@ function CodeToInject(chromeExensionScriptUrl){
     // https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/0.ts
     // #EXTINF:3.000,
     // https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/1.ts
+    //
+    //#EXTINF:2.240,
+    //https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/486.ts
+    //#EXT-X-DISCONTINUITY
+    //#EXTINF:3.000,
+    //https://cs5.rbmbtnx.net/v1/GAMS/s/1/ST/8N/Z5/QH/21/11/0.ts
+    //#EXT-X-DISCONTINUITY
+    //#EXTINF:3.000,
+    //https://cs.rbmbtnx.net/v1/GAMS/s/1/YX/HB/1S/YW/5N/11/0.ts
+    //#EXTINF:3.000,
+    //https://cs.rbmbtnx.net/v1/GAMS/s/1/YX/HB/1S/YW/5N/11/1.ts
+    //#EXTINF:3.000,
+    //...
+    //#EXTINF:2.000,
+    //https://cs.rbmbtnx.net/v1/GAMS/s/1/YX/HB/1S/YW/5N/11/15.ts
+    //#EXT-X-DISCONTINUITY
+    //#EXTINF:3.000,
+    //https://cs2.rbmbtnx.net/v1/GAMS/s/1/SV/5P/JV/F1/1W/11/0.ts
+    //#EXT-X-DISCONTINUITY
+    //#EXTINF:0.760,
+    //https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/487.ts
     if (m3u8PlayList.toUpperCase().indexOf('#EXT-X-PLAYLIST-TYPE:VOD') < 0) {
       return null;
     }
+    var newVodPlayList = '';
+    var lastValidSegment = -1;
     var m3u8Lines = m3u8PlayList.split('#');
-    var lastValidSegment = 0;
     m3u8Lines.forEach((line) => {
-      if (line.trim().toUpperCase().startsWith('EXTINF')) {
-        var subLines = line.substr('EXTINF'.length).split('\n');
+      var trimedLine = line.trim();
+      if (trimedLine.toUpperCase().startsWith('EXTINF')) {
+        var subLines = trimedLine.split('\n');
         if (subLines.length > 1) {
-          var params = subLines[0].split(',');
-          var url = subLines[1];
-          var resolution = null;
-          params.forEach((param) => {
-            if (param.startsWith('RESOLUTION=')) {
-              resolution = param.substr('RESOLUTION='.length);
-            }
-          });
+          // a valid TS segment line
+          var url = subLines[1].trim();
           // complement url if necessary
-          if (url && !(url.trim().toLowerCase().startsWith('http'))) {
+          if (url && !(url.toLowerCase().startsWith('http'))) {
             var lastSlashPos = m3u8Url.lastIndexOf('/');
             if (lastSlashPos > 0) {
               var baseUrl = m3u8Url.substr(0,lastSlashPos);
-              var compUrl = url.trim();
-              var needSlash = !compUrl.startsWith('/');
-              url = baseUrl + (needSlash ? '/' : '') + compUrl;
+              var needSlash = !url.startsWith('/');
+              url = baseUrl + (needSlash ? '/' : '') + url;
             }
           }
-          // extract videoHeight from resolutuion parameter
-          var videoHeight = 0;
-          if (resolution.indexOf('x') >= 0) {
-            var widthHeight = resolution.split('x');
-            videoHeight = widthHeight.pop();
+          if (url.toLowerCase().endsWith('.ts')) {
+            var slashPos = url.lastIndexOf('/');
+            if (slashPos > 0) {
+              var tsFile = url.substr(slashPos+1);
+              var dotPos = tsFile.lastIndexOf('.');
+              if (dotPos > 0) {
+                var segmentNumberName = tsFile.substr(0,dotPos);
+                var segmentNumber = parseInt(segmentNumberName);
+                if (!isNaN(segmentNumber)) {
+                  var addSegment = false;
+                  if (lastValidSegment < 0) {
+                    // first valid segment
+                    addSegment = true;
+                    lastValidSegment = segmentNumber;
+                  }
+                  else if (segmentNumber > lastValidSegment) {
+                    // this is a simple parsing mechanism only matching above documented scenario!
+                    // do some validations
+                    var missingSegments = segmentNumber - lastValidSegment - 1;
+                    if (missingSegments > 0) {
+                      debug("missing " + missingSegments + " segment(s)");
+                    }
+                    // seems we have the next valid segment after the intermediate advertisment
+                    addSegment = true;
+                    lastValidSegment = segmentNumber;
+                  }
+                  if (addSegment) {
+                    newVodPlayList += '#' + subLines[0] + '\n' + url + '\n';
+                  }
+                }
+              }
+            }
           }
-          var quality = {
-            "url": url,
-            "type": getExtensionFromUrl(url),
-            "quality": videoHeight
-          };
-          qualities.push(quality);
         }
       }
+      else if (trimedLine.length > 0 && !trimedLine.toUpperCase().startsWith('EXT-X-DISCONTINUITY')) {
+        newVodPlayList += '#' + trimedLine + '\n';
+      }
     });
-    qualities.sort((streamA,streamB) => {
-        return streamB.quality - streamA.quality;
-    });
-    return qualities;
+    // create a downloadlink to this blob
+    debug(newVodPlayList);
+    var saveBlob = new Blob([(new Uint8Array([0xEF, 0xBB, 0xBF])), newVodPlayList], { type: "text/html" });
+    var saveUrl = window.URL.createObjectURL(saveBlob);
+    var quali = {
+      "url": saveUrl,
+      "type": "m3u8", //getExtensionFromUrl(m3u8Url),
+      "quality": quality + '-noAds'
+    };
+    return quali;
   }
 
   async function analysePageAndCreateUi(showUiOpen) {
@@ -392,6 +441,21 @@ function CodeToInject(chromeExensionScriptUrl){
               subQualities.forEach((subQuality) => {entry.qualities.push(subQuality)});
             }
           }
+        }
+        // process m3u8 playlists
+        for (var i=0; i<jsonMediaList.mediaList.length; i++) {
+          var entry = jsonMediaList.mediaList[i];
+          var subQualities = [];
+          for (var j=0; j<entry.qualities.length; j++) {
+            var quality = entry.qualities[j];
+            if (quality.url && quality.type && quality.type.toLowerCase().startsWith("m3u8")) {
+              var subQuality = await createAdFreeVodPlayList(quality.url, quality.quality);
+              if (subQuality) {
+                subQualities.push(subQuality);
+              }
+            }
+          }
+          subQualities.forEach((subQuality) => {entry.qualities.push(subQuality)});
         }
 
         // debug output of retieved media information
