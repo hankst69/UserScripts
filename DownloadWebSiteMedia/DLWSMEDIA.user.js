@@ -42,6 +42,51 @@ function CodeToInject(chromeExensionScriptUrl){
 
 */
 
+	function createCorsRequest(method, url) {
+	  var xhr = new XMLHttpRequest();
+	  if ("withCredentials" in xhr) {
+	    // XHR for Chrome/Firefox/Opera/Safari.
+	    xhr.open(method, url, true);
+	  } else if (typeof XDomainRequest != "undefined") {
+	    // XDomainRequest for IE.
+	    xhr = new XDomainRequest();
+	    xhr.open(method, url);
+	  } else {
+	    // CORS not supported.
+	    xhr = null;
+	  }
+	  return xhr;
+	}
+	
+	function loadCorsResource(url) {
+		return new Promise((resolve, reject) => {
+	    var xhr = createCorsRequest('GET', url);
+	    if (!xhr) {
+	      reject('CORS not supported');
+	      return;
+	    }
+	    //xhr.setRequestHeader('Content-Type', 'application/xml');
+	    //xhr.setRequestHeader('Content-Type', 'application/json');
+	    //xhr.setRequestHeader('Content-Type', 'application/' + type);
+	    //xhr.overrideMimeType('text/xml');
+	    xhr.setRequestHeader('Content-Type', 'text/xml');
+	        
+	    xhr.onloadstart = function() {
+	      //alert("load started");
+	    }
+	    xhr.onload = function() {
+	      //alert("load finished");
+	      var data = xhr.responseText;
+	      resolve(data);
+	    }
+	    xhr.onerror = function() {
+	      //alert("load failed");
+	      reject('CORS request failed : ' + xhr.statusText);
+	    }
+	    xhr.send();
+		})
+	}
+
   function getAbsoluteUrl(url) {
     if (url) {
       if (url.toLowerCase().startsWith("http")) {
@@ -63,13 +108,44 @@ function CodeToInject(chromeExensionScriptUrl){
     return null;
   }
 
-  function loadM3U8PlayListQualities(m3u8Url) {
+  async function loadM3U8PlayListQualities(m3u8Url) {
     debug("loadM3U8PlayListQualities()");
+    var m3u8PlayList = await loadCorsResource(m3u8Url);
+    //debug(m3u8PlayList);
+
+// CORS Patterns:
+// *://*/*
+// https://rbmn-live.akamaized.net/*
+/*
+#EXTM3U
+#EXT-X-VERSION:4
+#EXT-X-STREAM-INF:BANDWIDTH=1846410,AVERAGE-BANDWIDTH=1389879,RESOLUTION=960x540,CODECS="avc1.4d001f,mp4a.40.2"
+https://dms.redbull.tv/dms/media/AP-1XCY6DVFN1W11/960x540@1846410/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJjYXRlZ29yeSI6InBlcnNvbmFsX2NvbXB1dGVyIiwib3NfZmFtaWx5IjoiaHR0cCIsIm9zX3ZlcnNpb24iOiIiLCJ1aWQiOiIwMmRjMzc1Mi01NjA4LTQ3YWMtOGY3Mi1hNmUwZDE5ZTI3MWYiLCJsYXRpdHVkZSI6MC4wLCJsb25ndGl0dWRlIjowLjAsImNvdW50cnlfaXNvIjoiZGUiLCJhZGRyZXNzIjoiMjAwMzplYTo5NzI4OjIwMDA6YjQ2MDpkZGZhOjJiODg6M2QwMCIsInVzZXItYWdlbnQiOiJNb3ppbGxhLzUuMCAoV2luZG93cyBOVCAxMC4wOyBXaW42NDsgeDY0KSBBcHBsZVdlYktpdC81MzcuMzYgKEtIVE1MLCBsaWtlIEdlY2tvKSBDaHJvbWUvNzQuMC4zNzI5LjE1NyBTYWZhcmkvNTM3LjM2IiwiZGV2aWNlX3R5cGUiOiIiLCJkZXZpY2VfaWQiOiIiLCJpYXQiOjE1NTgwNDQ3NTJ9.sTG_v7V_mGR2DMsvjVC10fOmvpfJR3T4h78Y5VaFa-w=/playlist.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=727936,AVERAGE-BANDWIDTH=608592,RESOLUTION=426x240,CODECS="avc1.4d001e,mp4a.40.2"
+https://dms.redbull.tv/dms/media/AP-1XCY6DVFN1W11/426x240@727936/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJjYXRlZ29yeSI6InBlcnNvbmFsX2NvbXB1dGVyIiwib3NfZmFtaWx5IjoiaHR0cCIsIm9zX3ZlcnNpb24iOiIiLCJ1aWQiOiIwMmRjMzc1Mi01NjA4LTQ3YWMtOGY3Mi1hNmUwZDE5ZTI3MWYiLCJsYXRpdHVkZSI6MC4wLCJsb25ndGl0dWRlIjowLjAsImNvdW50cnlfaXNvIjoiZGUiLCJhZGRyZXNzIjoiMjAwMzplYTo5NzI4OjIwMDA6YjQ2MDpkZGZhOjJiODg6M2QwMCIsInVzZXItYWdlbnQiOiJNb3ppbGxhLzUuMCAoV2luZG93cyBOVCAxMC4wOyBXaW42NDsgeDY0KSBBcHBsZVdlYktpdC81MzcuMzYgKEtIVE1MLCBsaWtlIEdlY2tvKSBDaHJvbWUvNzQuMC4zNzI5LjE1NyBTYWZhcmkvNTM3LjM2IiwiZGV2aWNlX3R5cGUiOiIiLCJkZXZpY2VfaWQiOiIiLCJpYXQiOjE1NTgwNDQ3NTJ9.sTG_v7V_mGR2DMsvjVC10fOmvpfJR3T4h78Y5VaFa-w=/playlist.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=1091402,AVERAGE-BANDWIDTH=838885,RESOLUTION=640x360,CODECS="avc1.4d001e,mp4a.40.2"
+https://dms.redbull.tv/dms/media/AP-1XCY6DVFN1W11/640x360@1091402/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJjYXRlZ29yeSI6InBlcnNvbmFsX2NvbXB1dGVyIiwib3NfZmFtaWx5IjoiaHR0cCIsIm9zX3ZlcnNpb24iOiIiLCJ1aWQiOiIwMmRjMzc1Mi01NjA4LTQ3YWMtOGY3Mi1hNmUwZDE5ZTI3MWYiLCJsYXRpdHVkZSI6MC4wLCJsb25ndGl0dWRlIjowLjAsImNvdW50cnlfaXNvIjoiZGUiLCJhZGRyZXNzIjoiMjAwMzplYTo5NzI4OjIwMDA6YjQ2MDpkZGZhOjJiODg6M2QwMCIsInVzZXItYWdlbnQiOiJNb3ppbGxhLzUuMCAoV2luZG93cyBOVCAxMC4wOyBXaW42NDsgeDY0KSBBcHBsZVdlYktpdC81MzcuMzYgKEtIVE1MLCBsaWtlIEdlY2tvKSBDaHJvbWUvNzQuMC4zNzI5LjE1NyBTYWZhcmkvNTM3LjM2IiwiZGV2aWNlX3R5cGUiOiIiLCJkZXZpY2VfaWQiOiIiLCJpYXQiOjE1NTgwNDQ3NTJ9.sTG_v7V_mGR2DMsvjVC10fOmvpfJR3T4h78Y5VaFa-w=/playlist.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=3753482,AVERAGE-BANDWIDTH=2822524,RESOLUTION=1280x720,CODECS="avc1.4d001f,mp4a.40.2"
+https://dms.redbull.tv/dms/media/AP-1XCY6DVFN1W11/1280x720@3753482/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJjYXRlZ29yeSI6InBlcnNvbmFsX2NvbXB1dGVyIiwib3NfZmFtaWx5IjoiaHR0cCIsIm9zX3ZlcnNpb24iOiIiLCJ1aWQiOiIwMmRjMzc1Mi01NjA4LTQ3YWMtOGY3Mi1hNmUwZDE5ZTI3MWYiLCJsYXRpdHVkZSI6MC4wLCJsb25ndGl0dWRlIjowLjAsImNvdW50cnlfaXNvIjoiZGUiLCJhZGRyZXNzIjoiMjAwMzplYTo5NzI4OjIwMDA6YjQ2MDpkZGZhOjJiODg6M2QwMCIsInVzZXItYWdlbnQiOiJNb3ppbGxhLzUuMCAoV2luZG93cyBOVCAxMC4wOyBXaW42NDsgeDY0KSBBcHBsZVdlYktpdC81MzcuMzYgKEtIVE1MLCBsaWtlIEdlY2tvKSBDaHJvbWUvNzQuMC4zNzI5LjE1NyBTYWZhcmkvNTM3LjM2IiwiZGV2aWNlX3R5cGUiOiIiLCJkZXZpY2VfaWQiOiIiLCJpYXQiOjE1NTgwNDQ3NTJ9.sTG_v7V_mGR2DMsvjVC10fOmvpfJR3T4h78Y5VaFa-w=/playlist.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=7556940,AVERAGE-BANDWIDTH=5745432,RESOLUTION=1920x1080,CODECS="avc1.640028,mp4a.40.2"
+https://dms.redbull.tv/dms/media/AP-1XCY6DVFN1W11/1920x1080@7556940/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJjYXRlZ29yeSI6InBlcnNvbmFsX2NvbXB1dGVyIiwib3NfZmFtaWx5IjoiaHR0cCIsIm9zX3ZlcnNpb24iOiIiLCJ1aWQiOiIwMmRjMzc1Mi01NjA4LTQ3YWMtOGY3Mi1hNmUwZDE5ZTI3MWYiLCJsYXRpdHVkZSI6MC4wLCJsb25ndGl0dWRlIjowLjAsImNvdW50cnlfaXNvIjoiZGUiLCJhZGRyZXNzIjoiMjAwMzplYTo5NzI4OjIwMDA6YjQ2MDpkZGZhOjJiODg6M2QwMCIsInVzZXItYWdlbnQiOiJNb3ppbGxhLzUuMCAoV2luZG93cyBOVCAxMC4wOyBXaW42NDsgeDY0KSBBcHBsZVdlYktpdC81MzcuMzYgKEtIVE1MLCBsaWtlIEdlY2tvKSBDaHJvbWUvNzQuMC4zNzI5LjE1NyBTYWZhcmkvNTM3LjM2IiwiZGV2aWNlX3R5cGUiOiIiLCJkZXZpY2VfaWQiOiIiLCJpYXQiOjE1NTgwNDQ3NTJ9.sTG_v7V_mGR2DMsvjVC10fOmvpfJR3T4h78Y5VaFa-w=/playlist.m3u8    
+
+#EXTM3U
+#EXT-X-VERSION:3
+#EXT-X-INDEPENDENT-SEGMENTS
+#EXT-X-STREAM-INF:BANDWIDTH=677600,AVERAGE-BANDWIDTH=655600,CODECS="avc1.77.30,mp4a.40.2",RESOLUTION=640x360,FRAME-RATE=25.000
+https://rbmn-live.akamaized.net/hls/live/2002830/geoSTVDEweb/master_596.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=1856800,AVERAGE-BANDWIDTH=1790800,CODECS="avc1.4d401f,mp4a.40.2",RESOLUTION=960x540,FRAME-RATE=25.000
+https://rbmn-live.akamaized.net/hls/live/2002830/geoSTVDEweb/master_1628.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=3872000,AVERAGE-BANDWIDTH=3731200,CODECS="avc1.4d401f,mp4a.40.2",RESOLUTION=1280x720,FRAME-RATE=25.000
+https://rbmn-live.akamaized.net/hls/live/2002830/geoSTVDEweb/master_3392.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=7647200,AVERAGE-BANDWIDTH=7361200,CODECS="avc1.4d4028,mp4a.40.2",RESOLUTION=1920x1080,FRAME-RATE=25.000
+https://rbmn-live.akamaized.net/hls/live/2002830/geoSTVDEweb/master_6692.m3u8    
+*/
     return [];
   }
 
-  function analysePageAndCreateUi(showUiOpen)
-  {
+  async function analysePageAndCreateUi(showUiOpen) {
     debug("analysePageAndCreateUi()");
 
     // clean up old ui first
@@ -226,16 +302,17 @@ function CodeToInject(chromeExensionScriptUrl){
         }
 
         // resolve m3u8 playlists
-        jsonMediaList.mediaList.forEach((entry) => {
-          //var m3u8PlayLists;
-          entry.qualities.forEach((quality) => {
+        for (var i=0; i<jsonMediaList.mediaList.length; i++) {
+          var entry = jsonMediaList.mediaList[i];
+          for (var j=0; j<entry.qualities.length; j++) {
+            var quality = entry.qualities[j];
             if (quality.type && quality.type.toLowerCase().startsWith("m3u8") && quality.quality == null) {
               //quality.quality = "m3u8-multi";
-              var subQualities = loadM3U8PlayListQualities(quality.url);
+              var subQualities = await loadM3U8PlayListQualities(quality.url);
               subQualities.forEach((subQuality) => {entry.qualities.push(subQuality)});
             }
-          });
-        });
+          }
+        }
 
         jsonMediaList.mediaList.forEach((entry) => {
           entry.qualities.forEach((quality) => {
@@ -279,13 +356,12 @@ function CodeToInject(chromeExensionScriptUrl){
         }, 500 );
 */              
         // inject download ui
-        for (var i=0; i<jsonMediaList.mediaList.length; i++) {
-          var entry = jsonMediaList.mediaList[i];
-          for (var j=0; j<entry.qualities.length; j++) {
-            var quality = entry.qualities[j];
+        jsonMediaList.mediaList.forEach((entry) => {
+          //var m3u8PlayLists;
+          entry.qualities.forEach(async (quality) => {
             createDownloadUiAndAddUrl(showUiOpen, quality.url, entry.title, entry.description, quality.type, quality.quality);
-          }
-        }
+          })
+        });
       }
       catch ( error )
       {
