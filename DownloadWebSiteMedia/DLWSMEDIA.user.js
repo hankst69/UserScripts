@@ -5,7 +5,7 @@
 // @include     https://www.redbull.com/*
 // @copyright   2019, savnt
 // @license     MIT
-// @version     0.1.6
+// @version     0.1.7
 // @grant       none
 // @inject-into page
 // ==/UserScript==
@@ -42,7 +42,7 @@ function CodeToInject(chromeExensionScriptUrl){
 
 */
 
-  function createCorsRequest(method, url) {
+  function createXHRRequest(method, url) {
     var xhr = new XMLHttpRequest();
     if ("withCredentials" in xhr) {
       // XHR for Chrome/Firefox/Opera/Safari.
@@ -52,7 +52,7 @@ function CodeToInject(chromeExensionScriptUrl){
       xhr = new XDomainRequest();
       xhr.open(method, url);
     } else {
-      // CORS not supported.
+      // XHR not supported.
       xhr = null;
     }
     return xhr;
@@ -63,7 +63,7 @@ function CodeToInject(chromeExensionScriptUrl){
     // *://*/*
     // https://rbmn-live.akamaized.net/*
     return new Promise((resolve, reject) => {
-      var xhr = createCorsRequest('GET', url);
+      var xhr = createXHRRequest('GET', url);
       if (!xhr) {
         reject('CORS not supported');
         return;
@@ -72,7 +72,8 @@ function CodeToInject(chromeExensionScriptUrl){
       //xhr.setRequestHeader('Content-Type', 'application/json');
       //xhr.setRequestHeader('Content-Type', 'application/' + type);
       //xhr.overrideMimeType('text/xml');
-      xhr.setRequestHeader('Content-Type', 'text/xml');
+      //xhr.setRequestHeader('Content-Type', 'text/xml');
+      xhr.setRequestHeader('Content-Type', 'text/plain');
           
       xhr.onloadstart = function() {
         //alert("load started");
@@ -109,6 +110,13 @@ function CodeToInject(chromeExensionScriptUrl){
     if (url) {
       var extPos = url.lastIndexOf('.');
       var extStr = extPos < 0 ? 'blob' : url.substr(extPos+1);
+      var qustnmrkPos = extStr.indexOf('?');
+      if (qustnmrkPos > 0) {
+        extStr = extStr.substr(0, qustnmrkPos);
+      }
+      if (extStr.length > 4) {
+        extStr = extStr.substr(0, 4);
+      }
       return extStr.toLowerCase();
     }
     return null;
@@ -264,7 +272,7 @@ function CodeToInject(chromeExensionScriptUrl){
     });
     // create a downloadlink to this blob
     debug(newVodPlayList);
-    var saveBlob = new Blob([(new Uint8Array([0xEF, 0xBB, 0xBF])), newVodPlayList], { type: "text/html" });
+    var saveBlob = new Blob([newVodPlayList], { type: "text/html;charset=UTF-8" });
     var saveUrl = window.URL.createObjectURL(saveBlob);
     var quali = {
       "url": saveUrl,
@@ -647,7 +655,7 @@ function CodeToInject(chromeExensionScriptUrl){
     el_a.href = fileUrl;
     el_a.target = '_blank';
     el_a.download = fileName;
-    el_a.title = "Download " + fileName;
+    el_a.title = 'Download: "' + fileName + '"';
     el_a.innerHTML = fileName;
     el_a.style.color = "blue";
     el_a.style.textDecoration = "underline";
