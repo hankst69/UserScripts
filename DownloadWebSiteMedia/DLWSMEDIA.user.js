@@ -1,11 +1,11 @@
-﻿// ==UserScript==
+﻿// ==U  serScript==
 // @name        WebSite Media Download
 // @namespace   savnt
 // @description Adds a download button to the video player pages.
 // @include     https://www.redbull.com/*
 // @copyright   2019, savnt
 // @license     MIT
-// @version     0.2.1
+// @version     0.2.2
 // @grant       none
 // @inject-into page
 // ==/UserScript==
@@ -14,32 +14,49 @@ function CodeToInject(chromeExtensionScriptUrl) {
   'use strict';
   
   var muxjsVersion = 'mux.js'; //'mux-min.js';
-  var muxedData;
-  var transmuxer;
+  var muxjsUrl = chromeExtensionScriptUrl + muxjsVersion;
+  //var muxJs = null;
 
-  function transmuxSegmentsToCombinedMp4(nextSegmentData, resetTransmuxer)
-  {
+  var transmuxer = null
+  var remuxedSegments = [];
+  var remuxedInitSegment = null;
+  var remuxedBytesLength = 0;
+  var createInitSegment = false;
+  var bytes = null;
+  var muxedData = null;
+  
+
+  function transmuxSegmentsToCombinedMp4(nextSegmentData, resetTransmuxer) {
     debug("transmuxSegmentsToCombinedMp4()");
 
-    var segment = new Uint8Array(nextSegmentData);
-    var combined = false; 
-    var outputType = 'video'; //'audio';
-    var createInitSegment = false;
-    var remuxedSegments = [];
-    var remuxedInitSegment = null;
-    var remuxedBytesLength = 0;
-    var bytes;
+    // define mux output type (move to function arguments?)
+    //var combined = false; var outputType = 'video'; //'audio';
+    var combined = true; var outputType = 'combined';
+
     var i, j;
 
-    combined = true; outputType = 'combined';
-
     if (resetTransmuxer || !transmuxer) {
+      remuxedSegments = [];
+      remuxedInitSegment = null;
+      remuxedBytesLength = 0;
+      muxedData = null;
       createInitSegment = true;
+
+      if (!('muxjs' in window) && !(window['muxjsloading'])) {
+        window['muxjsloading'] = true;
+        injectScript(muxjsUrl, ()=>{
+          debug("defering transmuxSegmentsToCombinedMp4()");
+          window['muxjsloading'] = false;
+          transmuxSegmentsToCombinedMp4(nextSegmentData, resetTransmuxer);
+        });
+        return;
+      }
+
       if (combined) {
-          outputType = 'combined';
-          transmuxer = new muxjs.mp4.Transmuxer();
+        outputType = 'combined';
+        transmuxer = new muxjs.mp4.Transmuxer();
       } else {
-          transmuxer = new muxjs.mp4.Transmuxer({remux: false});
+        transmuxer = new muxjs.mp4.Transmuxer({remux: false});
       }
 
       transmuxer.on('data', function(event) {
@@ -71,24 +88,36 @@ function CodeToInject(chromeExtensionScriptUrl) {
       });
     }
 
-    transmuxer.push(segment);
+    //transmuxer.push(new Uint8Array(nextSegmentData));
+    transmuxer.push(nextSegmentData);
+    //transmuxer.flush();
+  }
+
+  function transmuxSegmentsToCombinedMp4SaveResultAs(videoFileName) {
+    debug("transmuxSegmentsToCombinedMp4SaveResultAs()");
     transmuxer.flush();
+    if (muxedData) {
+      var videoBlob = new Blob([muxedData], {type: 'application/octet-binary'}); 
+      window.saveAs(videoBlob, videoFileName);
+    }
   }
 
   function debug(message) {
     console.log("[Media Download] " + message);
   }
   
-  function loadScript(variable, url, cb) {
-    if (!(variable in window)) {
-      debug("injecting script via loadScript with url:'" + url + "'");
+  function injectScript(url, cb, variable=null) {
+    debug("injectScript()");
+    if (variable && (variable in window) && window[variable]) {
+      debug("script already loaded -> invoking callback");
+      cb();
+    } else {
+      debug("injecting script with url:'" + url + "'");
       var script = document.createElement("script");
       script.src = url;
+      script.type = 'text/javascript';
       script.onload = cb;
       (document.head || document.documentElement).appendChild(script);
-      //document.head.insertBefore(script, document.head.lastChild);
-    } else {
-      cb();
     }
   };
 
@@ -394,6 +423,21 @@ function CodeToInject(chromeExtensionScriptUrl) {
     return quali;
   }
 
+  function stringToUint8Array(str) {
+    //var buf = new ArrayBuffer(str.length*2); // 2 bytes for each char
+    //var srcBufView = new Uint16Array(buf);
+    //var tgtBufView = new Uint8Array(buf);
+    //for (var i=0, strLen=str.length; i < strLen; i++) {
+    //  srcBufView[i] = str.charCodeAt(i);
+    //}
+    //return tgtBufView;
+    var ui8buf = new Uint8Array(str.length);
+    for (var i=0, strLen=str.length; i < strLen; i++) {
+      ui8buf[i] = str.charCodeAt(i);
+    }
+    return ui8buf;
+  }
+
   async function saveM3U8VideoAsMP4Async(videoFileName, m3u8Url, m3u8Content) {
     debug("saveM3U8VideoAsMP4Async()");
     if (!m3u8Content) {
@@ -403,12 +447,15 @@ function CodeToInject(chromeExtensionScriptUrl) {
     var playListResult = getUrlListFromM3U8VodPlayList(m3u8Content);
     var urlList = playListResult.urlList;
     // mux.js
+    muxedData = null;
     for (var i=0; i<urlList.length; i++) {
       var tsSegmentUrl = urlList[i];
       debug(tsSegmentUrl);
-      var tsSegment = await loadWebResourceAsync(tsSegmentUrl);
+      var tsSegmentString = await loadWebResourceAsync(tsSegmentUrl);
+      var tsSegment = stringToUint8Array(tsSegmentString);
       transmuxSegmentsToCombinedMp4(tsSegment, !i);
     }
+    transmuxSegmentsToCombinedMp4SaveResultAs(videoFileName);
   }
 
   async function analysePageAndCreateUiAsync(showUiOpen) {
@@ -811,55 +858,41 @@ function CodeToInject(chromeExtensionScriptUrl) {
     return el;
   }
 
-  // load mux.js script
-  loadScript('muxjs', chromeExtensionScriptUrl + muxjsVersion, ()=>{});
+  // add SaveAs feature
+  // @source http://purl.eligrey.com/github/FileSaver.js/blob/master/FileSaver.js 
+window.saveAs=function(view){"use strict";if(typeof navigator!=="undefined"&&/MSIE [1-9]\./.test(navigator.userAgent)){return}var doc=view.document,get_URL=function(){return view.URL||view.webkitURL||view},save_link=doc.createElementNS("http://www.w3.org/1999/xhtml","a"),can_use_save_link="download"in save_link,click=function(node){var event=new MouseEvent("click");node.dispatchEvent(event)},is_safari=/Version\/[\d\.]+.*Safari/.test(navigator.userAgent),webkit_req_fs=view.webkitRequestFileSystem,req_fs=view.requestFileSystem||webkit_req_fs||view.mozRequestFileSystem,throw_outside=function(ex){(view.setImmediate||view.setTimeout)(function(){throw ex},0)},force_saveable_type="application/octet-stream",fs_min_size=0,arbitrary_revoke_timeout=500,revoke=function(file){var revoker=function(){if(typeof file==="string"){get_URL().revokeObjectURL(file)}else{file.remove()}};if(view.chrome){revoker()}else{setTimeout(revoker,arbitrary_revoke_timeout)}},dispatch=function(filesaver,event_types,event){event_types=[].concat(event_types);var i=event_types.length;while(i--){var listener=filesaver["on"+event_types[i]];if(typeof listener==="function"){try{listener.call(filesaver,event||filesaver)}catch(ex){throw_outside(ex)}}}},auto_bom=function(blob){if(/^\s*(?:text\/\S*|application\/xml|\S*\/\S*\+xml)\s*;.*charset\s*=\s*utf-8/i.test(blob.type)){return new Blob(["\ufeff",blob],{type:blob.type})}return blob},FileSaver=function(blob,name,no_auto_bom){if(!no_auto_bom){blob=auto_bom(blob)}var filesaver=this,type=blob.type,blob_changed=false,object_url,target_view,dispatch_all=function(){dispatch(filesaver,"writestart progress write writeend".split(" "))},fs_error=function(){if(target_view&&is_safari&&typeof FileReader!=="undefined"){var reader=new FileReader;reader.onloadend=function(){var base64Data=reader.result;target_view.location.href="data:attachment/file"+base64Data.slice(base64Data.search(/[,;]/));filesaver.readyState=filesaver.DONE;dispatch_all()};reader.readAsDataURL(blob);filesaver.readyState=filesaver.INIT;return}if(blob_changed||!object_url){object_url=get_URL().createObjectURL(blob)}if(target_view){target_view.location.href=object_url}else{var new_tab=view.open(object_url,"_blank");if(new_tab==undefined&&is_safari){view.location.href=object_url}}filesaver.readyState=filesaver.DONE;dispatch_all();revoke(object_url)},abortable=function(func){return function(){if(filesaver.readyState!==filesaver.DONE){return func.apply(this,arguments)}}},create_if_not_found={create:true,exclusive:false},slice;filesaver.readyState=filesaver.INIT;if(!name){name="download"}if(can_use_save_link){object_url=get_URL().createObjectURL(blob);setTimeout(function(){save_link.href=object_url;save_link.download=name;click(save_link);dispatch_all();revoke(object_url);filesaver.readyState=filesaver.DONE});return}if(view.chrome&&type&&type!==force_saveable_type){slice=blob.slice||blob.webkitSlice;blob=slice.call(blob,0,blob.size,force_saveable_type);blob_changed=true}if(webkit_req_fs&&name!=="download"){name+=".download"}if(type===force_saveable_type||webkit_req_fs){target_view=view}if(!req_fs){fs_error();return}fs_min_size+=blob.size;req_fs(view.TEMPORARY,fs_min_size,abortable(function(fs){fs.root.getDirectory("saved",create_if_not_found,abortable(function(dir){var save=function(){dir.getFile(name,create_if_not_found,abortable(function(file){file.createWriter(abortable(function(writer){writer.onwriteend=function(event){target_view.location.href=file.toURL();filesaver.readyState=filesaver.DONE;dispatch(filesaver,"writeend",event);revoke(file)};writer.onerror=function(){var error=writer.error;if(error.code!==error.ABORT_ERR){fs_error()}};"writestart progress write abort".split(" ").forEach(function(event){writer["on"+event]=filesaver["on"+event]});writer.write(blob);filesaver.abort=function(){writer.abort();filesaver.readyState=filesaver.DONE};filesaver.readyState=filesaver.WRITING}),fs_error)}),fs_error)};dir.getFile(name,{create:false},abortable(function(file){file.remove();save()}),abortable(function(ex){if(ex.code===ex.NOT_FOUND_ERR){save()}else{fs_error()}}))}),fs_error)}),fs_error)},FS_proto=FileSaver.prototype,saveAs=function(blob,name,no_auto_bom){return new FileSaver(blob,name,no_auto_bom)};if(typeof navigator!=="undefined"&&navigator.msSaveOrOpenBlob){return function(blob,name,no_auto_bom){if(!no_auto_bom){blob=auto_bom(blob)}return navigator.msSaveOrOpenBlob(blob,name||"download")}}FS_proto.abort=function(){var filesaver=this;filesaver.readyState=filesaver.DONE;dispatch(filesaver,"abort")};FS_proto.readyState=FS_proto.INIT=0;FS_proto.WRITING=1;FS_proto.DONE=2;FS_proto.error=FS_proto.onwritestart=FS_proto.onprogress=FS_proto.onwrite=FS_proto.onabort=FS_proto.onerror=FS_proto.onwriteend=null;return saveAs}(typeof self!=="undefined"&&self||typeof window!=="undefined"&&window||this.content);if(typeof module!=="undefined"&&module.exports){module.exports.saveAs=saveAs}else if(typeof define!=="undefined"&&define!==null&&define.amd!=null){define([],function(){return saveAs})}
+
   
+  // load mux.js script and 
   // start analysing page
-  analysePageAndCreateUiAsync();
+  injectScript(muxjsUrl, ()=>{
+    debug("analysePageOnMuxJsLoad()");
+    //muxJs = window['muxjs'];
+    analysePageAndCreateUiAsync();
+  });
+ 
+  //analysePageAndCreateUiAsync();
 }
 
-/*
-function loadScript2(variable, url, cb) {
-  if (!(variable in window)) {
-    var script = document.createElement("script");
-    script.src = url;
-    script.onload = cb;
-    (document.head || document.documentElement).appendChild(script);
-    //document.head.insertBefore(script, document.head.lastChild);
-  } else {
-    cb();
-  }
-};*/
-
 (function(){
+  console.log("[Media Download] MAINSTART");
+ 
+  function injectCode() {
+    console.log("[Media Download] injectCode");
     // inject script into page in order to run in page context
     var chromeExtensionScriptUrl = (chrome && chrome.runtime) ? chrome.runtime.getURL('') : '';
-    //loadScript2('muxjs', chromeExtensionScriptUrl + 'mux-min.js', ()=>{});
     var setupScriptCode = CodeToInject.toString();
     var script = document.createElement('script');
-    script.textContent = '(' + setupScriptCode + ')("' + chromeExtensionScriptUrl.toString() + '");';
+    script.type = 'text/javascript';
+    //script.textContent = '(' + setupScriptCode + ')("' + chromeExtensionScriptUrl.toString() + '");';
+    script.textContent = setupScriptCode + ' CodeToInject("' + chromeExtensionScriptUrl.toString() + '");';
     document.head.appendChild(script);
+  }
+
+  //window.onload = function () {
+  //  console.log("[Media Download] window.onload");
+  //  injectCode();
+  //};
+  //window.onload = injectCode();
+  injectCode();
 })();
-
-
-/*! @source http://purl.eligrey.com/github/FileSaver.js/blob/master/FileSaver.js 
-window.saveAs=function(view){"use strict";if(typeof navigator!=="undefined"&&/MSIE [1-9]\./.test(navigator.userAgent)){return}var doc=view.document,get_URL=function(){return view.URL||view.webkitURL||view},save_link=doc.createElementNS("http://www.w3.org/1999/xhtml","a"),can_use_save_link="download"in save_link,click=function(node){var event=new MouseEvent("click");node.dispatchEvent(event)},is_safari=/Version\/[\d\.]+.*Safari/.test(navigator.userAgent),webkit_req_fs=view.webkitRequestFileSystem,req_fs=view.requestFileSystem||webkit_req_fs||view.mozRequestFileSystem,throw_outside=function(ex){(view.setImmediate||view.setTimeout)(function(){throw ex},0)},force_saveable_type="application/octet-stream",fs_min_size=0,arbitrary_revoke_timeout=500,revoke=function(file){var revoker=function(){if(typeof file==="string"){get_URL().revokeObjectURL(file)}else{file.remove()}};if(view.chrome){revoker()}else{setTimeout(revoker,arbitrary_revoke_timeout)}},dispatch=function(filesaver,event_types,event){event_types=[].concat(event_types);var i=event_types.length;while(i--){var listener=filesaver["on"+event_types[i]];if(typeof listener==="function"){try{listener.call(filesaver,event||filesaver)}catch(ex){throw_outside(ex)}}}},auto_bom=function(blob){if(/^\s*(?:text\/\S*|application\/xml|\S*\/\S*\+xml)\s*;.*charset\s*=\s*utf-8/i.test(blob.type)){return new Blob(["\ufeff",blob],{type:blob.type})}return blob},FileSaver=function(blob,name,no_auto_bom){if(!no_auto_bom){blob=auto_bom(blob)}var filesaver=this,type=blob.type,blob_changed=false,object_url,target_view,dispatch_all=function(){dispatch(filesaver,"writestart progress write writeend".split(" "))},fs_error=function(){if(target_view&&is_safari&&typeof FileReader!=="undefined"){var reader=new FileReader;reader.onloadend=function(){var base64Data=reader.result;target_view.location.href="data:attachment/file"+base64Data.slice(base64Data.search(/[,;]/));filesaver.readyState=filesaver.DONE;dispatch_all()};reader.readAsDataURL(blob);filesaver.readyState=filesaver.INIT;return}if(blob_changed||!object_url){object_url=get_URL().createObjectURL(blob)}if(target_view){target_view.location.href=object_url}else{var new_tab=view.open(object_url,"_blank");if(new_tab==undefined&&is_safari){view.location.href=object_url}}filesaver.readyState=filesaver.DONE;dispatch_all();revoke(object_url)},abortable=function(func){return function(){if(filesaver.readyState!==filesaver.DONE){return func.apply(this,arguments)}}},create_if_not_found={create:true,exclusive:false},slice;filesaver.readyState=filesaver.INIT;if(!name){name="download"}if(can_use_save_link){object_url=get_URL().createObjectURL(blob);setTimeout(function(){save_link.href=object_url;save_link.download=name;click(save_link);dispatch_all();revoke(object_url);filesaver.readyState=filesaver.DONE});return}if(view.chrome&&type&&type!==force_saveable_type){slice=blob.slice||blob.webkitSlice;blob=slice.call(blob,0,blob.size,force_saveable_type);blob_changed=true}if(webkit_req_fs&&name!=="download"){name+=".download"}if(type===force_saveable_type||webkit_req_fs){target_view=view}if(!req_fs){fs_error();return}fs_min_size+=blob.size;req_fs(view.TEMPORARY,fs_min_size,abortable(function(fs){fs.root.getDirectory("saved",create_if_not_found,abortable(function(dir){var save=function(){dir.getFile(name,create_if_not_found,abortable(function(file){file.createWriter(abortable(function(writer){writer.onwriteend=function(event){target_view.location.href=file.toURL();filesaver.readyState=filesaver.DONE;dispatch(filesaver,"writeend",event);revoke(file)};writer.onerror=function(){var error=writer.error;if(error.code!==error.ABORT_ERR){fs_error()}};"writestart progress write abort".split(" ").forEach(function(event){writer["on"+event]=filesaver["on"+event]});writer.write(blob);filesaver.abort=function(){writer.abort();filesaver.readyState=filesaver.DONE};filesaver.readyState=filesaver.WRITING}),fs_error)}),fs_error)};dir.getFile(name,{create:false},abortable(function(file){file.remove();save()}),abortable(function(ex){if(ex.code===ex.NOT_FOUND_ERR){save()}else{fs_error()}}))}),fs_error)}),fs_error)},FS_proto=FileSaver.prototype,saveAs=function(blob,name,no_auto_bom){return new FileSaver(blob,name,no_auto_bom)};if(typeof navigator!=="undefined"&&navigator.msSaveOrOpenBlob){return function(blob,name,no_auto_bom){if(!no_auto_bom){blob=auto_bom(blob)}return navigator.msSaveOrOpenBlob(blob,name||"download")}}FS_proto.abort=function(){var filesaver=this;filesaver.readyState=filesaver.DONE;dispatch(filesaver,"abort")};FS_proto.readyState=FS_proto.INIT=0;FS_proto.WRITING=1;FS_proto.DONE=2;FS_proto.error=FS_proto.onwritestart=FS_proto.onprogress=FS_proto.onwrite=FS_proto.onabort=FS_proto.onerror=FS_proto.onwriteend=null;return saveAs}(typeof self!=="undefined"&&self||typeof window!=="undefined"&&window||this.content);if(typeof module!=="undefined"&&module.exports){module.exports.saveAs=saveAs}else if(typeof define!=="undefined"&&define!==null&&define.amd!=null){define([],function(){return saveAs})}
-*/
-
-
-/*
-<tr>
- <td>Niedrig</td>
- <td class="filesizeCell">24.56 MB</td>
- <td>
-   <div class="watchDownloadField">
-     <a target="_blank" href="http://hrardmediathek-a.akamaihd.net/video/as/die-ratgeber/2019_07/hrLogo_190715121216_18x-rage-srei-spanien-alandalus_syn2_xcode_mix_277_512x288-25p-500kbit.mp4">
-       <i class="material-icons floatLeft">ondemand_video</i>
-     </a>
-     <a target="_blank" href="http://hrardmediathek-a.akamaihd.net/video/as/die-ratgeber/2019_07/hrLogo_190715121216_18x-rage-srei-spanien-alandalus_syn2_xcode_mix_277_512x288-25p-500kbit.mp4" download="ARD - Die Ratgeber - Spaniens schönste Reiseziele - Unterwegs mit dem Luxushotelzug Al Andalús - 18.07.2019 18:45.mp4">
-       <i class="material-icons floatRight">save</i>
-     </a>
-   </div>
- </td>
-</tr>
-*/
