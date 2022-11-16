@@ -4,7 +4,7 @@
     "converted_from_user_script": true,
     "name": "Download WebSite Media",
     "description": "Adds a button that lets you download media files from platforms: RedBull, ServusTv, MySpass, Vimeo",
-    "version": "0.1.8",
+    "version": "0.1.9",
     "icons": { "64": "./DLWSMEDIA.png" },
     "content_scripts": [
         {
@@ -14,7 +14,8 @@
               "https://*.servus.com/*",
               "https://*.servustv.com/*",
               "https://*.myspass.de/*",
-              "https://vimeo.com/*"
+              "https://vimeo.com/*",
+              "https://www.ardmediathek.de/*"
             ],
             "run_at": "document_end"
         }
