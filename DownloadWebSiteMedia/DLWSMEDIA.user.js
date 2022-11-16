@@ -1,11 +1,11 @@
-﻿// ==U  serScript==
+﻿// ==UserScript==
 // @name        WebSite Media Download
 // @namespace   savnt
 // @description Adds a download button to the video player pages.
 // @include     https://www.redbull.com/*
-// @copyright   2019, savnt
+// @copyright   2019-2020, savnt
 // @license     MIT
-// @version     0.2.2
+// @version     0.2.3
 // @grant       none
 // @inject-into page
 // ==/UserScript==
@@ -491,7 +491,18 @@ function CodeToInject(chromeExtensionScriptUrl) {
     // Vimeo:
     if (!player && document.querySelector('.player video') && 'vimeo' in window) {
       player = window.vimeo;
+    }
+    // VimeoPlayer:        
+    if (!player && document.querySelector('.player video') && 'VimeoPlayer' in window) {
+      player = window.VimeoPlayer;
     }        
+    // YouTube:        
+    if (!player && document.querySelector('#ytd-player') && 'ytplayer' in window) {
+      player = window.ytplayer;
+    }        
+    //if (!player && document.querySelector('div#player.ytd-watch-flexy') && 'ytplayer' in window) {
+    //  player = window.ytplayer;
+    //}        
     // ARD:
     if (!player && this && '_state' in this && 'playerConfig' in this._state) {
       player = this._state.playerConfig;        //ard mediathek (_state exported by webpack:///./src/common/components/widgets/player/PlayerModel.js
@@ -619,6 +630,63 @@ function CodeToInject(chromeExtensionScriptUrl) {
           }
           jsonMediaList.mediaList.push(entry);
         }
+        
+        if (document.URL.startsWith('https://player.vimeo.com/video/')) {
+        	var vimeoConfigUrl = document.URL + '/config';
+        	var vimeoConfigJson = await loadWebResourceAsync(vimeoConfigUrl);
+        	var vimeoConfig = JSON.parse(vimeoConfigJson);
+        	var progressive = vimeoConfig.request.files.progressive;
+        	var videoTitle = vimeoConfig.video.title;
+          var videoSubTitle = "";
+        	for (var i=0; i<progressive.length; i++) {
+	          var videoUrl = getAbsoluteUrl(progressive[i].url);
+	          var videoType = getExtensionFromUrl(videoUrl);
+	          var videoQuality = progressive[i].height;
+	          jsonMediaList.mediaList.push({
+	            "title": videoTitle,
+	            "description": videoSubTitle,
+	            "qualities": [{
+	              "url": videoUrl,
+	              "type": videoType,
+	              "quality": videoQuality,
+	              "adfree": false,
+	              "content": ""
+	            }]
+	          });
+        	}
+        }
+        
+        if ('config' in player && 'args' in player.config && 'video_id' in player.config.args && 'player_response' in player.config.args) { 
+          //Youtube
+          var videoTitle=document.title || 'video';
+          videoTitle=videoTitle.replace(/\s*\-\s*YouTube$/i, '').replace(/'/g, '\'').replace(/^\s+|\s+$/g, '').replace(/\.+$/g, '');
+          videoTitle=videoTitle.replace(/[:"\?\*]/g, '').replace(/[\|\\\/]/g, '_'); //Mac, Linux, Windows
+          if (((window.navigator.userAgent || '').toLowerCase()).indexOf('windows') >= 0) {
+            videoTitle=videoTitle.replace(/#/g, '').replace(/&/g, '_'); //Windows
+          } else {
+            videoTitle=videoTitle.replace(/#/g, '%23').replace(/&/g, '%26'); //Mac, Linux
+          }
+          videoTitle=videoTitle.replace(/^\([0-9][0-9][0-9]\) /, '');
+          var plrResponseJson = player.config.args.player_response; 
+          var videoPlayerResponse = JSON.parse(plrResponseJson);
+          var videoInfo = player.config.args.video_id;
+          var videoTitle = videoTitle;
+          var videoSubTitle = "";
+          var videoUrl = getAbsoluteUrl(videoPlayerResponse.streamingData.hlsManifestUrl);
+          var videoType = getExtensionFromUrl(videoUrl);
+          var videoQuality = null;
+          jsonMediaList.mediaList.push({
+            "title": videoTitle,
+            "description": videoSubTitle,
+            "qualities": [{
+              "url": videoUrl,
+              "type": videoType,
+              "quality": videoQuality,
+              "adfree": false,
+              "content": ""
+            }]
+          });
+        }
 
         if ('_pixelConfig' in player && player._pixelConfig.length > 0) { 
           //Ard Mediathek
@@ -654,7 +722,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
           }
         }
 
-        // validate mediaLisat and retry if necessary
+        // validate mediaList and retry if necessary
         if (jsonMediaList.mediaList.length < 1) {
             // try again later
             debug("could not retrieve video download url from player, trying again later");
