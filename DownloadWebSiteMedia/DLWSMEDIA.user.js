@@ -5,7 +5,7 @@
 // @include     https://www.redbull.com/*
 // @copyright   2019, savnt
 // @license     MIT
-// @version     0.2.0
+// @version     0.2.1
 // @grant       none
 // @inject-into page
 // ==/UserScript==
@@ -13,8 +13,68 @@
 function CodeToInject(chromeExtensionScriptUrl) {
   'use strict';
   
-  var muxjsVersion = 'mux.js'; //"mux-min.js";
-  
+  var muxjsVersion = 'mux.js'; //'mux-min.js';
+  var muxedData;
+  var transmuxer;
+
+  function transmuxSegmentsToCombinedMp4(nextSegmentData, resetTransmuxer)
+  {
+    debug("transmuxSegmentsToCombinedMp4()");
+
+    var segment = new Uint8Array(nextSegmentData);
+    var combined = false; 
+    var outputType = 'video'; //'audio';
+    var createInitSegment = false;
+    var remuxedSegments = [];
+    var remuxedInitSegment = null;
+    var remuxedBytesLength = 0;
+    var bytes;
+    var i, j;
+
+    combined = true; outputType = 'combined';
+
+    if (resetTransmuxer || !transmuxer) {
+      createInitSegment = true;
+      if (combined) {
+          outputType = 'combined';
+          transmuxer = new muxjs.mp4.Transmuxer();
+      } else {
+          transmuxer = new muxjs.mp4.Transmuxer({remux: false});
+      }
+
+      transmuxer.on('data', function(event) {
+        if (event.type === outputType) {
+          remuxedSegments.push(event);
+          remuxedBytesLength += event.data.byteLength;
+          remuxedInitSegment = event.initSegment;
+        }
+      });
+
+      transmuxer.on('done', function () {
+        var offset = 0;
+        if (createInitSegment) {
+          bytes = new Uint8Array(remuxedInitSegment.byteLength + remuxedBytesLength)
+          bytes.set(remuxedInitSegment, offset);
+          offset += remuxedInitSegment.byteLength;
+          createInitSegment = false;
+        } else {
+          bytes = new Uint8Array(remuxedBytesLength);
+        }
+
+        for (j = 0, i = offset; j < remuxedSegments.length; j++) {
+          bytes.set(remuxedSegments[j].data, i);
+          i += remuxedSegments[j].byteLength;
+        }
+        muxedData = bytes;
+        remuxedSegments = [];
+        remuxedBytesLength = 0;
+      });
+    }
+
+    transmuxer.push(segment);
+    transmuxer.flush();
+  }
+
   function debug(message) {
     console.log("[Media Download] " + message);
   }
@@ -171,10 +231,49 @@ function CodeToInject(chromeExtensionScriptUrl) {
     return qualities;
   }
 
+  function getUrlListFromM3U8VodPlayList(m3u8PlayList) {
+    debug("getUrlListFromM3U8VodPlayList()");
+    //parse:
+    // #EXT-X-PLAYLIST-TYPE:VOD
+    // #EXTINF:3.000,
+    // https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/0.ts
+    // #EXTINF:3.000,
+    // https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/1.ts
+    if (m3u8PlayList.toUpperCase().indexOf('#EXT-X-PLAYLIST-TYPE:VOD') < 0) {
+      return null;
+    }
+    var urlList = [];
+    var m3u8Lines = m3u8PlayList.split('#');
+    m3u8Lines.forEach((line) => {
+      var trimedLine = line.trim();
+      if (trimedLine.toUpperCase().startsWith('EXTINF')) {
+        var subLines = trimedLine.split('\n');
+        if (subLines.length > 1) {
+          // a valid TS segment line
+          var url = subLines[1].trim();
+          // complement url if necessary
+          if (url && !(url.toLowerCase().startsWith('http'))) {
+            var lastSlashPos = m3u8Url.lastIndexOf('/');
+            if (lastSlashPos > 0) {
+              var baseUrl = m3u8Url.substr(0,lastSlashPos);
+              var needSlash = !url.startsWith('/');
+              url = baseUrl + (needSlash ? '/' : '') + url;
+            }
+          }
+          urlList.push(url);
+        }
+      }
+    });
+    // return urlList and adapted m3u8PlayList
+    var result = {
+      "urlList": urlList,
+      "vodPlayList": m3u8PlayList
+    };
+    return result;
+  }
 
-  async function createAdFreeVodPlayListAsync(m3u8Url, quality) {
-    debug("createAdFreeVodPlayListAsync()");
-    var m3u8PlayList = await loadWebResourceAsync(m3u8Url);
+  function getAdFreeUrlListFromM3U8VodPlayList(m3u8PlayList) {
+    debug("getAdFreeUrlListFromM3U8VodPlayList()");
     //parse:
     // #EXT-X-PLAYLIST-TYPE:VOD
     // #EXTINF:3.000,
@@ -205,7 +304,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
     if (m3u8PlayList.toUpperCase().indexOf('#EXT-X-PLAYLIST-TYPE:VOD') < 0) {
       return null;
     }
-    var urlList = [];    
+    var urlList = [];
     var newVodPlayList = '';
     var lastValidSegment = -1;
     var m3u8Lines = m3u8PlayList.split('#');
@@ -263,26 +362,53 @@ function CodeToInject(chromeExtensionScriptUrl) {
       }
       else if (trimedLine.length > 0 && !trimedLine.toUpperCase().startsWith('EXT-X-DISCONTINUITY')) {
         newVodPlayList += '#' + trimedLine + '\n';
-        urlList.push(url);
+        //urlList.push(url);
       }
     });
+    // return urlList and adapted m3u8PlayList
+    var result = {
+      "urlList": urlList,
+      "vodPlayList": newVodPlayList
+    };
+    return result;
+  }
+
+  async function createAdFreeVodPlayListAsync(m3u8Url, quality) {
+    debug("createAdFreeVodPlayListAsync()");
+    var m3u8PlayList = await loadWebResourceAsync(m3u8Url);
+    var adFreeResult = getAdFreeUrlListFromM3U8VodPlayList(m3u8PlayList);
+    if (!adFreeResult || !adFreeResult.vodPlayList) {
+      return null;
+    }
+    //debug(adFreeResult.vodPlayList);
     // create a downloadlink to this blob
-    //debug(newVodPlayList);
-    var saveBlob = new Blob([newVodPlayList], { type: "text/html;charset=UTF-8" });
+    var saveBlob = new Blob([adFreeResult.vodPlayList], { type: "text/html;charset=UTF-8" });
     var saveUrl = window.URL.createObjectURL(saveBlob);
     var quali = {
       "url": saveUrl,
       "type": "m3u8",
       "quality": quality,
       "adfree": true,
-      "content": newVodPlayList
+      "content": adFreeResult.vodPlayList
     };
     return quali;
   }
 
-  function saveM3U8VideoAsMP4(videoFileName, m3u8Url, m3u8Content) {
-    debug("saveM3U8VideoAsMP4()");
-    
+  async function saveM3U8VideoAsMP4Async(videoFileName, m3u8Url, m3u8Content) {
+    debug("saveM3U8VideoAsMP4Async()");
+    if (!m3u8Content) {
+      m3u8Content = await loadWebResourceAsync(m3u8Url);
+    }
+    //var playListResult = getAdFreeUrlListFromM3U8VodPlayList(m3u8Content);
+    var playListResult = getUrlListFromM3U8VodPlayList(m3u8Content);
+    var urlList = playListResult.urlList;
+    // mux.js
+    for (var i=0; i<urlList.length; i++) {
+      var tsSegmentUrl = urlList[i];
+      debug(tsSegmentUrl);
+      var tsSegment = await loadWebResourceAsync(tsSegmentUrl);
+      transmuxSegmentsToCombinedMp4(tsSegment, !i);
+    }
   }
 
   async function analysePageAndCreateUiAsync(showUiOpen) {
@@ -663,7 +789,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
       //spanSave.id = "i2d-popup-save" + fileName;
       spanSave.style = "font-size: 100%; cursor: pointer; color: rgb(153, 0, 0); float: right; display: inline; text-decoration: underline; padding-right: 10px;";
       spanSave.innerHTML = '[save]';
-      spanSave.onclick = () => { saveM3U8VideoAsMP4(videoFileName, fileUrl, downloadInfo.content); };
+      spanSave.onclick = () => { saveM3U8VideoAsMP4Async(videoFileName, fileUrl, downloadInfo.content); };
       eldiv.appendChild(spanSave);
     }
 
@@ -692,15 +818,33 @@ function CodeToInject(chromeExtensionScriptUrl) {
   analysePageAndCreateUiAsync();
 }
 
+/*
+function loadScript2(variable, url, cb) {
+  if (!(variable in window)) {
+    var script = document.createElement("script");
+    script.src = url;
+    script.onload = cb;
+    (document.head || document.documentElement).appendChild(script);
+    //document.head.insertBefore(script, document.head.lastChild);
+  } else {
+    cb();
+  }
+};*/
 
 (function(){
     // inject script into page in order to run in page context
     var chromeExtensionScriptUrl = (chrome && chrome.runtime) ? chrome.runtime.getURL('') : '';
+    //loadScript2('muxjs', chromeExtensionScriptUrl + 'mux-min.js', ()=>{});
     var setupScriptCode = CodeToInject.toString();
     var script = document.createElement('script');
     script.textContent = '(' + setupScriptCode + ')("' + chromeExtensionScriptUrl.toString() + '");';
     document.head.appendChild(script);
 })();
+
+
+/*! @source http://purl.eligrey.com/github/FileSaver.js/blob/master/FileSaver.js 
+window.saveAs=function(view){"use strict";if(typeof navigator!=="undefined"&&/MSIE [1-9]\./.test(navigator.userAgent)){return}var doc=view.document,get_URL=function(){return view.URL||view.webkitURL||view},save_link=doc.createElementNS("http://www.w3.org/1999/xhtml","a"),can_use_save_link="download"in save_link,click=function(node){var event=new MouseEvent("click");node.dispatchEvent(event)},is_safari=/Version\/[\d\.]+.*Safari/.test(navigator.userAgent),webkit_req_fs=view.webkitRequestFileSystem,req_fs=view.requestFileSystem||webkit_req_fs||view.mozRequestFileSystem,throw_outside=function(ex){(view.setImmediate||view.setTimeout)(function(){throw ex},0)},force_saveable_type="application/octet-stream",fs_min_size=0,arbitrary_revoke_timeout=500,revoke=function(file){var revoker=function(){if(typeof file==="string"){get_URL().revokeObjectURL(file)}else{file.remove()}};if(view.chrome){revoker()}else{setTimeout(revoker,arbitrary_revoke_timeout)}},dispatch=function(filesaver,event_types,event){event_types=[].concat(event_types);var i=event_types.length;while(i--){var listener=filesaver["on"+event_types[i]];if(typeof listener==="function"){try{listener.call(filesaver,event||filesaver)}catch(ex){throw_outside(ex)}}}},auto_bom=function(blob){if(/^\s*(?:text\/\S*|application\/xml|\S*\/\S*\+xml)\s*;.*charset\s*=\s*utf-8/i.test(blob.type)){return new Blob(["\ufeff",blob],{type:blob.type})}return blob},FileSaver=function(blob,name,no_auto_bom){if(!no_auto_bom){blob=auto_bom(blob)}var filesaver=this,type=blob.type,blob_changed=false,object_url,target_view,dispatch_all=function(){dispatch(filesaver,"writestart progress write writeend".split(" "))},fs_error=function(){if(target_view&&is_safari&&typeof FileReader!=="undefined"){var reader=new FileReader;reader.onloadend=function(){var base64Data=reader.result;target_view.location.href="data:attachment/file"+base64Data.slice(base64Data.search(/[,;]/));filesaver.readyState=filesaver.DONE;dispatch_all()};reader.readAsDataURL(blob);filesaver.readyState=filesaver.INIT;return}if(blob_changed||!object_url){object_url=get_URL().createObjectURL(blob)}if(target_view){target_view.location.href=object_url}else{var new_tab=view.open(object_url,"_blank");if(new_tab==undefined&&is_safari){view.location.href=object_url}}filesaver.readyState=filesaver.DONE;dispatch_all();revoke(object_url)},abortable=function(func){return function(){if(filesaver.readyState!==filesaver.DONE){return func.apply(this,arguments)}}},create_if_not_found={create:true,exclusive:false},slice;filesaver.readyState=filesaver.INIT;if(!name){name="download"}if(can_use_save_link){object_url=get_URL().createObjectURL(blob);setTimeout(function(){save_link.href=object_url;save_link.download=name;click(save_link);dispatch_all();revoke(object_url);filesaver.readyState=filesaver.DONE});return}if(view.chrome&&type&&type!==force_saveable_type){slice=blob.slice||blob.webkitSlice;blob=slice.call(blob,0,blob.size,force_saveable_type);blob_changed=true}if(webkit_req_fs&&name!=="download"){name+=".download"}if(type===force_saveable_type||webkit_req_fs){target_view=view}if(!req_fs){fs_error();return}fs_min_size+=blob.size;req_fs(view.TEMPORARY,fs_min_size,abortable(function(fs){fs.root.getDirectory("saved",create_if_not_found,abortable(function(dir){var save=function(){dir.getFile(name,create_if_not_found,abortable(function(file){file.createWriter(abortable(function(writer){writer.onwriteend=function(event){target_view.location.href=file.toURL();filesaver.readyState=filesaver.DONE;dispatch(filesaver,"writeend",event);revoke(file)};writer.onerror=function(){var error=writer.error;if(error.code!==error.ABORT_ERR){fs_error()}};"writestart progress write abort".split(" ").forEach(function(event){writer["on"+event]=filesaver["on"+event]});writer.write(blob);filesaver.abort=function(){writer.abort();filesaver.readyState=filesaver.DONE};filesaver.readyState=filesaver.WRITING}),fs_error)}),fs_error)};dir.getFile(name,{create:false},abortable(function(file){file.remove();save()}),abortable(function(ex){if(ex.code===ex.NOT_FOUND_ERR){save()}else{fs_error()}}))}),fs_error)}),fs_error)},FS_proto=FileSaver.prototype,saveAs=function(blob,name,no_auto_bom){return new FileSaver(blob,name,no_auto_bom)};if(typeof navigator!=="undefined"&&navigator.msSaveOrOpenBlob){return function(blob,name,no_auto_bom){if(!no_auto_bom){blob=auto_bom(blob)}return navigator.msSaveOrOpenBlob(blob,name||"download")}}FS_proto.abort=function(){var filesaver=this;filesaver.readyState=filesaver.DONE;dispatch(filesaver,"abort")};FS_proto.readyState=FS_proto.INIT=0;FS_proto.WRITING=1;FS_proto.DONE=2;FS_proto.error=FS_proto.onwritestart=FS_proto.onprogress=FS_proto.onwrite=FS_proto.onabort=FS_proto.onerror=FS_proto.onwriteend=null;return saveAs}(typeof self!=="undefined"&&self||typeof window!=="undefined"&&window||this.content);if(typeof module!=="undefined"&&module.exports){module.exports.saveAs=saveAs}else if(typeof define!=="undefined"&&define!==null&&define.amd!=null){define([],function(){return saveAs})}
+*/
 
 
 /*
