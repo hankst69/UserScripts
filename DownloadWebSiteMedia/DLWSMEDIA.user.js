@@ -42,9 +42,12 @@ function VideoDownload(chromeExensionScriptUrl){
     }
 */
     function getExtensionFromUrl(url) {
-        var extPos = url.lastIndexOf('.');
-        var extStr = extPos < 0 ? 'blob' : url.substr(extPos+1);
-        return extStr
+        if (url) {
+          var extPos = url.lastIndexOf('.');
+          var extStr = extPos < 0 ? 'blob' : url.substr(extPos+1);
+          return extStr.toLowerCase();
+        }
+        return null;
     }
 
 
@@ -94,8 +97,8 @@ function VideoDownload(chromeExensionScriptUrl){
                   var videoTitle = videoInfo.title;
                   var videoSubTitle = videoInfo.subtitle;
                   var videoUrl = videoInfo.videoUrl
-                  var videoType = getExtensionFromUrl(videoUrl).toLowerCase();
-                  var videoQuality = videoType.startsWith("m3u8") ? "multiple" : ""; 
+                  var videoType = getExtensionFromUrl(videoUrl);
+                  var videoQuality = null;
                   jsonMediaList.mediaList.push({
                       "title": videoTitle,
                       "description": videoSubTitle,
@@ -109,8 +112,8 @@ function VideoDownload(chromeExensionScriptUrl){
                   var videoTitle = videoInfo.title;
                   var videoSubTitle = videoInfo.subtitle;
                   var videoUrl = videoInfo.videoUrl
-                  var videoType = getExtensionFromUrl(videoUrl).toLowerCase();
-                  var videoQuality = videoType.startsWith("m3u8") ? "multiple" : ""; 
+                  var videoType = getExtensionFromUrl(videoUrl);
+                  var videoQuality = null;
                   jsonMediaList.mediaList.push({
                       "title": videoTitle,
                       "description": videoSubTitle,
@@ -124,8 +127,8 @@ function VideoDownload(chromeExensionScriptUrl){
                   var videoTitle = videoInfo.title;
                   var videoDesciption = videoInfo.description;
                   var videoUrl = videoInfo.videoUrl
-                  var videoType = getExtensionFromUrl(videoUrl).toLowerCase();
-                  var videoQuality = videoType.startsWith("m3u8") ? "multiple" : ""; 
+                  var videoType = getExtensionFromUrl(videoUrl);
+                  var videoQuality = null;
                   jsonMediaList.mediaList.push({
                       "title": videoTitle,
                       "description": videoDesciption,
@@ -148,7 +151,7 @@ function VideoDownload(chromeExensionScriptUrl){
                     var videoTitle = videoInfo.video.title;
                     var videoDescription = "";
                     var videoUrl = fileInfo.url;
-                    var videoType = getExtensionFromUrl(videoUrl).toLowerCase();
+                    var videoType = getExtensionFromUrl(videoUrl);
                     var videoQuality = fileInfo.quality;
                     jsonMediaList.mediaList.push({
                         "title": videoTitle,
@@ -166,13 +169,20 @@ function VideoDownload(chromeExensionScriptUrl){
                     delete jsonMediaList.mediaList[i-1];
                   } 
                 }
-                
+
                 if (jsonMediaList.mediaList.length < 1) {
                     // try again later
                     console.log("[Video Download] could not retrieve video download url from player, trying again later");
                     setTimeout( setup, 500 );
                     return;
                 }
+
+                // resolve m3u8 playlists
+                jsonMediaList.mediaList.forEach((entry) => {
+                  if (entry.videoType && entry.videoType.toLowerCase().startsWith("m3u8")) {
+                    entry.quality = "multiple";
+                  }
+                });
 
                 jsonMediaList.mediaList.forEach((entry) => {
                   console.log("[Video Download] Title       : '" + entry.title + "'");
@@ -214,7 +224,7 @@ function VideoDownload(chromeExensionScriptUrl){
 */              
                 // inject download ui
                 for (var i=0; i<jsonMediaList.mediaList.length; i++) {
-                		var entry = jsonMediaList.mediaList[i];
+                    var entry = jsonMediaList.mediaList[i];
                     createDownloadUiAndAddUrl(entry.url, entry.title, entry.description, entry.type, entry.quality);
                 }
             }
@@ -293,28 +303,34 @@ function VideoDownload(chromeExensionScriptUrl){
             elspan1.style.fontSize = "130%";
             elspan1.style.cursor = "pointer";
             elspan1.style.color = "#900";
-            elspan1.style.paddingRight = "10px";
-            //elspan1.style.padding = ".1em";
+            elspan1.style.paddingRight = "5px";
             elspan1.style.float = "right";
             elspan1.style.display = "inline";
             elspan1.id = "i2d-popup-close";
-            elspan1.innerHTML = 'x' //'[close]';
+            elspan1.innerHTML = '[x]' //'[close]';
             elspan1.style.textDecoration = "underline";
             eldivhold.appendChild(elspan1);
 
-            //el.innerHTML = "<br style='line-height:150%' />";
             el.id = "i2d-popup";
             eldiv = document.createElement("div");
             eldiv.id = "i2d-popup-div";
-            //eldiv.style.display = "none";
             eldiv.style.display = "block";
             el.appendChild(eldiv);
             el.insertBefore(eldivhold, el.firstChild);
             document.documentElement.appendChild(el);
 
+            // initially set to 'shown' state
+            //elspan.innerHTML = '[hide]';
+            //eldiv.style.display = "block";
+            //elspan1.style.display = "inline";
+            // initially set to 'hidden' state
+            elspan.innerHTML = '[show]';
+            eldiv.style.display = "none";
+            elspan1.style.display = "none";
+
             elspan.onclick = function() {
-                var eldiv = document.getElementById("i2d-popup-div");
-                var elspan = document.getElementById("i2d-popup-x");
+                //var eldiv = document.getElementById("i2d-popup-div");
+                //var elspan = document.getElementById("i2d-popup-x");
                 if (eldiv.style.display === "none") {
                     elspan.innerHTML = '[hide]';
                     eldiv.style.display = "block";
