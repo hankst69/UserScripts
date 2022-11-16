@@ -5,7 +5,7 @@
 // @include     https://www.redbull.com/*
 // @copyright   2019, savnt
 // @license     MIT
-// @version     0.1.4
+// @version     0.1.5
 // @grant       none
 // @inject-into page
 // ==/UserScript==
@@ -115,15 +115,76 @@ function CodeToInject(chromeExensionScriptUrl){
     debug("loadM3U8PlayListQualities()");
     var m3u8PlayList = await loadCorsResource(m3u8Url);
     //debug(m3u8PlayList);
-    // Parse:
-    //#EXT-X-STREAM-INF:BANDWIDTH=7556940,AVERAGE-BANDWIDTH=5745432,RESOLUTION=1920x1080,CODECS="avc1.640028,mp4a.40.2"
-    //https://dms.redbull.tv/dms/media/AP-1XCY6DVFN1W11/1920x1080@7556940/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJjYXRlZ29yeSI6InBlcnNvbmFsX2NvbXB1dGVyIiwib3NfZmFtaWx5IjoiaHR0cCIsIm9zX3ZlcnNpb24iOiIiLCJ1aWQiOiIwMmRjMzc1Mi01NjA4LTQ3YWMtOGY3Mi1hNmUwZDE5ZTI3MWYiLCJsYXRpdHVkZSI6MC4wLCJsb25ndGl0dWRlIjowLjAsImNvdW50cnlfaXNvIjoiZGUiLCJhZGRyZXNzIjoiMjAwMzplYTo5NzI4OjIwMDA6YjQ2MDpkZGZhOjJiODg6M2QwMCIsInVzZXItYWdlbnQiOiJNb3ppbGxhLzUuMCAoV2luZG93cyBOVCAxMC4wOyBXaW42NDsgeDY0KSBBcHBsZVdlYktpdC81MzcuMzYgKEtIVE1MLCBsaWtlIEdlY2tvKSBDaHJvbWUvNzQuMC4zNzI5LjE1NyBTYWZhcmkvNTM3LjM2IiwiZGV2aWNlX3R5cGUiOiIiLCJkZXZpY2VfaWQiOiIiLCJpYXQiOjE1NTgwNDQ3NTJ9.sTG_v7V_mGR2DMsvjVC10fOmvpfJR3T4h78Y5VaFa-w=/playlist.m3u8    
+    //parse:
+    // #EXT-X-STREAM-INF:BANDWIDTH=7556940,AVERAGE-BANDWIDTH=5745432,RESOLUTION=1920x1080,CODECS="avc1.640028,mp4a.40.2"
+    // https://dms.redbull.tv/dms/media/AP-1XCY6DVFN1W11/1920x1080@7556940/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJjYXRlZ29yeSI6InBlcnNvbmFsX2NvbXB1dGVyIiwib3NfZmFtaWx5IjoiaHR0cCIsIm9zX3ZlcnNpb24iOiIiLCJ1aWQiOiIwMmRjMzc1Mi01NjA4LTQ3YWMtOGY3Mi1hNmUwZDE5ZTI3MWYiLCJsYXRpdHVkZSI6MC4wLCJsb25ndGl0dWRlIjowLjAsImNvdW50cnlfaXNvIjoiZGUiLCJhZGRyZXNzIjoiMjAwMzplYTo5NzI4OjIwMDA6YjQ2MDpkZGZhOjJiODg6M2QwMCIsInVzZXItYWdlbnQiOiJNb3ppbGxhLzUuMCAoV2luZG93cyBOVCAxMC4wOyBXaW42NDsgeDY0KSBBcHBsZVdlYktpdC81MzcuMzYgKEtIVE1MLCBsaWtlIEdlY2tvKSBDaHJvbWUvNzQuMC4zNzI5LjE1NyBTYWZhcmkvNTM3LjM2IiwiZGV2aWNlX3R5cGUiOiIiLCJkZXZpY2VfaWQiOiIiLCJpYXQiOjE1NTgwNDQ3NTJ9.sTG_v7V_mGR2DMsvjVC10fOmvpfJR3T4h78Y5VaFa-w=/playlist.m3u8
+    //or:
+    // #EXT-X-STREAM-INF:BANDWIDTH=1838389,AVERAGE-BANDWIDTH=1461672,RESOLUTION=960x540,CODECS="mp4a.40.2,avc1.4d001f"
+    // AA-1Z4QM5U2W1W12_FO-1Z6B52KKN5N11.m3u8
     var qualities = [];
     var m3u8Lines = m3u8PlayList.split('#');
     m3u8Lines.forEach((line) => {
       //debug(line);
-      if (line.startsWith('EXT-X-STREAM-INF:')) {
-        var subLines = line.substr('EXT-X-STREAM-INF:'.length).split('\n');
+      var trimedLine = line.trim();
+      if (trimedLine.toUpperCase().startsWith('EXT-X-STREAM-INF:')) {
+        var subLines = trimedLine.substr('EXT-X-STREAM-INF:'.length).split('\n');
+        if (subLines.length > 1) {
+          var params = subLines[0].split(',').trim();
+          var url = subLines[1];
+          var resolution = null;
+          params.forEach((param) => {
+            if (param.toUpperCase().startsWith('RESOLUTION=')) {
+              resolution = param.substr('RESOLUTION='.length);
+            }
+          });
+          // complement url if necessary
+          if (url && !(url.trim().toLowerCase().startsWith('http'))) {
+            var lastSlashPos = m3u8Url.lastIndexOf('/');
+            if (lastSlashPos > 0) {
+              var baseUrl = m3u8Url.substr(0,lastSlashPos);
+              var compUrl = url.trim();
+              var needSlash = !compUrl.startsWith('/');
+              url = baseUrl + (needSlash ? '/' : '') + compUrl;
+            }
+          }
+          // extract videoHeight from resolutuion parameter
+          var videoHeight = 0;
+          if (resolution.toLowerCase().indexOf('x') >= 0) {
+            var widthHeight = resolution.split('x');
+            videoHeight = widthHeight.pop();
+          }
+          var quality = {
+            "url": url,
+            "type": getExtensionFromUrl(url),
+            "quality": videoHeight
+          };
+          qualities.push(quality);
+        }
+      }
+    });
+    qualities.sort((streamA,streamB) => {
+        return streamB.quality - streamA.quality;
+    });
+    return qualities;
+  }
+
+  async function createAdFreeVodPlayList(m3u8Url) {
+    debug("loadM3U8PlayListQualities()");
+    var m3u8PlayList = await loadCorsResource(m3u8Url);
+    //parse:
+    // #EXT-X-PLAYLIST-TYPE:VOD
+    // #EXTINF:3.000,
+    // https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/0.ts
+    // #EXTINF:3.000,
+    // https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/1.ts
+    if (m3u8PlayList.toUpperCase().indexOf('#EXT-X-PLAYLIST-TYPE:VOD') < 0) {
+      return null;
+    }
+    var m3u8Lines = m3u8PlayList.split('#');
+    var lastValidSegment = 0;
+    m3u8Lines.forEach((line) => {
+      if (line.trim().toUpperCase().startsWith('EXTINF')) {
+        var subLines = line.substr('EXTINF'.length).split('\n');
         if (subLines.length > 1) {
           var params = subLines[0].split(',');
           var url = subLines[1];
@@ -133,15 +194,28 @@ function CodeToInject(chromeExensionScriptUrl){
               resolution = param.substr('RESOLUTION='.length);
             }
           });
+          // complement url if necessary
+          if (url && !(url.trim().toLowerCase().startsWith('http'))) {
+            var lastSlashPos = m3u8Url.lastIndexOf('/');
+            if (lastSlashPos > 0) {
+              var baseUrl = m3u8Url.substr(0,lastSlashPos);
+              var compUrl = url.trim();
+              var needSlash = !compUrl.startsWith('/');
+              url = baseUrl + (needSlash ? '/' : '') + compUrl;
+            }
+          }
+          // extract videoHeight from resolutuion parameter
+          var videoHeight = 0;
           if (resolution.indexOf('x') >= 0) {
             var widthHeight = resolution.split('x');
-            var quality = {
-              "url": url,
-              "type": getExtensionFromUrl(url),
-              "quality": widthHeight.pop()
-            };
-            qualities.push(quality);
+            videoHeight = widthHeight.pop();
           }
+          var quality = {
+            "url": url,
+            "type": getExtensionFromUrl(url),
+            "quality": videoHeight
+          };
+          qualities.push(quality);
         }
       }
     });
@@ -291,11 +365,11 @@ function CodeToInject(chromeExensionScriptUrl){
           var entry = jsonMediaList.mediaList[i-1];
           for (var j=entry.qualities.length; j>0; j--) {
             if (entry.qualities[j-1].url == null) {
-              delete entry.qualities[j-1];
+              entry.qualities.pop();
             }
           }
           if (entry.qualities.length < 1) {
-            delete jsonMediaList.mediaList[i-1];
+            jsonMediaList.mediaList.pop();
           }
         }
 
@@ -320,6 +394,7 @@ function CodeToInject(chromeExensionScriptUrl){
           }
         }
 
+        // debug output of retieved media information
         jsonMediaList.mediaList.forEach((entry) => {
           entry.qualities.forEach((quality) => {
             debug("Title       : '" + entry.title + "'");
