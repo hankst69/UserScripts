@@ -6902,7 +6902,7 @@ CoalesceStream.prototype.flush = function(flushSource) {
   this.trigger('data', event);
 
   // Only emit `done` if all tracks have been flushed and emitted
-  if (this.emittedTracks >= this.numberOfTracks) {
+  if (this.emittedTracks >= this.numberOfTracks && this.numberOfTracks > 0) {
     this.trigger('done');
     this.emittedTracks = 0;
   }
