@@ -5,44 +5,34 @@
 // @include     https://www.redbull.com/*
 // @copyright   2019, savnt
 // @license     MIT
-// @version     0.1.7
+// @version     0.1.8
 // @grant       none
 // @inject-into page
 // ==/UserScript==
 
-native = false;
-
-function CodeToInject(chromeExensionScriptUrl){
-
+function CodeToInject(chromeExtensionScriptUrl) {
   'use strict';
+  
+  var muxjsVersion = 'mux.js'; //"mux-min.js";
   
   function debug(message) {
     console.log("[Media Download] " + message);
   }
   
-/*
-  loadscript = function(variable, url, cb) {
+  function loadScript(variable, url, cb) {
     if (!(variable in window)) {
-      debug("injecting script via loadscript with url:'" + url + "'");
+      debug("injecting script via loadScript with url:'" + url + "'");
       var script = document.createElement("script");
       script.src = url;
       script.onload = cb;
-      document.head.insertBefore(script, document.head.lastChild);
+      (document.head || document.documentElement).appendChild(script);
+      //document.head.insertBefore(script, document.head.lastChild);
     } else {
       cb();
     }
   };
-  
-  function addHls(hlsVersion) {
-    var s = document.createElement('script');
-    s.src = 
-    s.onload = function() { playM3u8(window.location.href.split("#")[1]); };
-    (document.head || document.documentElement).appendChild(s);
-  }
 
-*/
-
-  function createXHRRequest(method, url) {
+  function createXHR(method, url) {
     var xhr = new XMLHttpRequest();
     if ("withCredentials" in xhr) {
       // XHR for Chrome/Firefox/Opera/Safari.
@@ -58,14 +48,15 @@ function CodeToInject(chromeExensionScriptUrl){
     return xhr;
   }
   
-  function loadCorsResource(url) {
-    // CORS Patterns:
-    // *://*/*
-    // https://rbmn-live.akamaized.net/*
+  function loadWebResourceAsync(url) {
+    // might be necessary to enable CORS (in chrome by patching request/response headers)
+    // for following url patterns:
+    //   *://*/*
+    //   https://rbmn-live.akamaized.net/*
     return new Promise((resolve, reject) => {
-      var xhr = createXHRRequest('GET', url);
+      var xhr = createXHR('GET', url);
       if (!xhr) {
-        reject('CORS not supported');
+        reject('XHR not supported');
         return;
       }
       //xhr.setRequestHeader('Content-Type', 'application/xml');
@@ -124,7 +115,7 @@ function CodeToInject(chromeExensionScriptUrl){
 
   async function loadM3U8PlayListQualities(m3u8Url) {
     debug("loadM3U8PlayListQualities()");
-    var m3u8PlayList = await loadCorsResource(m3u8Url);
+    var m3u8PlayList = await loadWebResourceAsync(m3u8Url);
     //debug(m3u8PlayList);
     //parse:
     // #EXT-X-STREAM-INF:BANDWIDTH=7556940,AVERAGE-BANDWIDTH=5745432,RESOLUTION=1920x1080,CODECS="avc1.640028,mp4a.40.2"
@@ -166,7 +157,9 @@ function CodeToInject(chromeExensionScriptUrl){
           var quality = {
             "url": url,
             "type": getExtensionFromUrl(url),
-            "quality": videoHeight
+            "quality": videoHeight,
+            "adfree": false,
+            "content": ""
           };
           qualities.push(quality);
         }
@@ -179,9 +172,9 @@ function CodeToInject(chromeExensionScriptUrl){
   }
 
 
-  async function createAdFreeVodPlayList(m3u8Url, quality) {
-    debug("createAdFreeVodPlayList()");
-    var m3u8PlayList = await loadCorsResource(m3u8Url);
+  async function createAdFreeVodPlayListAsync(m3u8Url, quality) {
+    debug("createAdFreeVodPlayListAsync()");
+    var m3u8PlayList = await loadWebResourceAsync(m3u8Url);
     //parse:
     // #EXT-X-PLAYLIST-TYPE:VOD
     // #EXTINF:3.000,
@@ -212,6 +205,7 @@ function CodeToInject(chromeExensionScriptUrl){
     if (m3u8PlayList.toUpperCase().indexOf('#EXT-X-PLAYLIST-TYPE:VOD') < 0) {
       return null;
     }
+    var urlList = [];    
     var newVodPlayList = '';
     var lastValidSegment = -1;
     var m3u8Lines = m3u8PlayList.split('#');
@@ -259,6 +253,7 @@ function CodeToInject(chromeExensionScriptUrl){
                   }
                   if (addSegment) {
                     newVodPlayList += '#' + subLines[0] + '\n' + url + '\n';
+                    urlList.push(url);
                   }
                 }
               }
@@ -268,22 +263,25 @@ function CodeToInject(chromeExensionScriptUrl){
       }
       else if (trimedLine.length > 0 && !trimedLine.toUpperCase().startsWith('EXT-X-DISCONTINUITY')) {
         newVodPlayList += '#' + trimedLine + '\n';
+        urlList.push(url);
       }
     });
     // create a downloadlink to this blob
-    debug(newVodPlayList);
+    //debug(newVodPlayList);
     var saveBlob = new Blob([newVodPlayList], { type: "text/html;charset=UTF-8" });
     var saveUrl = window.URL.createObjectURL(saveBlob);
     var quali = {
       "url": saveUrl,
-      "type": "m3u8", //getExtensionFromUrl(m3u8Url),
-      "quality": quality + '-noAds'
+      "type": "m3u8",
+      "quality": quality,
+      "adfree": true,
+      "content": newVodPlayList
     };
     return quali;
   }
 
-  async function analysePageAndCreateUi(showUiOpen) {
-    debug("analysePageAndCreateUi()");
+  async function analysePageAndCreateUiAsync(showUiOpen) {
+    debug("analysePageAndCreateUiAsync()");
 
     // clean up old ui first
     deleteDownloadUi();
@@ -307,7 +305,7 @@ function CodeToInject(chromeExensionScriptUrl){
     if (!player) {
       // try again later
       debug("could not find player object, trying again later");
-      setTimeout( function(){ analysePageAndCreateUi(false); }, 500 );
+      setTimeout( function(){ analysePageAndCreateUiAsync(false); }, 500 );
     }
 
     if (player)
@@ -324,6 +322,8 @@ function CodeToInject(chromeExensionScriptUrl){
               "url": null,
               "type": "",
               "quality": "",
+              "adfree": false,
+              "content": ""
             }] 
           }*/]
         };
@@ -343,7 +343,9 @@ function CodeToInject(chromeExensionScriptUrl){
             "qualities": [{
               "url": videoUrl,
               "type": videoType,
-              "quality": videoQuality
+              "quality": videoQuality,
+              "adfree": false,
+              "content": ""
             }]
           });
         }
@@ -362,7 +364,9 @@ function CodeToInject(chromeExensionScriptUrl){
             "qualities": [{
               "url": videoUrl,
               "type": videoType,
-              "quality": videoQuality
+              "quality": videoQuality,
+              "adfree": false,
+              "content": ""
             }]
           });
         }
@@ -381,7 +385,9 @@ function CodeToInject(chromeExensionScriptUrl){
             "qualities": [{
               "url": videoUrl,
               "type": videoType,
-              "quality": videoQuality
+              "quality": videoQuality,
+              "adfree": false,
+              "content": ""
             }]
           });
         }
@@ -411,13 +417,15 @@ function CodeToInject(chromeExensionScriptUrl){
             entry.qualities.push({
               "url": videoUrl,
               "type": videoType,
-              "quality": videoQuality
+              "quality": videoQuality,
+              "adfree": false,
+              "content": ""              
             });
           }
           jsonMediaList.mediaList.push(entry);
         }
 
-        // remove invalid enries
+        // remove invalid entries
         for (var i=jsonMediaList.mediaList.length; i>0; i--) {
           var entry = jsonMediaList.mediaList[i-1];
           for (var j=entry.qualities.length; j>0; j--) {
@@ -434,7 +442,7 @@ function CodeToInject(chromeExensionScriptUrl){
         if (jsonMediaList.mediaList.length < 1) {
             // try again later
             debug("could not retrieve video download url from player, trying again later");
-            setTimeout( function(){ analysePageAndCreateUi(false); }, 500 );
+            setTimeout( function(){ analysePageAndCreateUiAsync(false); }, 500 );
             return;
         }
 
@@ -457,7 +465,7 @@ function CodeToInject(chromeExensionScriptUrl){
           for (var j=0; j<entry.qualities.length; j++) {
             var quality = entry.qualities[j];
             if (quality.url && quality.type && quality.type.toLowerCase().startsWith("m3u8")) {
-              var subQuality = await createAdFreeVodPlayList(quality.url, quality.quality);
+              var subQuality = await createAdFreeVodPlayListAsync(quality.url, quality.quality);
               if (subQuality) {
                 subQualities.push(subQuality);
               }
@@ -474,45 +482,17 @@ function CodeToInject(chromeExensionScriptUrl){
             debug("Url         : '" + quality.url + "'");
             debug("Type        : '" + quality.type + "'");
             debug("Quality     : '" + quality.quality + "'");
+            debug("AdFree      : '" + quality.adfree + "'");
+            debug("Content     : '" + (quality.content.length > 0) ? quality.content.substr(0,7) + "...'" : "'");
             debug("------------------------------");
           });
         });
 
-/*
-        var hlsVideoElement = document.getElementById('injected-hls-video');
-        if (!hlsVideoElement) {
-          hlsVideoElement = document.createElement("video");
-          hlsVideoElement.id = "injected-hls-video";
-          document.body.appendChild(hlsVideoElement);
-        }
-        
-        loadscript("Hls", chromeExensionHlsUrl, function() {
-          var hls = new Hls();
-          hls.loadSource(videoUrl);
-          //for (var i = 0; i < elements.length; i++) {
-          //    hls.attachMedia(elements[i]);
-          //}
-
-          var tmpVideoElement = document.getElementById('injected-hls-video');
-          hls.attachMedia(tmpVideoElement);
-          hls.on(Hls.Events.MANIFEST_PARSED,function() {
-            tmpVideoElement.play();
-            // make download button
-            //var button = makeButton( videoUrl, videoTitle, '' );
-          });
-        });
-        
-        var uiInjectionTimer = setInterval(function() {
-          if (createDownloadUiAndAddUrls(showUiOpen, jsonMediaList)) {
-            clearInterval(uiInjectionTimer);
-          }
-        }, 500 );
-*/              
         // inject download ui
         jsonMediaList.mediaList.forEach((entry) => {
           //var m3u8PlayLists;
           entry.qualities.forEach(async (quality) => {
-            createDownloadUiAndAddUrl(showUiOpen, quality.url, entry.title, entry.description, quality.type, quality.quality);
+            createDownloadUiAndAddUrl(showUiOpen, quality.url, entry.title, entry.description, quality.type, quality.quality, quality.adfree);
           })
         });
       }
@@ -532,17 +512,15 @@ function CodeToInject(chromeExensionScriptUrl){
     }
   }
 
-  function createDownloadUiAndAddUrl(showUiOpen, fileUrl, fileTitle, subTitle, mediaType, quality)
+  function createDownloadUiAndAddUrl(showUiOpen, fileUrl, fileTitle, subTitle, mediaType, quality, adfree)
   {
     debug("createDownloadUiAndAddUrl()");
 
     // make valid filename from title and url
-    //var extPos = fileUrl.lastIndexOf('.');
-    //var extStr = extPos < 0 ? '.dat' : fileUrl.substr(extPos);
     var fileName = fileTitle.replace( /[<>:"\/\\|?*,]/g, '' );
-    //fileName = fileName.replace(/ /g, '&nbsp'); //fileName = fileName.replace(/ /g, '_');
     if (quality) {
-      fileName = fileName + " (" + quality + ")";
+      var qualiName = quality + (adfree ? '-AdFree' : '');
+      fileName = fileName + " (" + qualiName + ")";
     }
     fileName = fileName  + '.' + mediaType
 
@@ -557,60 +535,28 @@ function CodeToInject(chromeExensionScriptUrl){
  		}
     if (!el) {
       el = document.createElement("div");
-      el.style.width = "max(60%, 100em)";
-      el.style.height = "max(60%, 100em)";
-      el.style.maxWidth = "100%";
-      el.style.maxHeight = "100%";
-      el.style.height = "auto";
-      el.style.width = "auto";
-      el.style.background = "#a0a0a0"; //"white";
-      el.style.top = "100px";
-      el.style.left = "0px";
+      el.id = "i2d-popup";
+      el.style = "max-width: 100%; max-height: 100%; height: auto; width: auto; background: rgb(160, 160, 160); top: 100px; left: 0px; color: black; font-family: sans-serif; font-size: 14px; line-height: normal; text-align: left; position: absolute;";
       el.style.zIndex = Number.MAX_SAFE_INTEGER - 1;
-      el.style.color = "black";
-      el.style.fontFamily = "sans-serif";
-      el.style.fontSize = "14px";
-      el.style.lineHeight = "normal";
-      el.style.textAlign = "left";
       //el.style.overflow = "scroll";
-      el.style.position = "absolute";
 
       eldivhold = document.createElement("div");
       eldivhold.id = "i2d-popup-span-holder";
-      eldivhold.style.width = "100%";
-      eldivhold.style.display = "block";
-      eldivhold.style.overflow = "auto";
-      eldivhold.style.paddingBottom = "3px"; //".5em";
-      eldivhold.style.paddingLeft = "5px";
-      eldivhold.style.paddingRight = "5px";
-      //eldivhold.style.margins = "5px 2px 5px 2px";
+      eldivhold.style = "width: 100%; display: block; overflow: auto; padding-bottom: 3px; padding-left: 5px; padding-right: 5px;";
 
       elspan = document.createElement("span");
-      elspan.style.fontSize = "110%";
-      elspan.style.cursor = "pointer";
-      elspan.style.color = "#900";
-      elspan.style.padding = ".1em";
-      elspan.style.float = "left";
-      elspan.style.display = "inline";
       elspan.id = "i2d-popup-x";
+      elspan.style = "font-size: 110%; cursor: pointer; color: rgb(153, 0, 0); padding: 0.1em; float: left; display: inline; text-decoration: underline;";
       elspan.innerHTML = '[hide]';
-      elspan.style.textDecoration = "underline";
       eldivhold.appendChild(elspan);
 
       elspan1 = document.createElement("span");
-      elspan1.style.fontSize = "110%";
-      elspan1.style.cursor = "pointer";
-      elspan1.style.color = "#900";
-      elspan1.style.paddingRight = "5px";
-      elspan1.style.float = "right";
-      elspan1.style.display = "inline";
-      elspan1.style.textDecoration = "underline";
       elspan1.id = "i2d-popup-close";
+      elspan1.style = "font-size: 110%; cursor: pointer; color: rgb(153, 0, 0); padding-right: 5px; float: right; display: inline; text-decoration: underline;";
       elspan1.innerHTML = '[x]' //'[close]';
       elspan1.onclick = () => { deleteDownloadUi(); };
       eldivhold.appendChild(elspan1);
 
-      el.id = "i2d-popup";
       eldiv = document.createElement("div");
       eldiv.id = "i2d-popup-div";
       eldiv.style.display = "block";
@@ -631,9 +577,7 @@ function CodeToInject(chromeExensionScriptUrl){
       }
 
       elspan.onclick = function() {
-        //var eldiv = document.getElementById("i2d-popup-div");
-        //var elspan = document.getElementById("i2d-popup-x");
-        //var elspan1 = document.getElementById("i2d-popup-close");
+        //var eldiv = document.getElementById("i2d-popup-div"); var elspan = document.getElementById("i2d-popup-x"); var elspan1 = document.getElementById("i2d-popup-close");
         if (eldiv.style.display === "none") {
           elspan.innerHTML = '[hide]';
           eldiv.style.display = "block";
@@ -671,38 +615,28 @@ function CodeToInject(chromeExensionScriptUrl){
     eldiv.appendChild(el_br);
 
     var spanRefresh = document.createElement("span");
-    spanRefresh.style.fontSize = "100%";
-    spanRefresh.style.cursor = "pointer";
-    spanRefresh.style.color = "#900";
-    spanRefresh.style.float = "right";
-    spanRefresh.style.display = "inline";
-    spanRefresh.style.textDecoration = "underline";
-    spanRefresh.style.paddingRight = "10px";
     spanRefresh.id = "i2d-popup-refresh";
+    spanRefresh.style = "font-size: 100%; cursor: pointer; color: rgb(153, 0, 0); float: right; display: inline; text-decoration: underline; padding-right: 10px;";
     spanRefresh.innerHTML = '[refresh]';
-    spanRefresh.onclick = () => { analysePageAndCreateUi(true); };
+    spanRefresh.onclick = () => { analysePageAndCreateUiAsync(true); };
     eldiv.appendChild(spanRefresh);
     
     return el;
   }
 
-
-  // start analysing immediately
-  //analysePageAndCreateUi();
+  // load mux.js script
+  loadScript('muxjs', chromeExtensionScriptUrl + muxjsVersion, ()=>{});
   
-  // start analysing delayed
-  window.onload = () => {
-    debug("onload");
-    analysePageAndCreateUi();
-  };
+  // start analysing page
+  analysePageAndCreateUiAsync();
 }
 
 
 (function(){
     // inject script into page in order to run in page context
-    var chromeExensionScriptUrl = chrome.runtime.getURL('hls.0.12.4.js');
+    var chromeExtensionScriptUrl = (chrome && chrome.runtime) ? chrome.runtime.getURL('') : '';
     var setupScriptCode = CodeToInject.toString();
     var script = document.createElement('script');
-    script.textContent = '(' + setupScriptCode + ')("' + chromeExensionScriptUrl.toString() + '");';
+    script.textContent = '(' + setupScriptCode + ')("' + chromeExtensionScriptUrl.toString() + '");';
     document.head.appendChild(script);
 })();
