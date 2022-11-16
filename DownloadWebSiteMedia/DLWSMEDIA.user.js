@@ -1,11 +1,11 @@
-// ==UserScript==
+﻿// ==UserScript==
 // @name        WebSite Media Download
 // @namespace   savnt
 // @description Adds a download button to the video player pages.
 // @include     https://www.redbull.com/*
 // @copyright   2019, savnt
 // @license     MIT
-// @version     0.1.9
+// @version     0.2.0
 // @grant       none
 // @inject-into page
 // ==/UserScript==
@@ -280,6 +280,11 @@ function CodeToInject(chromeExtensionScriptUrl) {
     return quali;
   }
 
+  function saveM3U8VideoAsMP4(videoFileName, m3u8Url, m3u8Content) {
+    debug("saveM3U8VideoAsMP4()");
+    
+  }
+
   async function analysePageAndCreateUiAsync(showUiOpen) {
     debug("analysePageAndCreateUiAsync()");
 
@@ -530,7 +535,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
         jsonMediaList.mediaList.forEach((entry) => {
           //var m3u8PlayLists;
           entry.qualities.forEach(async (quality) => {
-            createDownloadUiAndAddUrl(showUiOpen, quality.url, entry.title, entry.description, quality.type, quality.quality, quality.adfree);
+            createDownloadUiAndAddUrl(showUiOpen, entry.title, entry.description, quality);
           })
         });
       }
@@ -550,9 +555,14 @@ function CodeToInject(chromeExtensionScriptUrl) {
     }
   }
 
-  function createDownloadUiAndAddUrl(showUiOpen, fileUrl, fileTitle, subTitle, mediaType, quality, adfree)
+  function createDownloadUiAndAddUrl(showUiOpen, fileTitle, subTitle, downloadInfo)
   {
     debug("createDownloadUiAndAddUrl()");
+
+    var fileUrl = downloadInfo.url;
+    var mediaType = downloadInfo.type;
+    var quality = downloadInfo.quality;
+    var adfree = downloadInfo.adfree;
 
     // make valid filename from title and url
     var fileName = fileTitle.replace( /[<>:"\/\\|?*,]/g, '' );
@@ -560,7 +570,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
       var qualiName = quality + (adfree ? '-AdFree' : '');
       fileName = fileName + " (" + qualiName + ")";
     }
-    fileName = fileName  + '.' + mediaType
+    var mediaFileName = fileName  + '.' + mediaType
 
     var el = document.getElementById("i2d-popup");
     var elspan = document.getElementById("i2d-popup-x");
@@ -636,13 +646,26 @@ function CodeToInject(chromeExtensionScriptUrl) {
     var el_a = document.createElement("a");
     el_a.href = fileUrl;
     el_a.target = '_blank';
-    el_a.download = fileName;
-    el_a.title = 'Download: "' + fileName + '"';
-    el_a.innerHTML = fileName;
+    el_a.download = mediaFileName;
+    el_a.title = 'Download: "' + mediaFileName + '"';
+    el_a.innerHTML = mediaFileName;
     el_a.style.color = "blue";
     el_a.style.textDecoration = "underline";
     el_a.style.cursor = "pointer";
     eldiv.appendChild(el_a);
+
+    if (mediaType.toLowerCase().startsWith("m3u8")) {
+      var span = document.createElement("span");
+      span.innerHTML = "&nbsp;&nbsp;";
+      eldiv.appendChild(span);
+      var videoFileName = fileName + ".mp4";
+      var spanSave = document.createElement("span");
+      //spanSave.id = "i2d-popup-save" + fileName;
+      spanSave.style = "font-size: 100%; cursor: pointer; color: rgb(153, 0, 0); float: right; display: inline; text-decoration: underline; padding-right: 10px;";
+      spanSave.innerHTML = '[save]';
+      spanSave.onclick = () => { saveM3U8VideoAsMP4(videoFileName, fileUrl, downloadInfo.content); };
+      eldiv.appendChild(spanSave);
+    }
 
     var el_divspan2 = document.createElement("span");
     el_divspan2.innerHTML = "&nbsp;&nbsp;";
@@ -678,3 +701,21 @@ function CodeToInject(chromeExtensionScriptUrl) {
     script.textContent = '(' + setupScriptCode + ')("' + chromeExtensionScriptUrl.toString() + '");';
     document.head.appendChild(script);
 })();
+
+
+/*
+<tr>
+ <td>Niedrig</td>
+ <td class="filesizeCell">24.56 MB</td>
+ <td>
+   <div class="watchDownloadField">
+     <a target="_blank" href="http://hrardmediathek-a.akamaihd.net/video/as/die-ratgeber/2019_07/hrLogo_190715121216_18x-rage-srei-spanien-alandalus_syn2_xcode_mix_277_512x288-25p-500kbit.mp4">
+       <i class="material-icons floatLeft">ondemand_video</i>
+     </a>
+     <a target="_blank" href="http://hrardmediathek-a.akamaihd.net/video/as/die-ratgeber/2019_07/hrLogo_190715121216_18x-rage-srei-spanien-alandalus_syn2_xcode_mix_277_512x288-25p-500kbit.mp4" download="ARD - Die Ratgeber - Spaniens schönste Reiseziele - Unterwegs mit dem Luxushotelzug Al Andalús - 18.07.2019 18:45.mp4">
+       <i class="material-icons floatRight">save</i>
+     </a>
+   </div>
+ </td>
+</tr>
+*/
