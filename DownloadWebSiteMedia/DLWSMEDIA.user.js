@@ -4,7 +4,7 @@
 // @description Adds a download button to video player pages
 // @copyright   2019-2021, savnt
 // @license     MIT
-// @version     0.4.9
+// @version     0.5.0
 // @grant       none
 // @inject-into page
 // ==/UserScript==
@@ -112,6 +112,21 @@
       }
     }
 
+    function stringToUint8Array(str) {
+      //let buf = new ArrayBuffer(str.length*2); // 2 bytes for each char
+      //let srcBufView = new Uint16Array(buf);
+      //let tgtBufView = new Uint8Array(buf);
+      //for (let i=0, strLen=str.length; i < strLen; i++) {
+      //  srcBufView[i] = str.charCodeAt(i);
+      //}
+      //return tgtBufView;
+      let ui8buf = new Uint8Array(str.length);
+      for (let i = 0, strLen = str.length; i < strLen; i++) {
+        ui8buf[i] = str.charCodeAt(i);
+      }
+      return ui8buf;
+    }
+
     //-------------------------------------------------------------------
     // main script
 
@@ -168,60 +183,6 @@
         (document.head || document.documentElement).appendChild(script);
       }
     };
-
-    function createXHR(method, url) {
-      let xhr = new XMLHttpRequest();
-      if ("withCredentials" in xhr) {
-        // XHR for Chrome/Firefox/Opera/Safari.
-        xhr.open(method, url, true);
-      } else if (typeof XDomainRequest != "undefined") {
-        // XDomainRequest for IE.
-        xhr = new XDomainRequest();
-        xhr.open(method, url);
-      } else {
-        // XHR not supported.
-        xhr = null;
-      }
-      return xhr;
-    }
-
-    function loadWebResourceAsync(url) {
-      // might be necessary to enable CORS (in chrome by patching request/response headers)
-      // for following url patterns:
-      //   *://*/*
-      //   https://rbmn-live.akamaized.net/*
-      return new Promise((resolve, reject) => {
-        let xhr = createXHR('GET', url);
-        if (!xhr) {
-          reject('XHR not supported');
-          return;
-        }
-        //xhr.setRequestHeader('Content-Type', 'application/xml');
-        //xhr.setRequestHeader('Content-Type', 'application/json');
-        //xhr.setRequestHeader('Content-Type', 'application/' + type);
-        //xhr.overrideMimeType('text/xml');
-        //xhr.setRequestHeader('Content-Type', 'text/xml');
-        xhr.setRequestHeader('Content-Type', 'text/plain');
-
-        xhr.onloadstart = function () {
-          //alert("load started");
-        }
-        xhr.onload = function () {
-          //alert("load finished");
-          let response = {
-            "url": xhr.responseURL,
-            "status": xhr.status,
-            "data": xhr.responseText
-          };
-          resolve(response);
-        }
-        xhr.onerror = function () {
-          //alert("load failed");
-          reject('CORS request failed : ' + xhr.statusText);
-        }
-        xhr.send();
-      })
-    }
 
     function getAbsoluteUrl(url) {
       if (url) {
@@ -303,6 +264,173 @@
       videoTitle = videoTitle.replace(/^\([0-9][0-9][0-9]\) /, '');
       return videoTitle;
     }
+
+    async function sleep(ms) {
+      let sleepPromise = new Promise(resolve => setTimeout(resolve, ms));
+      await sleepPromise;
+    }
+
+  //-------------------------------------------------------------------
+
+  class HttpRequest {
+    constructor() {
+      if (window.XMLHttpRequest) {
+        // code for modern browsers
+        this.xhr = new XMLHttpRequest();
+      } else {
+        // code for old IE browsers
+        xhr = new ActiveXObject("Microsoft.XMLHTTP");
+      }
+    }
+
+    async downloadAsync(url) {
+      let promise = new Promise((resolve, reject) => {
+        let method = 'GET';
+        let xhr = this.xhr;
+        if (!xhr) {
+          reject('XHR not supported');
+          return;
+        }
+        if ("withCredentials" in xhr) {
+          xhr.open(method, url, /*async*/true /*, username, password*/);
+        } else {
+          xhr.open(method, url);
+        }
+        //xhr.overrideMimeType('text/xml');
+        //xhr.setRequestHeader('Content-Type', 'application/xml');
+        //xhr.setRequestHeader('Content-Type', 'application/json');
+        //xhr.setRequestHeader('Content-Type', 'application/' + type);
+        //xhr.setRequestHeader('Content-Type', 'text/xml');
+        xhr.setRequestHeader('Content-Type', 'text/plain');
+        // it might be necessary to enable CORS (in chrome by patching request/response headers)
+        //if (url.startsWith('https://live-api.cloud.vimeo.com')) { xhr.setRequestHeader("Origin", 'vimeocdn.com'); }
+        xhr.onloadstart = function () {
+        }
+        xhr.onload = function () {
+          let response = {
+            "url": xhr.responseURL,
+            "status": xhr.status,
+            "data": xhr.responseText
+          };
+          resolve(response);
+        }
+        xhr.onerror = function () {
+          reject('XHR request failed with readyState:' + xhr.readyState + ' status:' + xhr.status + ' statusText:' + xhr.statusText);
+        }
+        xhr.send();
+      });
+      return promise;
+    }
+
+    // it might be necessary to enable CORS (in chrome by patching request/response headers)
+    // for following url patterns:
+    //   *://*/*
+    //   https://rbmn-live.akamaized.net/*
+    //   https://live-api.cloud.vimeo.com/*
+    //   'vimeocdn.com';
+  
+    //  var accessControlRequestHeaders;
+    //  var exposedHeaders;
+
+    //  var requestListener = function (details) {
+    //    var flag = false;
+    //    // Specify a `name` and `value` property within `rule` to
+    //    // customize a request header. For instance, the commented
+    //    // out values will include in the header "Origin: 'https://my_changed_origin.com'"
+    //    var rule = null;
+    //    // var rule = {
+    //    //   name: "Origin",
+    //    //   value: "https://my_changed_origin.com"
+    //    // };	
+    //    var i;
+    //    for (i = 0; i < details.requestHeaders.length; ++i) {
+    //      if (rule && details.requestHeaders[i].name.toLowerCase() === rule.name.toLowerCase()) {
+    //        flag = true;
+    //        details.requestHeaders[i].value = rule.value;
+    //        break;
+    //      }
+    //    }
+    //    if (!flag) details.requestHeaders.push(rule);
+
+    //    for (i = 0; i < details.requestHeaders.length; ++i) {
+    //      if (details.requestHeaders[i].name.toLowerCase() === "access-control-request-headers") {
+    //        accessControlRequestHeaders = details.requestHeaders[i].value
+    //      }
+    //    }
+
+    //    return { requestHeaders: details.requestHeaders };
+    //  };
+
+    //  var responseListener = function (details) {
+    //    var flag = false,
+    //      rule = {
+    //        "name": "Access-Control-Allow-Origin",
+    //        "value": "*"
+    //      };
+
+    //    for (var i = 0; i < details.responseHeaders.length; ++i) {
+    //      if (details.responseHeaders[i].name.toLowerCase() === rule.name.toLowerCase()) {
+    //        flag = true;
+    //        details.responseHeaders[i].value = rule.value;
+    //        break;
+    //      }
+    //    }
+    //    if (!flag) details.responseHeaders.push(rule);
+
+    //    if (accessControlRequestHeaders) {
+
+    //      details.responseHeaders.push({ "name": "Access-Control-Allow-Headers", "value": accessControlRequestHeaders });
+
+    //    }
+
+    //    if (exposedHeaders) {
+    //      details.responseHeaders.push({ "name": "Access-Control-Expose-Headers", "value": exposedHeaders });
+    //    }
+
+    //    details.responseHeaders.push({ "name": "Access-Control-Allow-Methods", "value": "GET, PUT, POST, DELETE, HEAD, OPTIONS" });
+
+    //    return { responseHeaders: details.responseHeaders };
+
+    //  };
+
+    //  /*On install*/
+    //  chrome.runtime.onInstalled.addListener(function () {
+    //    chrome.storage.local.set({ 'active': false });
+    //    chrome.storage.local.set({ 'urls': ["<all_urls>"] });
+    //    chrome.storage.local.set({ 'exposedHeaders': '' });
+    //    reload();
+    //  });
+
+    //  /*Reload settings*/
+    //  function reload() {
+    //    chrome.storage.local.get({ 'active': false, 'urls': ["<all_urls>"], 'exposedHeaders': '' }, function (result) {
+
+    //      exposedHeaders = result.exposedHeaders;
+
+    //      /*Remove Listeners*/
+    //      chrome.webRequest.onHeadersReceived.removeListener(responseListener);
+    //      chrome.webRequest.onBeforeSendHeaders.removeListener(requestListener);
+
+    //      if (result.active) {
+    //        chrome.browserAction.setIcon({ path: "on.png" });
+
+    //        if (result.urls.length) {
+
+    //          /*Add Listeners*/
+    //          chrome.webRequest.onHeadersReceived.addListener(responseListener, {
+    //            urls: result.urls
+    //          }, ["blocking", "responseHeaders"]);
+
+    //          chrome.webRequest.onBeforeSendHeaders.addListener(requestListener, {
+    //            urls: result.urls
+    //          }, ["blocking", "requestHeaders"]);
+    //        }
+    //      } else {
+    //        chrome.browserAction.setIcon({ path: "off.png" });
+    //      }
+    //    });
+    //  }
+  }
 
   //-------------------------------------------------------------------
 
@@ -707,45 +835,9 @@
     }
 
     static async loadAsync(url) {
-      let promise = new Promise((resolve, reject) => {
-        //let xhr = createXHR('GET', url);
-        let method = 'GET';
-        let xhr = new XMLHttpRequest();
-        if ("withCredentials" in xhr) {
-          // XHR for Chrome/Firefox/Opera/Safari.
-          xhr.open(method, url, true);
-        } else if (typeof XDomainRequest != "undefined") {
-          // XDomainRequest for IE.
-          xhr = new XDomainRequest();
-          xhr.open(method, url);
-        } else {
-          // XHR not supported.
-          xhr = null;
-        }
-        if (!xhr) {
-          reject('XHR not supported');
-          return;
-        }
-        xhr.setRequestHeader('Content-Type', 'text/plain');
-        // it might be necessary to enable CORS (in chrome by patching request/response headers)
-        //if (url.startsWith('https://live-api.cloud.vimeo.com')) { xhr.setRequestHeader("Origin", 'vimeocdn.com'); }
-        xhr.onloadstart = function () {
-        }
-        xhr.onload = function () {
-          let response = {
-            "url": xhr.responseURL,
-            "status": xhr.status,
-            "data": xhr.responseText
-          };
-          resolve(response);
-        }
-        xhr.onerror = function () {
-          reject('XHR request failed with readyState:' + xhr.readyState + ' status:' + xhr.status + ' statusText:' + xhr.statusText);
-        }
-        xhr.send();
-      });
       try {
-        let response = await promise;
+        let httpRequest = new HttpRequest();
+        let response = await httpRequest.downloadAsync(url);
         let m3u8Data = new M3U8Data(response.data);
         m3u8Data.complementUris(response.url);
         return m3u8Data;
@@ -1179,26 +1271,6 @@
     return qualities;
   }
      
-  function stringToUint8Array(str) {
-    //let buf = new ArrayBuffer(str.length*2); // 2 bytes for each char
-    //let srcBufView = new Uint16Array(buf);
-    //let tgtBufView = new Uint8Array(buf);
-    //for (let i=0, strLen=str.length; i < strLen; i++) {
-    //  srcBufView[i] = str.charCodeAt(i);
-    //}
-    //return tgtBufView;
-    let ui8buf = new Uint8Array(str.length);
-    for (let i=0, strLen=str.length; i < strLen; i++) {
-      ui8buf[i] = str.charCodeAt(i);
-    }
-    return ui8buf;
-  }
-
-  async function sleep(ms) {
-    let sleepPromise = new Promise(resolve => setTimeout(resolve, ms));
-    await sleepPromise;
-  }
-
   async function saveM3U8LivePlayListAsync(m3u8Url, resolve, reject, cancel) {
     debug("saveM3U8LivePlayListAsync()");
     debug("m3u8Url: " + m3u8Url);
@@ -1210,38 +1282,58 @@
       return null;
     }
     // 2) repeat loading and insert new segments into existing m3u8Data until no changes happen anymore (live stream ends)
-    sleep(200);
     let initialSegmentsCount = m3u8Data.segments.length;
     let repeatCount = 0;
     let repeatLoading = true;
+    let sleepTime = 500;
     while (repeatLoading) {
+      await sleep(sleepTime);
+      // load playlist again
       repeatCount++;
       let newM3u8Data = await M3U8Data.loadAsync(m3u8Url);
       if (newM3u8Data.segments.length < 1) {
         debug("loading playlist data failed (live stream ended?)");
         repeatLoading = false;
+        continue;
       }
-      else {
-        newM3u8Data.segments.forEach((newSegment) => {
-          let isContained = false;
-          m3u8Data.segments.forEach((segment) => {
-            if (segment.uri == newSegment.uri) {
-              isContained = true;
-            }
-          });
-          if (!isContained) {
-            m3u8Data.segments.push(newSegment);
+      // look for new segments
+      let addedSegments = 0;
+      newM3u8Data.segments.forEach((newSegment) => {
+        let isContained = false;
+        m3u8Data.segments.forEach((segment) => {
+          if (segment.uri == newSegment.uri) {
+            isContained = true;
           }
         });
-        // 3) check for final static state (not a live playlist after all?)
-        sleep(500);
-        if (repeatCount > 10 && newM3u8Data.segments.length == m3u8Data.segments.length && m3u8Data.segments.length == initialSegmentsCount) {
-          repeatLoading = false;
+        if (!isContained) {
+          m3u8Data.segments.push(newSegment);
+          addedSegments++;
+        }
+      });
+      if (addedSegments > 0) {
+        debug('added ' + addedSegments + ' new segment(s) to the playlist');
+      }
+      // check for final static state (not a live playlist after all?)
+      if (repeatCount > 10 && newM3u8Data.segments.length == m3u8Data.segments.length && m3u8Data.segments.length == initialSegmentsCount) {
+        repeatLoading = false;
+        continue;
+      }
+      // dynamic adaption of sleepTime (after first 10 repeats with sleeptime of 0.5sec)
+      if (repeatCount > 10) {
+        let segmentsPerRepeat = (m3u8Data.segments.length - initialSegmentsCount) / repeatCount;
+        let desiredSegmentsPerRepeat = 3;
+        if (segmentsPerRepeat > 0) {
+          sleepTime = sleepTime * desiredSegmentsPerRepeat / segmentsPerRepeat;
+          // limit sleep to 30sec
+          if (sleepTime > 30000) {
+            sleepTime = 30000;
+          }
         }
       }
-      // 4) check for user cancelation
+      // check for user cancelation
       if (cancel && cancel()) {
         repeatLoading = false;
+        continue;
       }
     }
     debug("loading of async playlist ended");
@@ -1260,13 +1352,15 @@
     // 1) load playlist data
     let m3u8Data = m3u8Content ? new M3U8Data(m3u8Content) : await M3U8Data.loadAsync(m3u8Url);
     let urlList = m3u8Data.segmentUris;
+    let httpRequest = new HttpRequest();
     // mux.js
     muxedData = null;
     let segmentId = 0;
     for (segmentId = 0; i < urlList.length; segmentId++) {
       let tsSegmentUrl = urlList[segmentId];
       debug(tsSegmentUrl);
-      let response = await loadWebResourceAsync(tsSegmentUrl);
+      // todo: make more save aganinst failures
+      let response = await httpRequest.downloadAsync(tsSegmentUrl);
       let tsSegmentString = response.data;
       let tsSegment = stringToUint8Array(tsSegmentString);
       transmuxSegmentsToCombinedMp4(tsSegment, (segmentId == 0));
@@ -1375,7 +1469,8 @@
     // retrieve media info from active player properties -> this can break if players change
     let videoId = documentUrl.substr(documentUrl.indexOf('dailymotion.com/video/')+'dailymotion.com/video/'.length);
     let videoConfigUrl = 'https://www.dailymotion.com/player/metadata/video/' + videoId;
-    let response = await loadWebResourceAsync(videoConfigUrl);
+    let httpRequest = new HttpRequest();
+    let response = await httpRequest.downloadAsync(videoConfigUrl);
     let videoConfigJson = response.data;
     let videoConfig = JSON.parse(videoConfigJson);
  
@@ -1482,7 +1577,8 @@
       if (vimeoConfigUrl) {
         debug("found Vimeo ConfigUrl");
         //debug("vimeoConfigUrl: " + vimeoConfigUrl);
-        let response = await loadWebResourceAsync(vimeoConfigUrl);
+        let httpRequest = new HttpRequest();
+        let response = await httpRequest.downloadAsync(vimeoConfigUrl);
         let vimeoConfigJson = response.data;
         vimeoConfig = JSON.parse(vimeoConfigJson);
       }
@@ -1537,7 +1633,7 @@
       // hls video (from hls section)
       if (vimeoConfig && vimeoConfig.request && vimeoConfig.request.files && vimeoConfig.request.files.hls && vimeoConfig.request.files.hls.cdns) {
         let m3u8MasterSrc = vimeoConfig.request.files.hls.cdns.akamai_live || vimeoConfig.request.files.hls.cdns.fastly_skyfire;
-        let isLive = vimeoConfig.video && vimeoConfig.video.live_event && vimeoConfig.video.live_event.status; // && vimeoConfig.video.live_event.status == "started";
+        let isLive = vimeoConfig.video && vimeoConfig.video.live_event && vimeoConfig.video.live_event.status && !(vimeoConfig.video.live_event.status.toLowerCase() == "ended"); /*&& vimeoConfig.video.live_event.status == "started"*/;
         if (m3u8MasterSrc)
         {
           debug("found Vimeo live stream");
@@ -1713,7 +1809,7 @@
   // << end of site specific functions
   //-------------------------------------------------------------------------------------------------------
  
-  async function analysePageAndCreateUiAsync(showUiOpen, showAllFormats) {
+  async function analysePageAndCreateUiAsync(showUiOpen, showAllFormats, retryCount) {
     debug("analysePageAndCreateUiAsync()");
     // when this function is used without arguments, then they are of type undefined
     // here showUiOpen and ahowAllFormats are of expected type boolean -> therefore undefined arguments default to false values witch is already what we need
@@ -1774,10 +1870,12 @@
 
       // validate mediaList and retry if necessary
       if (jsonMediaList.mediaList.length < 1) {
-          // try again later
-          debug("could not retrieve video download url from player, trying again later");
-          setTimeout( function(){ analysePageAndCreateUiAsync(); }, 1000);
-          return;
+        // try again later
+        retryCount = (!retryCount || retryCount < 1) ? 1 : ++retryCount;
+        let sleepTime = 500 * retryCount * retryCount * retryCount / 2;
+        debug("could not retrieve video download url from player, trying again later in retry " + retryCount + ' after sleeping ' + sleepTime + 'ms');
+        setTimeout(function () { analysePageAndCreateUiAsync(showUiOpen, showAllFormats, retryCount); }, sleepTime);
+        return;
       }
 
       // sort available qualities
