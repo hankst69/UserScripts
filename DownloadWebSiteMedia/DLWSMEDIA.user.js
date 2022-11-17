@@ -5,7 +5,7 @@
 // @include     https://www.redbull.com/*
 // @copyright   2019-2021, savnt
 // @license     MIT
-// @version     0.4.0
+// @version     0.4.1
 // @grant       none
 // @inject-into page
 // ==/UserScript==
@@ -112,7 +112,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
   function debug(message) {
     console.log("[Media Download] " + message);
     // simulate console on I(Pad)OS Safari browsers
-    if(navigator.userAgent.indexOf("Safari") != -1)
+    //if(navigator.userAgent.indexOf("Safari") != -1)
     {
       let DEBUG_ID = "DLWSMEDIA_DEBUG";
       let div = document.getElementById(DEBUG_ID);
@@ -1042,27 +1042,47 @@ function CodeToInject(chromeExtensionScriptUrl) {
     let player = null;
     // YouTube:        
     if (!player && document.querySelector('#ytd-player') && 'ytplayer' in window) {
+      debug('window.ytplayer');
       player = window.ytplayer;
     }
-    if (player && !player.config && 'yt' in window) {
-      player = window.yt;
+    if (!player || !player.config && 'yt' in window) {
+      debug('window.yt.player');
+      player = window.yt ? window.yt.player : null;
     }
+    if (!player || !player.config && 'getPlayer' in window) {
+      debug('window.getPlayer()');
+      player = window.getPlayer();
+    }
+    //if (!player && 'yt' in window) {
+    //  debug('window.yt');
+    //  player = window.yt;
+    //}
+    //if (player && !player.config && 'getWebPlayerContextConfig' in window) {
+    //  debug('window.getWebPlayerContextConfig()'); 
+    //  player.config = window.getWebPlayerContextConfig();
+    //}
     if (!player) {
       return;     
     }
-    debug("found YouTube media page with player object");
+    debug("found YouTube media page with player object");  
+    debug('player: '+player);
+    //for (var prop in window){debug(prop);}
+    let ytcfg = player.config || window.ytcfg;// || window.ytInitialPlayerConfig || window.ytglobal;
+    debugJson('ytcfg:\n', ytcfg);
+    //debugJson('ytInitialPlayerConfig:\n', window.ytInitialPlayerConfig);
+    //debugJson('ytglobal:\n', window.ytglobal);
     // retrieve media info from active player properties -> this can break if players change
-    if ((player.config && player.config.args && player.config.args.video_id) &&
+    if ((ytcfg && ytcfg.args && ytcfg.args.video_id) &&
         (  player.player_response
         || player.playerResponse
-        || player.config.args.player_response
-        || player.config.args.raw_player_response)) {
+        || ytcfg.args.player_response
+        || ytcfg.args.raw_player_response)) {
 
-      let plrResponseJson = player.player_response || player.playerResponse || player.config.args.player_response;
+      let plrResponseJson = player.player_response || player.playerResponse || ytcfg.args.player_response;
       let videoPlayerResponse = plrResponseJson ? JSON.parse(plrResponseJson) : null;
-      videoPlayerResponse = videoPlayerResponse || player.config.args.raw_player_response;
+      videoPlayerResponse = videoPlayerResponse || ytcfg.args.raw_player_response;
 
-      let videoID = player.config.args.video_id;
+      let videoID = ytcfg.args.video_id;
 
       let videoTitle=document.title || 'video';
       videoTitle=videoTitle.replace(/\s*\-\s*YouTube$/i, '').replace(/'/g, '\'').replace(/^\s+|\s+$/g, '').replace(/\.+$/g, '');
@@ -1267,8 +1287,8 @@ function CodeToInject(chromeExtensionScriptUrl) {
       for (let i=0; i<jsonMediaList.mediaList.length; i++) {
         let mediaEntry = jsonMediaList.mediaList[i];
         mediaEntry.qualities.sort((streamA,streamB) => {
-          debug('qa: '+ QualityToNumber(streamA.quality));
-          debug('qb: '+ QualityToNumber(streamB.quality));
+          //debug('qa: '+ QualityToNumber(streamA.quality));
+          //debug('qb: '+ QualityToNumber(streamB.quality));
           return QualityToNumber(streamB.quality) - QualityToNumber(streamA.quality);
         });
       }
@@ -1477,9 +1497,9 @@ function CodeToInject(chromeExtensionScriptUrl) {
   // define the id for this script
   // this is reqired for detecting/tagging the injected script code 
   // this name pattern is also used by the IOS Safari ProcessWebPage applet (based on Scriptable app/engine)
-  let ThisScriptId = 'UserScript_' + 'DLWSMEDIA.user.js';
+  let ThisScriptId = 'ProcessWebPage_Main';
 
-  // we bypass injection if we run under ProcessWebPage (no sandboxing)
+  // we bypass injection if we run under ProcessWebPage control (no sandboxing)
   if (document.getElementById(ThisScriptId)) {
      console.log("[Media Download] starting");   
      //we run in page (ProcessWebPage) > no further injection required

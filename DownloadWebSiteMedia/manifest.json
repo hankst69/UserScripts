@@ -4,7 +4,7 @@
     "converted_from_user_script": true,
     "name":        "Download WebSite Media",
     "description": "Adds a button that lets you download media files from platforms: RedBull, ServusTv, MySpass, Vimeo",
-    "version":     "0.4.0",
+    "version":     "0.4.1",
     "icons": { "64": "./DLWSMEDIA.png" },
     "content_scripts": [
         {
