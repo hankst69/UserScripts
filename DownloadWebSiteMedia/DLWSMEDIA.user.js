@@ -1,10 +1,10 @@
-// ==UserScript==
+﻿// ==UserScript==
 // @name        WebSite Media Download
 // @namespace   savnt
 // @description Adds a download button to video player pages
 // @copyright   2019-2022, savnt
 // @license     MIT
-// @version     0.5.3
+// @version     0.5.4
 // @grant       none
 // @inject-into page
 // ==/UserScript==
@@ -320,6 +320,51 @@
         xhr.send();
       });
       return promise;
+    }
+
+    async downloadHeaderAsync(url) {
+      let promise = new Promise((resolve, reject) => {
+        let method = 'HEAD';
+        let xhr = this.xhr;
+        if (!xhr) {
+          reject('XHR not supported');
+          return;
+        }
+        if ("withCredentials" in xhr) {
+          xhr.open(method, url, /*async*/true /*, username, password*/);
+        } else {
+          xhr.open(method, url);
+        }
+        xhr.setRequestHeader('Content-Type', 'text/plain');
+        // it might be necessary to enable CORS (in chrome by patching request/response headers)
+        //if (url.startsWith('https://live-api.cloud.vimeo.com')) { xhr.setRequestHeader("Origin", 'vimeocdn.com'); }
+        xhr.onloadstart = function () {
+        }
+        xhr.onload = function () {
+          let response = {
+            "url": xhr.responseURL,
+            "status": xhr.status,
+            "data": xhr.responseText
+          };
+          resolve(response);
+        }
+        xhr.onerror = function () {
+          reject('XHR request failed with readyState:' + xhr.readyState + ' status:' + xhr.status + ' statusText:' + xhr.statusText);
+        }
+        xhr.send();
+      });
+      return promise;
+    }
+
+    async downloadHeader(url) {
+      try {
+        let response = await this.downloadHeaderAsync(url);
+        return response;
+      }
+ 
+      catch (error) {
+         return null;
+      }
     }
 
     // it might be necessary to enable CORS (in chrome by patching request/response headers)
@@ -916,6 +961,20 @@
 
   // --------------------------------------------------------------------
 
+  async function cleanM3u8FromBadSegments(m3u8Data) {
+    debug("cleanM3u8FromBadSegments()");
+    let cleanedData = new M3U8Data(m3u8Data);
+    cleanedData.segments = [];
+    for (const seg of m3u8Data.segments) {    
+      let httpRequest = new HttpRequest();
+      let response = await httpRequest.downloadHeader(seg.uri);
+      if (response && response.status == 200) {
+        cleanedData.segments.push(seg);
+      }
+    }
+    return cleanedData;
+  }
+
   async function loadM3U8PlayListQualities(m3u8Url, isLive) {
     debug("loadM3U8PlayListQualities()");
 
@@ -925,7 +984,7 @@
     {
       debug("loadM3U8MasterPlayListAsync()");
       let m3u8Data = await M3U8Data.loadAsync(m3u8Url);
-      m3u8Data.tags.forEach((tag) => {
+      for (const tag of m3u8Data.tags) {
         if (tag.is('EXT-X-STREAM-INF')) {
           m3u8MasterData = m3u8Data;
           //#EXT-X-STREAM-INF:BANDWIDTH=7570689,AVERAGE-BANDWIDTH=6110867,CODECS="avc1.640028,mp4a.40.2",RESOLUTION=1920x1080,AUDIO="audio",FRAME-RATE=25.0
@@ -993,7 +1052,25 @@
             "issubtitle": true
           });
         }
-      });
+        if (tag.is('EXT-X-PLAYLIST-TYPE') && tag.value == 'VOD') {
+          //m3u8MasterData = m3u8Data;
+          streamQualities.push({
+            "url": m3u8Url,
+            "type": 'm3u8',
+            "quality": 'VOD',
+            "islive": isLive
+          });
+          let cleanedData = await cleanM3u8FromBadSegments(m3u8Data);
+          let saveBlob = new Blob([cleanedData.toString()], { type: "text/html;charset=UTF-8" });
+          let saveUrl = window.URL.createObjectURL(saveBlob);
+          streamQualities.push({
+            "url": saveUrl,
+            "type": 'm3u8',
+            "quality": 'CLEANED',
+            "islive": isLive
+          });
+        }
+      }
       //return streamQualities;
     }
 
@@ -1432,9 +1509,9 @@
       let videoUrl = document.querySelector('video').src;
       // retrieve media info from active player properties -> this can break if players change
       if (videoUrl && videoUrl.length > 0) {
+        videoUrl = getAbsoluteUrl(videoUrl);
         let videoTitle = document.querySelector('p[title]').innerText;
         let videoDescription = videoTitle; //document.querySelector('p[title]').innerText;
-        let videoUrl = getAbsoluteUrl(videoUrl);
         let videoType = getExtensionFromUrl(videoUrl);
         let videoQuality = null;
         resultContainer.mediaList.push({
@@ -1467,7 +1544,41 @@
       }
     }
     if (!player) {
-      return;     
+      // we have to go the long way - but the new episodes playinfo is much harder to fetch
+      //<rbup-video-rbcom id="RBUP-c6b35349-7246-44ad-8a86-f6a1b2a69d55" asset-id="rrn:content:episode-videos:15cf56a0-c4c0-4f56-8c61-9de64527d403:de-INT" autoplay="true" cornerbug="default" details="hidden" product-placement="visible" environment="PRODUCTION" multi-channel-switcher="hidden" locale-mixing="de-DE>de-INT" override-translation-language="de"></rbup-video-rbcom>
+      //-> asset-id="rrn:content:episode-videos:15cf56a0-c4c0-4f56-8c61-9de64527d403:de-INT"
+      //-> https://api-player.redbull.com/rbcom/videoresource?videoId=rrn%3Acontent%3Aepisode-videos%3A15cf56a0-c4c0-4f56-8c61-9de64527d403%3Ade-INT&localeMixing=de-DE%3Ede-INT
+      let rbPlayerCfg = document.querySelector('rbup-video-rbcom');
+      if (!rbPlayerCfg) {
+        return;
+      }
+      let videoId = rbPlayerCfg["asset-id"];
+      if (!videoId) {
+        return;
+      }
+      let videoConfigUrl = 'https://api-player.redbull.com/rbcom/videoresource?videoId=' + videoId;
+      let httpRequest = new HttpRequest();
+      let response = await httpRequest.downloadAsync(videoConfigUrl);
+      let videoConfigJson = response.data;
+      let videoConfig = JSON.parse(videoConfigJson);
+      if (videoConfig) {
+        debug("found RedBull media page with m3u8 video info");
+        let videoTitle = document.querySelector('meta[property="og:title"]').content || videoConfig.title || document.querySelector('title').innerText;
+        let videoDescription = document.querySelector('meta[property="og:description"]').content || document.querySelector('meta[name="description"]').content;
+        let videoUrl = getAbsoluteUrl(videoConfig.videoUrl);
+        let videoType = getExtensionFromUrl(videoUrl);
+        let videoQuality = null;
+        resultContainer.mediaList.push({
+          "title": videoTitle,
+          "description": videoDescription,
+          "qualities": [{
+            "url": videoUrl,
+            "type": videoType,
+            "quality": videoQuality
+          }]
+        });
+      }
+      return;
     }
     debug("found RedBull media page with player object");
     // retrieve media info from active player properties -> this can break if players change
@@ -1507,6 +1618,41 @@
       player = window.rbPlyr_rbunifiedplayer1;
     }
     if (!player) {
+      // we have to go the long way - but the new episodes playinfo is much harder to fetch
+      //<rbup-video-stv id="H5fbebce4-62e5-40c4-a365-8c21596238ef" video-title="Anna Gasser – Der Funke in mir" enable-data-zoom="ACTIVE" cookie-consent="true" asset-id="AA-294F1JR1W2111" autoplay="false" ads-enabled="ACTIVE" cornerbug="stv-on" details="visible" poster="https://backend.servustv.com/tachyon/sites/12/2022/02/FO-299MK1MM61511-stv_cover_landscape-scaled.jpg?resize=1250,702&amp;crop_strategy=smart"><span class="sr-only">no STV WebComponent</span></rbup-video-stv>
+      //-> asset-id="AA-294F1JR1W2111"
+      //-> https://api-player.redbull.com/stv/servus-tv?timeZone=Europe/Berlin&videoId=AA-294F1JR1W2111
+      //-> https://dms.redbull.tv/v5/destination/stv/AA-294F1JR1W2111/personal_computer/http/de/de_DE/playlist.m3u8
+      let rbPlayerCfg = document.querySelector('rbup-video-stv');
+      if (!rbPlayerCfg) {
+        return;
+      }
+      let videoId = rbPlayerCfg["asset-id"];
+      if (!videoId) {
+        return;
+      }
+      let videoConfigUrl = 'https://api-player.redbull.com/stv/servus-tv?timeZone=Europe/Berlin&videoId=' + videoId;
+      let httpRequest = new HttpRequest();
+      let response = await httpRequest.downloadAsync(videoConfigUrl);
+      let videoConfigJson = response.data;
+      let videoConfig = JSON.parse(videoConfigJson);
+      if (videoConfig) {
+        debug("found ServusTV media page with m3u8 video info");
+        let videoTitle = document.querySelector('meta[property="og:title"]').content || videoConfig.title || document.querySelector('title').innerText;
+        let videoDescription = document.querySelector('meta[property="og:description"]').content || document.querySelector('meta[name="description"]').content;
+        let videoUrl = getAbsoluteUrl(videoConfig.videoUrl);
+        let videoType = getExtensionFromUrl(videoUrl);
+        let videoQuality = null;
+        resultContainer.mediaList.push({
+          "title": videoTitle,
+          "description": videoDescription,
+          "qualities": [{
+            "url": videoUrl,
+            "type": videoType,
+            "quality": videoQuality
+          }]
+        });
+      }
       return;     
     }
     debug("found ServusTV media page with player object");
@@ -1903,6 +2049,36 @@
     }
   }
 
+  async function findMediathekviewPlayerMedia(document, resultContainer) {
+    // https://srf-vod-amd.akamaized.net/ch/hls/film/2022/10/film_20221011_153158_15680421_v_webcast_h264_,q40,q10,q20,q30,q50,q60,.mp4.csmil/index-f6-v1-a1.m3u8
+    if (document.location.host.startsWith('mediathekviewweb.de') && document.querySelector('div#videocontent>div')) {
+      debug("found MediathekviewWeb page with video object");
+      let videoUrl = document.querySelector('div#videocontent>div>video>source').src;
+      // retrieve media info from active player properties -> this can break if players change
+      if (videoUrl && videoUrl.length > 0) {
+        videoUrl = getAbsoluteUrl(videoUrl);
+        let anchor = document.querySelector('td>a[href="' + videoUrl + '"]');
+        let videoTitle = anchor.parentNode.parentNode.querySelector('td:nth-child(3)').innerText;
+        let videoDescription = videoTitle;
+        let videoType = getExtensionFromUrl(videoUrl);
+        let videoQuality = null;
+        resultContainer.mediaList.push({
+          "title": videoTitle,
+          "description": videoDescription,
+          "qualities": [{
+            "url": videoUrl,
+            "type": videoType,
+            "quality": videoQuality
+          }]
+        });
+      }
+      else {
+        debug("could not extract Mediathekview media");
+      }
+    }
+  }
+
+
   // << end of site specific functions
   //-------------------------------------------------------------------------------------------------------
  
@@ -1943,6 +2119,21 @@
         }*/]
       };
 
+      // inject download ui for showing progress
+      //createDownloadUiAndAddUrl(false, false, "", "", {
+      //  "url": null,
+      //  "type": "",
+      //  "quality": "",
+      //  "isaudio": false,
+      //  "islive": false,
+      //  "isloaded": false,
+      //  "processed": false,
+      //  "ismuxed": false,
+      //  "muxedAudioQuality": null,
+      //  "content": ""
+      //}, true);
+
+      // update mediaList
       await findRedBullMedia(document, resultContainer);
       await findServusTVMedia(document, resultContainer);
       await findMySpassMedia(document, resultContainer);
@@ -1950,6 +2141,7 @@
       await findYouTubeMedia(document, resultContainer);
       await findDailymotionMedia(document, resultContainer);
       await findArdMedia(document, resultContainer);
+      await findMediathekviewPlayerMedia(document, resultContainer);
       await findAirmeetMedia(document, resultContainer);
         
       // POSTPROCESS AND DISPLAY retrieved media information
@@ -2030,7 +2222,7 @@
         });
       });
       
-      // inject download ui
+      // inject/update download ui
       createDownloadUi(resultContainer.mediaList, showUiOpen, showAllFormats);
     }
     catch (error)
