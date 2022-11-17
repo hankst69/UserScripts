@@ -4,7 +4,7 @@
 // @description Adds a download button to video player pages
 // @copyright   2019-2021, savnt
 // @license     MIT
-// @version     0.4.7
+// @version     0.4.8
 // @grant       none
 // @inject-into page
 // ==/UserScript==
@@ -252,6 +252,9 @@ function CodeToInject(chromeExtensionScriptUrl) {
       }
       if (extStr.length > 4) {
         extStr = extStr.substr(0, 4);
+      }
+      if (extStr.endsWith('#')) {
+        extStr = extStr.substr(0, extStr.length-1);
       }
       return extStr.toLowerCase();
     }
@@ -516,15 +519,18 @@ function CodeToInject(chromeExtensionScriptUrl) {
       if (typeof m3u8TagString != 'string') {
         return null;
       }
-      let m3u8Tag = new M3U8Tag(null, [], [], null);
       m3u8TagString = m3u8TagString.trim();
       if (m3u8TagString.startsWith('#')) {
         m3u8TagString = m3u8TagString.substr(1);
       }
-      if (m3u8TagString.length < 1) {
+      if (m3u8TagString.length < 1 || m3u8TagString == 'EXT') {
         // empty line
-        return m3u8Tag;
+        return null;
       }
+      // we have some kind of a valid tag:
+      let m3u8Tag = new M3U8Tag(null, [], [], null);
+      //// dailymotion '#CELL' fix:
+      //m3u8TagString = m3u8TagString.replace('\n#','#');
       let colonPos = m3u8TagString.indexOf(':');
       if (colonPos < 0) {
         // just a tag without attributes
@@ -549,16 +555,35 @@ function CodeToInject(chromeExtensionScriptUrl) {
         let attributeData = tagDataLines[0].trim();
         let attributes = attributeData.split(',');
         attributes.forEach((attribute) => {
+          if (!attribute || attribute.length < 1) {
+            return;
+          }
           let attribKvp = attribute.split('=');
           if (attribKvp.length < 2) {
             // just a pure value
-            m3u8Tag.values.push(attribute);
+            let value = attribute;
+            // dailymotion fix: quote if not quoted completely
+            if (value && value.startsWith('"') && !value.endsWith('"')) { value = value + '"'; }
+            if (value && !value.startsWith('"') && value.endsWith('"')) { value = '"' + value; }
+            m3u8Tag.values.push(value);
           }
           else {
-            //let attr = new m3u8Attribute(attribKvp[0].toUpperCase(), attribKvp[1], null);
+            let name = attribKvp[0].toUpperCase(); 
+            let value = attribKvp[1];
+            if (attribKvp.length > 2 && value.startsWith('"') && !value.endsWith('"') && attribKvp[attribKvp.length - 1].endsWith('"')) {
+              // we splited unwillingly the attribute argument since it contained '=' characters
+              // therefore we glue the parts together again
+              for (let i = 2; i < attribKvp.length; i++) {
+                value += '=' + attribKvp[i];
+              }
+            }
+            //// dailymotion fix: quote if not quoted completely
+            //if (value && value.startsWith('"') && !value.endsWith('"')) { value = value + '"'; }
+            //if (value && !value.startsWith('"') && value.endsWith('"')) { value = '"' + value; }
+            //let attr = new m3u8Attribute(name, value, null);
             let attr = {
-              "name": attribKvp[0].toUpperCase(),
-              "value": attribKvp[1],
+              "name": name,
+              "value": value,
               "valueUnquoted": null
             };
             // remove bracing quotes
@@ -583,10 +608,10 @@ function CodeToInject(chromeExtensionScriptUrl) {
       }
       let m3u8Data = new M3U8Data();
       m3u8DataString = m3u8DataString.trim();
-      let m3u8TagStrings = m3u8DataString.split('#');
+      let m3u8TagStrings = m3u8DataString.split('#EXT');
       m3u8TagStrings.forEach((tagString) => {
-        let tag = this.parseTag(tagString);
-        if (tag.name) {
+        let tag = this.parseTag('EXT'+tagString);
+        if (tag && tag.name) {
           // we parsed a valid tag -> we try to convert it into an segment
           let segment = this.tagAsSegment(tag);
           if (segment) {
@@ -796,6 +821,15 @@ function CodeToInject(chromeExtensionScriptUrl) {
             "quality": tag.unquotedValueOf('RESOLUTION'),
             "live": isLive
           });
+          if (tag.valueOf('PROGRESSIVE-URI') != null) {
+            let uri = tag.attribute('PROGRESSIVE-URI').valueUnquoted;
+            streamQualities.push({
+              "url": uri,
+              "type": getExtensionFromUrl(uri),
+              "quality": tag.unquotedValueOf('RESOLUTION'),
+              "live": false
+            });
+          }
         }
         if (tag.is('EXT-X-MEDIA') && tag.unquotedValueOf('TYPE') == 'AUDIO' && tag.uri != null) {
           m3u8MasterData = m3u8Data;
@@ -834,17 +868,16 @@ function CodeToInject(chromeExtensionScriptUrl) {
         for (let i = 0; i < streamQualities.length; i++) {
           let streamQuality = streamQualities[i];
           debug("loadM3U8StreamQualityAsync()");
+          if (!streamQuality.type.startsWith('m3u8')) {
+            //return null;
+            continue;
+          }
           let m3u8Data = await M3U8Data.loadAsync(streamQuality.url);
           if (m3u8Data.segments.length < 1) {
             debug("given stream playlist does not contain segments -> exit early")
             //return null;
             continue;
           }
-          //if (m3u8Data.valueOf('EXT-X-PLAYLIST-TYPE') != 'VOD') {
-          //  debug("given stream playlist is not of VOD playlist type (probably a m3u8 master instead) -> exit early")
-          //  //return null;
-          //  continue;
-          //}
           // create a downloadable blob
           let saveBlob = new Blob([m3u8Data.toString()], { type: "text/html;charset=UTF-8" });
           let saveUrl = window.URL.createObjectURL(saveBlob);
@@ -878,11 +911,54 @@ function CodeToInject(chromeExtensionScriptUrl) {
           debug("given stream playlist does not contain segments -> exit early")
           return null;
         }
-        //if (m3u8Data.valueOf('EXT-X-PLAYLIST-TYPE') != 'VOD') {
-        //  debug("given stream playlist is not of VOD playlist type (probably a m3u8 master instead) -> exit early")
-        //  return null;
-        //}
         // create a copy of the original playlist data where interfering segments have been removed...
+        //
+        //parse:
+        // #EXT-X-PLAYLIST-TYPE:VOD
+        // #EXTINF:3.000,
+        // https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/0.ts
+        // #EXTINF:3.000,
+        // https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/1.ts
+        //
+        //parse:
+        // #EXT-X-PLAYLIST-TYPE:VOD
+        // #EXT-X-VERSION:7
+        // #EXT-X-MEDIA-SEQUENCE:0
+        // #EXT-X-TARGETDURATION:3
+        // #EXT-X-MAP:URI="../FO-2671U79W9BH15/init.mp4"
+        //
+        //parse:
+        // #EXTM3U
+        // #EXT-X-VERSION:6
+        // #EXT-X-TARGETDURATION:3
+        // #EXT-X-MEDIA-SEQUENCE:0
+        // #EXT-X-PLAYLIST-TYPE:VOD
+        // #EXTINF:3.000,
+        // https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/0.ts
+        // #EXTINF:3.000,
+        // https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/1.ts
+        // ...
+        // #EXTINF:2.240,
+        // https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/486.ts
+        // #EXT-X-DISCONTINUITY
+        // #EXTINF:3.000,
+        // https://cs5.rbmbtnx.net/v1/GAMS/s/1/ST/8N/Z5/QH/21/11/0.ts
+        // #EXT-X-DISCONTINUITY
+        // #EXTINF:3.000,
+        // https://cs.rbmbtnx.net/v1/GAMS/s/1/YX/HB/1S/YW/5N/11/0.ts
+        // #EXTINF:3.000,
+        // https://cs.rbmbtnx.net/v1/GAMS/s/1/YX/HB/1S/YW/5N/11/1.ts
+        // #EXTINF:3.000,
+        // ...
+        // #EXTINF:2.000,
+        // https://cs.rbmbtnx.net/v1/GAMS/s/1/YX/HB/1S/YW/5N/11/15.ts
+        // #EXT-X-DISCONTINUITY
+        // #EXTINF:3.000,
+        // https://cs2.rbmbtnx.net/v1/GAMS/s/1/SV/5P/JV/F1/1W/11/0.ts
+        // #EXT-X-DISCONTINUITY
+        // #EXTINF:0.760,
+        // https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/487.ts
+        //
         //let processedM3U8Data = new M3U8Data();
         //m3u8Data.segments.forEach(...
         let processedM3U8Data = new M3U8Data(m3u8Data);
@@ -1068,76 +1144,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
     qualities.sort((streamA, streamB) => { return qualityToNumber(streamB.quality) - qualityToNumber(streamA.quality); });
     return qualities;
   }
-    
-  function getAdFreeUrlListFromM3U8VodPlayList(m3u8Text, m3u8Url) {
-    debug("getAdFreeUrlListFromM3U8VodPlayList()");
-    //debug("m3u8PlaylistData: " + m3u8Text);
-    // 
-    //parse:
-    // #EXT-X-PLAYLIST-TYPE:VOD
-    // #EXTINF:3.000,
-    // https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/0.ts
-    // #EXTINF:3.000,
-    // https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/1.ts
-    //
-    //parse:
-    // #EXT-X-PLAYLIST-TYPE:VOD
-    // #EXT-X-VERSION:7
-    // #EXT-X-MEDIA-SEQUENCE:0
-    // #EXT-X-TARGETDURATION:3
-    // #EXT-X-MAP:URI="../FO-2671U79W9BH15/init.mp4"
-    //
-    //parse:
-    // #EXTM3U
-    // #EXT-X-VERSION:6
-    // #EXT-X-TARGETDURATION:3
-    // #EXT-X-MEDIA-SEQUENCE:0
-    // #EXT-X-PLAYLIST-TYPE:VOD
-    // #EXTINF:3.000,
-    // https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/0.ts
-    // #EXTINF:3.000,
-    // https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/1.ts
-    // ...
-    // #EXTINF:2.240,
-    // https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/486.ts
-    // #EXT-X-DISCONTINUITY
-    // #EXTINF:3.000,
-    // https://cs5.rbmbtnx.net/v1/GAMS/s/1/ST/8N/Z5/QH/21/11/0.ts
-    // #EXT-X-DISCONTINUITY
-    // #EXTINF:3.000,
-    // https://cs.rbmbtnx.net/v1/GAMS/s/1/YX/HB/1S/YW/5N/11/0.ts
-    // #EXTINF:3.000,
-    // https://cs.rbmbtnx.net/v1/GAMS/s/1/YX/HB/1S/YW/5N/11/1.ts
-    // #EXTINF:3.000,
-    // ...
-    // #EXTINF:2.000,
-    // https://cs.rbmbtnx.net/v1/GAMS/s/1/YX/HB/1S/YW/5N/11/15.ts
-    // #EXT-X-DISCONTINUITY
-    // #EXTINF:3.000,
-    // https://cs2.rbmbtnx.net/v1/GAMS/s/1/SV/5P/JV/F1/1W/11/0.ts
-    // #EXT-X-DISCONTINUITY
-    // #EXTINF:0.760,
-    // https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/487.ts
-    //
-    let m3u8Data = new M3U8Data(m3u8Text);
-    if (m3u8Data.segments.length < 1) {
-      debug("given playlist does not cntain segments -> exit early")
-      return null;
-    }
-    //if (!m3u8Data.valueOf('EXT-X-PLAYLIST-TYPE') == 'VOD') {
-    //  debug("given playlist is not of VOD playlist type (probably a m3u8 master instead) -> exit early")
-    //  return null;
-    //}
-    // return urlList and adapted m3u8PlayList
-    m3u8Data.complementUris(m3u8Url);
-    let result = {
-      "urlList": m3u8Data.segmentUris,
-      "vodPlayList": m3u8Data.toString(),
-      "m3u8Data": m3u8Data
-    };
-    return result;
-  }
-  
+     
   function stringToUint8Array(str) {
     //let buf = new ArrayBuffer(str.length*2); // 2 bytes for each char
     //let srcBufView = new Uint16Array(buf);
@@ -1153,20 +1160,11 @@ function CodeToInject(chromeExtensionScriptUrl) {
     return ui8buf;
   }
 
-  async function saveM3U8LivePlayListAsync(m3u8Url, m3u8Content, resolve, reject, cancel) {
+  async function saveM3U8LivePlayListAsync(m3u8Url, resolve, reject, cancel) {
     debug("saveM3U8LivePlayListAsync()");
-    // 1) load initial playlist data (will only contain few segments)
-    if (!m3u8Content) {
-      let response = await loadWebResourceAsync(m3u8Url);
-      m3u8Content = response.data;
-      m3u8Url = response.url;
-    }
-    //debug("m3u8UrlIn: " + m3u8UrlIn);
-    //debug("m3u8Text: " + m3u8Content);
     debug("m3u8Url: " + m3u8Url);
-    // 2) parse initial playlist data
-    let m3u8Data = new M3U8Data(m3u8Content);
-    m3u8Data.complementUris(m3u8Url);
+    // 1) load initial playlist data (will only contain few segments)
+    let m3u8Data = await M3U8Data.loadAsync(m3u8Url);
     if (m3u8Data.segments.length < 1) {
       debug("could not find any VOD segments -> early exit");
       if (reject) reject("could not find any VOD segments -> early exit");
@@ -1217,13 +1215,12 @@ function CodeToInject(chromeExtensionScriptUrl) {
 
   async function saveM3U8VideoAsMP4Async(m3u8Url, m3u8Content, resolve, reject, cancel) {
     debug("saveM3U8VideoAsMP4Async()");
-    if (!m3u8Content) {
-      let response = await loadWebResourceAsync(m3u8Url);
-      m3u8Content = response.data;
-      m3u8Url = response.url;
-    }
-    let playListResult = getAdFreeUrlListFromM3U8VodPlayList(m3u8Content, m3u8Url);
-    let urlList = playListResult.urlList;
+    debug("m3u8Url: " + m3u8Url);
+    //debug("m3u8Content: " + m3u8Content);
+    // 1) load playlist data
+    let m3u8Data = m3u8Content ? new M3U8Data(m3u8Content) : await M3U8Data.loadAsync(m3u8Url);
+    m3u8Data.complementUris(m3u8Url);
+    let urlList = m3u8Data.segmentUris;
     // mux.js
     muxedData = null;
     let segmentId = 0;
@@ -1327,6 +1324,51 @@ function CodeToInject(chromeExtensionScriptUrl) {
     }
     else {
       debug("could not extract ServusTV media"); 
+    }
+  }
+
+  async function findDailymotionMedia(document, jsonMediaList) {
+    let documentUrl = document.URL;
+    if (!documentUrl.includes('dailymotion.com/video/')) {
+      return;
+    }
+    debug("found Dailymotion media page");
+    // retrieve media info from active player properties -> this can break if players change
+    let videoId = documentUrl.substr(documentUrl.indexOf('dailymotion.com/video/')+'dailymotion.com/video/'.length);
+    let videoConfigUrl = 'https://www.dailymotion.com/player/metadata/video/' + videoId;
+    let response = await loadWebResourceAsync(videoConfigUrl);
+    let videoConfigJson = response.data;
+    let videoConfig = JSON.parse(videoConfigJson);
+ 
+    if (videoConfig) {
+      debug("found Dailymotion video config");
+      //debugJson("videoConfig:\n", videoConfig);
+      let videoTitle = videoConfig.title;
+      let videoDescription = videoConfig.tags.join(', ');
+      let mediaEntry = {
+        "title": videoTitle,
+        "description": videoDescription,
+        "qualities": []
+      };
+      if (videoConfig && videoConfig.qualities && videoConfig.qualities.auto && videoConfig.qualities.auto.length > 0) {
+        debug("found Dailymotion qualities");
+        // add media download info
+        videoConfig.qualities.auto.forEach((format)=>{
+          mediaEntry.qualities.push({
+            "url": format.url,
+            "type": getExtensionFromUrl(format.url), //getExtensionFromType(format.type), 
+            "quality": null
+          });
+        });
+      }
+      // see if we found something:
+      if (mediaEntry.qualities.length > 0) {
+        jsonMediaList.mediaList.push(mediaEntry);
+        return;
+      }
+    }
+    else {
+      debug("could not extract Dailymotion media"); 
     }
   }
 
@@ -1478,7 +1520,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
       debug("could not extract Vimeo media"); 
     }
   }
- 
+
   async function findYouTubeMedia(document, jsonMediaList) {
     // YouTube:
     //<ytmusic-player id="player" class="style-scope ytmusic-player-page" mini-player-required_="" video-mode_="" playback-mode="OMV_PREFERRED" player-ui-state_="PLAYER_PAGE_OPEN" player-page-open_="" playable_=""><!--css-build:shady--><dom-if class="style-scope ytmusic-player"><template is="dom-if"></template></dom-if>
@@ -1673,6 +1715,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
       await findMySpassMedia(document, jsonMediaList);
       await findVimeoMedia(document, jsonMediaList);
       await findYouTubeMedia(document, jsonMediaList);
+      await findDailymotionMedia(document, jsonMediaList);
       await findArdMedia(document, jsonMediaList);
         
       // POSTPROCESS AND DISPLAY retrieved media information
@@ -1932,7 +1975,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
           spanSave.style.cursor = 'progress';
           spanSave.onclick = () => { alert('\nconfirm to stop the running download of live stream into full m3u8\n\n(use appearing download link to download the result)'); isCanceled = true; };
           spanSave.style.color = "rgb(80, 80, 80)";
-          saveM3U8LivePlayListAsync(downloadInfo.url, downloadInfo.content,
+          saveM3U8LivePlayListAsync(downloadInfo.url, 
             (saveBlob) => {
               //alert("saveBlob created");
               //window.saveAs(videoBlob, videoFileName);
