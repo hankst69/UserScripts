@@ -4,7 +4,7 @@
 // @description Adds a download button to video player pages
 // @copyright   2019-2022, savnt
 // @license     MIT
-// @version     0.5.4
+// @version     0.5.5
 // @grant       none
 // @inject-into page
 // ==/UserScript==
@@ -1473,13 +1473,11 @@
     //debug("m3u8Content: " + m3u8Content);
     // 1) load playlist data
     let m3u8Data = m3u8Content ? new M3U8Data(m3u8Content) : await M3U8Data.loadAsync(m3u8Url);
-    let urlList = m3u8Data.segmentUris;
     let httpRequest = new HttpRequest();
     // mux.js
     muxedData = null;
     let segmentId = 0;
-    for (segmentId = 0; i < urlList.length; segmentId++) {
-      let tsSegmentUrl = urlList[segmentId];
+    for (const tsSegmentUrl of m3u8Data.segmentUris) {
       debug(tsSegmentUrl);
       // todo: make more save aganinst failures
       let response = await httpRequest.downloadAsync(tsSegmentUrl);
@@ -1490,6 +1488,7 @@
       if (cancel && cancel()) {
         break;
       }
+      segmentId++;
     }
     // create a blob and return
     let saveBlob = transmuxSegmentsToCombinedMp4Blob(segmentId);
@@ -1612,56 +1611,31 @@
   }
 
   async function findServusTVMedia(document, resultContainer) {
-    let player = null;
     // ServusTV:
-    if (!player && document.querySelector('div.rbPlyr-container') && 'rbPlyr_rbunifiedplayer1' in window) {
-      player = window.rbPlyr_rbunifiedplayer1;
+    //<rbup-video-stv id="H5fbebce4-62e5-40c4-a365-8c21596238ef" video-title="Anna Gasser – Der Funke in mir" enable-data-zoom="ACTIVE" cookie-consent="true" asset-id="AA-294F1JR1W2111" autoplay="false" ads-enabled="ACTIVE" cornerbug="stv-on" details="visible" poster="https://backend.servustv.com/tachyon/sites/12/2022/02/FO-299MK1MM61511-stv_cover_landscape-scaled.jpg?resize=1250,702&amp;crop_strategy=smart"><span class="sr-only">no STV WebComponent</span></rbup-video-stv>
+    //-> asset-id="AA-294F1JR1W2111"
+    //-> https://api-player.redbull.com/stv/servus-tv?timeZone=Europe/Berlin&videoId=AA-294F1JR1W2111
+    //-> https://dms.redbull.tv/v5/destination/stv/AA-294F1JR1W2111/personal_computer/http/de/de_DE/playlist.m3u8
+    let rbPlayerCfg = document.querySelector('rbup-video-stv');
+    if (!rbPlayerCfg) {
+      debug("could not extract ServusTV player config"); 
+      return;
     }
-    if (!player) {
-      // we have to go the long way - but the new episodes playinfo is much harder to fetch
-      //<rbup-video-stv id="H5fbebce4-62e5-40c4-a365-8c21596238ef" video-title="Anna Gasser – Der Funke in mir" enable-data-zoom="ACTIVE" cookie-consent="true" asset-id="AA-294F1JR1W2111" autoplay="false" ads-enabled="ACTIVE" cornerbug="stv-on" details="visible" poster="https://backend.servustv.com/tachyon/sites/12/2022/02/FO-299MK1MM61511-stv_cover_landscape-scaled.jpg?resize=1250,702&amp;crop_strategy=smart"><span class="sr-only">no STV WebComponent</span></rbup-video-stv>
-      //-> asset-id="AA-294F1JR1W2111"
-      //-> https://api-player.redbull.com/stv/servus-tv?timeZone=Europe/Berlin&videoId=AA-294F1JR1W2111
-      //-> https://dms.redbull.tv/v5/destination/stv/AA-294F1JR1W2111/personal_computer/http/de/de_DE/playlist.m3u8
-      let rbPlayerCfg = document.querySelector('rbup-video-stv');
-      if (!rbPlayerCfg) {
-        return;
-      }
-      let videoId = rbPlayerCfg["asset-id"];
-      if (!videoId) {
-        return;
-      }
-      let videoConfigUrl = 'https://api-player.redbull.com/stv/servus-tv?timeZone=Europe/Berlin&videoId=' + videoId;
-      let httpRequest = new HttpRequest();
-      let response = await httpRequest.downloadAsync(videoConfigUrl);
-      let videoConfigJson = response.data;
-      let videoConfig = JSON.parse(videoConfigJson);
-      if (videoConfig) {
-        debug("found ServusTV media page with m3u8 video info");
-        let videoTitle = document.querySelector('meta[property="og:title"]').content || videoConfig.title || document.querySelector('title').innerText;
-        let videoDescription = document.querySelector('meta[property="og:description"]').content || document.querySelector('meta[name="description"]').content;
-        let videoUrl = getAbsoluteUrl(videoConfig.videoUrl);
-        let videoType = getExtensionFromUrl(videoUrl);
-        let videoQuality = null;
-        resultContainer.mediaList.push({
-          "title": videoTitle,
-          "description": videoDescription,
-          "qualities": [{
-            "url": videoUrl,
-            "type": videoType,
-            "quality": videoQuality
-          }]
-        });
-      }
-      return;     
+    let videoId = rbPlayerCfg["asset-id"];
+    if (!videoId) {
+      debug("could not extract ServusTV media info"); 
+      return;
     }
-    debug("found ServusTV media page with player object");
-    // retrieve media info from active player properties -> this can break if players change
-    if ('getVidMeta' in player) { 
-      let videoInfo = player.getVidMeta();
-      let videoTitle = videoInfo.title;
-      let videoDescription = videoInfo.subtitle;
-      let videoUrl = getAbsoluteUrl(videoInfo.videoUrl);
+    let videoConfigUrl = 'https://api-player.redbull.com/stv/servus-tv?timeZone=Europe/Berlin&videoId=' + videoId;
+    let httpRequest = new HttpRequest();
+    let response = await httpRequest.downloadAsync(videoConfigUrl);
+    let videoConfigJson = response.data;
+    let videoConfig = JSON.parse(videoConfigJson);
+    if (videoConfig) {
+      debug("found ServusTV media page with m3u8 video info");
+      let videoTitle = document.querySelector('meta[property="og:title"]').content || videoConfig.title || document.querySelector('title').innerText;
+      let videoDescription = document.querySelector('meta[property="og:description"]').content || document.querySelector('meta[name="description"]').content;
+      let videoUrl = getAbsoluteUrl(videoConfig.videoUrl);
       let videoType = getExtensionFromUrl(videoUrl);
       let videoQuality = null;
       resultContainer.mediaList.push({
@@ -1674,9 +1648,7 @@
         }]
       });
     }
-    else {
-      debug("could not extract ServusTV media"); 
-    }
+    return;     
   }
 
   async function findDailymotionMedia(document, resultContainer) {
@@ -2119,20 +2091,6 @@
         }*/]
       };
 
-      // inject download ui for showing progress
-      //createDownloadUiAndAddUrl(false, false, "", "", {
-      //  "url": null,
-      //  "type": "",
-      //  "quality": "",
-      //  "isaudio": false,
-      //  "islive": false,
-      //  "isloaded": false,
-      //  "processed": false,
-      //  "ismuxed": false,
-      //  "muxedAudioQuality": null,
-      //  "content": ""
-      //}, true);
-
       // update mediaList
       await findRedBullMedia(document, resultContainer);
       await findServusTVMedia(document, resultContainer);
@@ -2167,6 +2125,9 @@
         setTimeout(function () { analysePageAndCreateUiAsync(showUiOpen, showAllFormats, retryCount); }, sleepTime);
         return;
       }
+
+      // create and inject download ui for showing progress
+      let canvas = createDownloadUi(showUiOpen, showAllFormats);
 
       // sort available qualities
       for (let i = 0; i < resultContainer.mediaList.length; i++) {
@@ -2222,8 +2183,8 @@
         });
       });
       
-      // inject/update download ui
-      createDownloadUi(resultContainer.mediaList, showUiOpen, showAllFormats);
+      // update download ui
+      updateDownloadUi(resultContainer.mediaList, showUiOpen, showAllFormats);
     }
     catch (error)
     {
@@ -2232,7 +2193,11 @@
     }
   }
 
-  async function createDownloadUi(mediaList, showUiOpen, showAllFormats) {
+  function createDownloadUi(showUiOpen, showAllFormats) {
+    return createDownloadUiAndAddUrl(showUiOpen, showAllFormats, null, null, null, false);
+  }
+
+  function updateDownloadUi(mediaList, showUiOpen, showAllFormats) {
     let skipped = 0;
     mediaList.forEach((entry) => {
       entry.qualities.forEach(async (quality) => {
@@ -2257,6 +2222,127 @@
   function createDownloadUiAndAddUrl(showUiOpen, showAllFormats, title, description, downloadInfo, skippedFormats)
   {
     debug("createDownloadUiAndAddUrl()");
+
+    // look which ui elements we have already created before
+    let el = document.getElementById("i2d-popup");
+    let elCanvas = document.getElementById("i2d-canvas");
+    let elDiv = document.getElementById("i2d-popup-div");
+    let elDivTopLine = document.getElementById("i2d-popup-eldivtopline");
+    let elDivBottomLine = document.getElementById("i2d-popup-eldivbottomline");
+    // remove already existing bottom buttons line (get recreated after adding of new download entry)
+    if (elDivBottomLine) {
+      elDivBottomLine.parentElement.removeChild(elDivBottomLine);
+    }
+
+    // create popup dialog elements (if not existing already)
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "i2d-popup";
+      el.style = "font-size: 14px; font-family: sans-serif; color: black; max-width: 100%; max-height: 100%; height: auto; width: auto; background: rgb(160, 160, 160); top: 100px; left: 0px; line-height: normal; text-align: left; position: absolute;";
+      el.style.cursor = "default";
+      el.style.zIndex = Number.MAX_SAFE_INTEGER - 1;
+      //el.style.overflow = "scroll";
+
+      elDivTopLine = document.createElement("div");
+      elDivTopLine.id = "i2d-popup-eldivtopline";
+      elDivTopLine.style = "display: block; overflow: auto; padding-bottom: 0px; padding-left: 5px; padding-right: 5px;";
+
+      let elspan = document.createElement("span");
+      elspan.id = "i2d-popup-x";
+      elspan.style = "font-size: 105%; color: rgb(153, 0, 0); padding-left: 0px; float: left; display: inline; text-decoration: underline;";
+      elspan.style.cursor = "pointer";//'crosshair';
+      elspan.innerHTML = '[hide]';
+      elDivTopLine.appendChild(elspan);
+
+      let elspan1 = document.createElement("span");
+      elspan1.id = "i2d-popup-close";
+      elspan1.style = "font-size: 105%; color: rgb(153, 0, 0); padding-right: 0px; float: right; display: inline; text-decoration: underline;";
+      elspan1.style.cursor = "pointer";//'crosshair';
+      elspan1.innerHTML = '[X]' //'[close]';
+      elspan1.onclick = () => { deleteDownloadUi(); };
+      elDivTopLine.appendChild(elspan1);
+
+      elDiv = document.createElement("div");
+      elDiv.id = "i2d-popup-div";
+      elDiv.style = "display: block; padding: 0px;";
+
+      if (showUiOpen) {
+        // initially set to 'shown' state
+        elspan.innerHTML = '[hide]';
+        elDiv.style.display = "block";
+        elspan1.style.display = "inline";
+      } else {
+        // initially set to 'hidden' state
+        elspan.innerHTML = '[show]';
+        elDiv.style.display = "none";
+        elspan1.style.display = "none";
+      }
+
+      elspan.onclick = function() {
+        //var eldiv = document.getElementById("i2d-popup-div"); var elspan = document.getElementById("i2d-popup-x"); var elspan1 = document.getElementById("i2d-popup-close");
+        if (elDiv.style.display === "none") {
+          elspan.innerHTML = '[hide]';
+          elDiv.style.display = "block";
+          elspan1.style.display = "inline";
+        } else {
+          elspan.innerHTML = '[show]';
+          elDiv.style.display = "none";
+          elspan1.style.display = "none";
+        }
+      };
+
+      elCanvas = document.createElement("canvas");
+      elCanvas.id = "i2d-canvas";
+      elCanvas.width = 53;
+      elCanvas.height = 15;
+
+      el.appendChild(elCanvas);
+      el.appendChild(elDivTopLine);
+      el.appendChild(elDiv);
+      document.documentElement.appendChild(el);
+    }
+
+    if (downloadInfo == null || downloadInfo.type == null || downloadInfo.quality == null) {
+      // exit with canvas progress ui
+      elDivTopLine.style.display = "none";
+      let canvas = elCanvas;
+      var ctx = canvas.getContext("2d");
+      //var gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+      //gradient.addColorStop("0", "magenta");
+      //gradient.addColorStop("0.5", "blue");
+      //gradient.addColorStop("1.0", "red");
+      //ctx.strokeStyle = gradient;
+      ctx.textBaseline = 'top';
+      ctx.font = elDiv.font;
+      ctx.fillStyle = "rgb(160, 160, 160)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      //ctx.strokeText("analysing", 3, 3);
+      var progressFunction = function (progress) {
+        if (canvas.parentElement) {
+          if (progress > 100) {
+            ctx.fillStyle = "rgb(160, 160, 160)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            //ctx.strokeText("analysing", 3, 3);
+            progress = 0;
+          } else {
+            ctx.fillStyle = "#FF0000";
+            let progressWidth = (canvas.width - 6) * progress / 100;
+            ctx.fillRect(3, 3, progressWidth, canvas.height);
+            //ctx.strokeText("analysing", 3, 3);
+          }
+          progress += 5;
+          setTimeout(function () { progressFunction(progress); }, 500);
+        }
+      };
+      setTimeout(function () { progressFunction(5); }, 500);
+      return elCanvas;
+    }
+
+    // switch to normal popup ui
+    if (elCanvas && elCanvas.parentElement) {
+      elCanvas.parentElement.removeChild(elCanvas);
+    }
+    elDivTopLine.style.display = "block";
 
     let mediaType = downloadInfo.type.toLowerCase();
     let quality = downloadInfo.quality.toLowerCase();
@@ -2294,83 +2380,11 @@
     // add filextension matching the stream container format (.mp4, .m3u8, ...)
     let mediaFileName = fileName + '.' + mediaType;
 
-    // look which ui elements we have already created before
-    let el = document.getElementById("i2d-popup");
-    let eldiv = document.getElementById("i2d-popup-div");
-    // remove already existing bottom buttons line (get recreated after adding of new download entry)
-    let eldivbottomline = document.getElementById("i2d-popup-eldivbottomline");
-    if (eldivbottomline) {
-      eldivbottomline.parentElement.removeChild(eldivbottomline);
-    }
-
-    // create popup dialog elements (if not existing already)
-    if (!el) {
-      el = document.createElement("div");
-      el.id = "i2d-popup";
-      el.style = "font-size: 14px; font-family: sans-serif; color: black; max-width: 100%; max-height: 100%; height: auto; width: auto; background: rgb(160, 160, 160); top: 100px; left: 0px; line-height: normal; text-align: left; position: absolute;";
-      el.style.cursor = "default";
-      el.style.zIndex = Number.MAX_SAFE_INTEGER - 1;
-      //el.style.overflow = "scroll";
-
-      eldivtopline = document.createElement("div");
-      eldivtopline.id = "i2d-popup-span-holder";
-      eldivtopline.style = "display: block; overflow: auto; padding-bottom: 3px; padding-left: 5px; padding-right: 5px;";
-
-      elspan = document.createElement("span");
-      elspan.id = "i2d-popup-x";
-      elspan.style = "font-size: 105%; color: rgb(153, 0, 0); padding: 0.1em; float: left; display: inline; text-decoration: underline;";
-      elspan.style.cursor = "pointer";//'crosshair';
-      elspan.innerHTML = '[hide]';
-      eldivtopline.appendChild(elspan);
-
-      elspan1 = document.createElement("span");
-      elspan1.id = "i2d-popup-close";
-      elspan1.style = "font-size: 105%; color: rgb(153, 0, 0); padding-right: 5px; float: right; display: inline; text-decoration: underline;";
-      elspan1.style.cursor = "pointer";//'crosshair';
-      elspan1.innerHTML = '[x]' //'[close]';
-      elspan1.onclick = () => { deleteDownloadUi(); };
-      eldivtopline.appendChild(elspan1);
-
-      eldiv = document.createElement("div");
-      eldiv.id = "i2d-popup-div";
-      eldiv.style.display = "block";
-
-      el.appendChild(eldivtopline);
-      el.appendChild(eldiv);
-      //el.insertBefore(eldivtopline, el.firstChild);
-      document.documentElement.appendChild(el);
-
-      if (showUiOpen) {
-        // initially set to 'shown' state
-        elspan.innerHTML = '[hide]';
-        eldiv.style.display = "block";
-        elspan1.style.display = "inline";
-      } else {
-        // initially set to 'hidden' state
-        elspan.innerHTML = '[show]';
-        eldiv.style.display = "none";
-        elspan1.style.display = "none";
-      }
-
-      elspan.onclick = function() {
-        //var eldiv = document.getElementById("i2d-popup-div"); var elspan = document.getElementById("i2d-popup-x"); var elspan1 = document.getElementById("i2d-popup-close");
-        if (eldiv.style.display === "none") {
-          elspan.innerHTML = '[hide]';
-          eldiv.style.display = "block";
-          elspan1.style.display = "inline";
-        } else {
-          elspan.innerHTML = '[show]';
-          eldiv.style.display = "none";
-          elspan1.style.display = "none";
-        }
-      };
-    }
-
     // add download entry line
     eldivdownload = document.createElement("div");
     eldivdownload.id = "i2d-popup-eldivdownload";
     eldivdownload.style = "font-size: 90%; display: block; overflow: auto; padding-top: 1px; padding-bottom: 1px; padding-left: 10px; padding-right: 5px;";
-    eldiv.appendChild(eldivdownload);
+    elDiv.appendChild(eldivdownload);
 
     // add download entry
     let el_a = document.createElement("a");
@@ -2487,10 +2501,10 @@
     }
 
     // add bottom button line
-    eldivbottom = document.createElement("div");
-    eldivbottom.id = "i2d-popup-eldivbottomline";
-    eldivbottom.style = "display: block; overflow: auto; padding-top: 3px; padding-bottom: 2px; padding-left: 5px; padding-right: 5px;";
-    eldiv.appendChild(eldivbottom);
+    elDivBottomLine = document.createElement("div");
+    elDivBottomLine.id = "i2d-popup-eldivbottomline";
+    elDivBottomLine.style = "display: block; overflow: auto; padding-top: 2px; padding-bottom: 0px; padding-left: 5px; padding-right: 5px;";
+    elDiv.appendChild(elDivBottomLine);
 
     // add the 'show all' button
     if (skippedFormats) {
@@ -2498,20 +2512,20 @@
       spanShowAll.id = "i2d-popup-showall";
       //spanShowAll.innerHTML = showAllFormats ? '[show less <<]' : '[show all >>]';
       spanShowAll.innerHTML = showAllFormats ? '[<< less <<]' : '[>> show remaining ' + skippedFormats + ' >>]';
-      spanShowAll.style = "font-size: 105%; color: rgb(153, 0, 0); padding: 0.1em; float: left; display: inline; text-decoration: underline;";
+      spanShowAll.style = "font-size: 105%; color: rgb(153, 0, 0); padding-left: 0px; float: left; display: inline; text-decoration: underline;";
       spanShowAll.style.cursor = "pointer";
       spanShowAll.onclick = showAllFormats ? () => { analysePageAndCreateUiAsync(true, false); } : () => { analysePageAndCreateUiAsync(true, true); };
-      eldivbottom.appendChild(spanShowAll);
+      elDivBottomLine.appendChild(spanShowAll);
     }
 
     // add the 'refesh' button
     let spanRefresh = document.createElement("span");
     spanRefresh.id = "i2d-popup-refresh";
-    spanRefresh.style = "font-size: 105%; color: rgb(153, 0, 0); padding-right: 5px; float: right; display: inline; text-decoration: underline;";
+    spanRefresh.style = "font-size: 105%; color: rgb(153, 0, 0); padding-right: 0px; float: right; display: inline; text-decoration: underline;";
     spanRefresh.style.cursor = "pointer";
     spanRefresh.innerHTML = '[refresh]';
     spanRefresh.onclick = showAllFormats ? () => { analysePageAndCreateUiAsync(true, true); } : () => { analysePageAndCreateUiAsync(true, false); };
-    eldivbottom.appendChild(spanRefresh);
+    elDivBottomLine.appendChild(spanRefresh);
     
     return el;
   }
