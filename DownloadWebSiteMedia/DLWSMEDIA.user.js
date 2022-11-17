@@ -5,7 +5,7 @@
 // @include     https://www.redbull.com/*
 // @copyright   2019-2020, savnt
 // @license     MIT
-// @version     0.2.3
+// @version     0.2.4
 // @grant       none
 // @inject-into page
 // ==/UserScript==
@@ -24,7 +24,6 @@ function CodeToInject(chromeExtensionScriptUrl) {
   var createInitSegment = false;
   var bytes = null;
   var muxedData = null;
-  
 
   function transmuxSegmentsToCombinedMp4(nextSegmentData, resetTransmuxer) {
     debug("transmuxSegmentsToCombinedMp4()");
@@ -469,6 +468,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
       return;
     }
     var player = null;
+    
     // RedBull:
     if (!player && document.querySelector('div.rbPlyr-container') && 'rbPlyr_rbPlyrwrapper' in window) {
       player = window.rbPlyr_rbPlyrwrapper;     
@@ -511,7 +511,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
     if (!player) {
       // try again later
       debug("could not find player object, trying again later");
-      setTimeout( function(){ analysePageAndCreateUiAsync(false); }, 500 );
+      setTimeout( function(){ analysePageAndCreateUiAsync(false); }, 1000 );
     }
 
     if (player)
@@ -556,7 +556,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
           });
         }
 
-        if ('getVidMeta' in player) { 
+        else if ('getVidMeta' in player) { 
           //ServusTV
           var videoInfo = player.getVidMeta();
           var videoTitle = videoInfo.title;
@@ -577,7 +577,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
           });
         }
 
-        if ('videoMetadata' in player) { 
+        else if ('videoMetadata' in player) { 
           //MySpass
           var videoInfo = player.videoMetadata;
           var videoTitle = videoInfo.title;
@@ -598,8 +598,8 @@ function CodeToInject(chromeExtensionScriptUrl) {
           });
         }
 
-        if ('clips' in player) { 
-          //vimeo
+        else if ('clips' in player) { 
+          //Vimeo
           var videoId = player.clip_page_config.clip.id;
           var videoInfo = player.clips[videoId];
           var videoTitle = videoInfo.video.title;
@@ -630,34 +630,64 @@ function CodeToInject(chromeExtensionScriptUrl) {
           }
           jsonMediaList.mediaList.push(entry);
         }
-        
-        if (document.URL.startsWith('https://player.vimeo.com/video/')) {
-        	var vimeoConfigUrl = document.URL + '/config';
-        	var vimeoConfigJson = await loadWebResourceAsync(vimeoConfigUrl);
-        	var vimeoConfig = JSON.parse(vimeoConfigJson);
-        	var progressive = vimeoConfig.request.files.progressive;
-        	var videoTitle = vimeoConfig.video.title;
+        else if (document.URL.includes('player.vimeo.com')) { //if (document.URL.startsWith('https://player.vimeo.com/video/')) {
+          //VimeoPlayer
+          var vimeoConfigUrl = document.URL + '/config';
+          var vimeoConfigJson = await loadWebResourceAsync(vimeoConfigUrl);
+          var vimeoConfig = JSON.parse(vimeoConfigJson);
+          var videoTitle = vimeoConfig.video.title;
           var videoSubTitle = "";
-        	for (var i=0; i<progressive.length; i++) {
-	          var videoUrl = getAbsoluteUrl(progressive[i].url);
-	          var videoType = getExtensionFromUrl(videoUrl);
-	          var videoQuality = progressive[i].height;
-	          jsonMediaList.mediaList.push({
-	            "title": videoTitle,
-	            "description": videoSubTitle,
-	            "qualities": [{
-	              "url": videoUrl,
-	              "type": videoType,
-	              "quality": videoQuality,
-	              "adfree": false,
-	              "content": ""
-	            }]
-	          });
-        	}
+          if (vimeoConfig.request.files.progressive) {
+            var progressive = vimeoConfig.request.files.progressive;
+            for (var i=0; i<progressive.length; i++) {
+              var videoUrl = getAbsoluteUrl(progressive[i].url);
+              var videoType = getExtensionFromUrl(videoUrl);
+              var videoQuality = progressive[i].height;
+              jsonMediaList.mediaList.push({
+                "title": videoTitle,
+                "description": videoSubTitle,
+                "qualities": [{
+                  "url": videoUrl,
+                  "type": videoType,
+                  "quality": videoQuality,
+                  "adfree": false,
+                  "content": ""
+                }]
+              });
+            }
+          }
+          else if (vimeoConfig.request.files.hls.cdns.akamai_live) {
+            //var videoUrl = getAbsoluteUrl(vimeoConfig.request.files.hls.cdns.akamai_live.url);
+            var videoUrl = vimeoConfig.request.files.hls.cdns.akamai_live.url;
+            var videoType = getExtensionFromUrl(videoUrl);
+            var videoQuality = null;
+            jsonMediaList.mediaList.push({
+              "title": videoTitle,
+              "description": videoSubTitle,
+              "qualities": [{
+                "url": videoUrl,
+                "type": videoType,
+                "quality": videoQuality,
+                "adfree": false,
+                "content": ""
+              }]
+            });
+          }
         }
-        
-        if ('config' in player && 'args' in player.config && 'video_id' in player.config.args && 'player_response' in player.config.args) { 
+
+        else if ( (player.config && player.config.args && player.config.args.video_id) && //document.URL.includes('youtube.') && 
+          (    player.player_response
+            || player.playerResponse
+            || (player.config && player.config.args && player.config.args.player_response)
+            || (player.config && player.config.args && player.config.args.raw_player_response)
+          )){
           //Youtube
+          var plrResponseJson = player.player_response || player.playerResponse || player.config.args.player_response;
+          var videoPlayerResponse = plrResponseJson ? JSON.parse(plrResponseJson) : null;
+          videoPlayerResponse = videoPlayerResponse || player.config.args.raw_player_response;
+
+          var videoID = player.config.args.video_id;
+
           var videoTitle=document.title || 'video';
           videoTitle=videoTitle.replace(/\s*\-\s*YouTube$/i, '').replace(/'/g, '\'').replace(/^\s+|\s+$/g, '').replace(/\.+$/g, '');
           videoTitle=videoTitle.replace(/[:"\?\*]/g, '').replace(/[\|\\\/]/g, '_'); //Mac, Linux, Windows
@@ -667,28 +697,28 @@ function CodeToInject(chromeExtensionScriptUrl) {
             videoTitle=videoTitle.replace(/#/g, '%23').replace(/&/g, '%26'); //Mac, Linux
           }
           videoTitle=videoTitle.replace(/^\([0-9][0-9][0-9]\) /, '');
-          var plrResponseJson = player.config.args.player_response; 
-          var videoPlayerResponse = JSON.parse(plrResponseJson);
-          var videoInfo = player.config.args.video_id;
-          var videoTitle = videoTitle;
-          var videoSubTitle = "";
-          var videoUrl = getAbsoluteUrl(videoPlayerResponse.streamingData.hlsManifestUrl);
-          var videoType = getExtensionFromUrl(videoUrl);
-          var videoQuality = null;
-          jsonMediaList.mediaList.push({
-            "title": videoTitle,
-            "description": videoSubTitle,
-            "qualities": [{
-              "url": videoUrl,
-              "type": videoType,
-              "quality": videoQuality,
-              "adfree": false,
-              "content": ""
-            }]
-          });
+          
+          if (videoPlayerResponse.streamingData && videoPlayerResponse.streamingData.hlsManifestUrl) {
+            // add youtube live media stream info for download
+            var videoSubTitle = "";
+            var videoUrl = getAbsoluteUrl(videoPlayerResponse.streamingData.hlsManifestUrl);
+            var videoType = getExtensionFromUrl(videoUrl);
+            var videoQuality = null;
+            jsonMediaList.mediaList.push({
+              "title": videoTitle,
+              "description": videoSubTitle,
+              "qualities": [{
+                "url": videoUrl,
+                "type": videoType,
+                "quality": videoQuality,
+                "adfree": false,
+                "content": ""
+              }]
+            });
+          }
         }
 
-        if ('_pixelConfig' in player && player._pixelConfig.length > 0) { 
+        else if ('_pixelConfig' in player && player._pixelConfig.length > 0) { 
           //Ard Mediathek
           var videoInfo = player._pixelConfig[0];
           var videoTitle = videoInfo.clipTitle;
@@ -709,6 +739,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
           });
         }
 
+        // POSTPROCESS AND DISPLAY retrieved media information
         // remove invalid entries
         for (var i=jsonMediaList.mediaList.length; i>0; i--) {
           var entry = jsonMediaList.mediaList[i-1];
@@ -818,10 +849,10 @@ function CodeToInject(chromeExtensionScriptUrl) {
     var elspan1 = document.getElementById("i2d-popup-close");
     var eldiv = document.getElementById("i2d-popup-div");
     var eldivhold = document.getElementById("i2d-popup-div-holder");
- 		var elrefresh = document.getElementById("i2d-popup-refresh");
- 		if (elrefresh) {
- 			elrefresh.parentElement.removeChild(elrefresh);
- 		}
+    var elrefresh = document.getElementById("i2d-popup-refresh");
+    if (elrefresh) {
+      elrefresh.parentElement.removeChild(elrefresh);
+    }
     if (!el) {
       el = document.createElement("div");
       el.id = "i2d-popup";
@@ -930,7 +961,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
   // @source http://purl.eligrey.com/github/FileSaver.js/blob/master/FileSaver.js 
 window.saveAs=function(view){"use strict";if(typeof navigator!=="undefined"&&/MSIE [1-9]\./.test(navigator.userAgent)){return}var doc=view.document,get_URL=function(){return view.URL||view.webkitURL||view},save_link=doc.createElementNS("http://www.w3.org/1999/xhtml","a"),can_use_save_link="download"in save_link,click=function(node){var event=new MouseEvent("click");node.dispatchEvent(event)},is_safari=/Version\/[\d\.]+.*Safari/.test(navigator.userAgent),webkit_req_fs=view.webkitRequestFileSystem,req_fs=view.requestFileSystem||webkit_req_fs||view.mozRequestFileSystem,throw_outside=function(ex){(view.setImmediate||view.setTimeout)(function(){throw ex},0)},force_saveable_type="application/octet-stream",fs_min_size=0,arbitrary_revoke_timeout=500,revoke=function(file){var revoker=function(){if(typeof file==="string"){get_URL().revokeObjectURL(file)}else{file.remove()}};if(view.chrome){revoker()}else{setTimeout(revoker,arbitrary_revoke_timeout)}},dispatch=function(filesaver,event_types,event){event_types=[].concat(event_types);var i=event_types.length;while(i--){var listener=filesaver["on"+event_types[i]];if(typeof listener==="function"){try{listener.call(filesaver,event||filesaver)}catch(ex){throw_outside(ex)}}}},auto_bom=function(blob){if(/^\s*(?:text\/\S*|application\/xml|\S*\/\S*\+xml)\s*;.*charset\s*=\s*utf-8/i.test(blob.type)){return new Blob(["\ufeff",blob],{type:blob.type})}return blob},FileSaver=function(blob,name,no_auto_bom){if(!no_auto_bom){blob=auto_bom(blob)}var filesaver=this,type=blob.type,blob_changed=false,object_url,target_view,dispatch_all=function(){dispatch(filesaver,"writestart progress write writeend".split(" "))},fs_error=function(){if(target_view&&is_safari&&typeof FileReader!=="undefined"){var reader=new FileReader;reader.onloadend=function(){var base64Data=reader.result;target_view.location.href="data:attachment/file"+base64Data.slice(base64Data.search(/[,;]/));filesaver.readyState=filesaver.DONE;dispatch_all()};reader.readAsDataURL(blob);filesaver.readyState=filesaver.INIT;return}if(blob_changed||!object_url){object_url=get_URL().createObjectURL(blob)}if(target_view){target_view.location.href=object_url}else{var new_tab=view.open(object_url,"_blank");if(new_tab==undefined&&is_safari){view.location.href=object_url}}filesaver.readyState=filesaver.DONE;dispatch_all();revoke(object_url)},abortable=function(func){return function(){if(filesaver.readyState!==filesaver.DONE){return func.apply(this,arguments)}}},create_if_not_found={create:true,exclusive:false},slice;filesaver.readyState=filesaver.INIT;if(!name){name="download"}if(can_use_save_link){object_url=get_URL().createObjectURL(blob);setTimeout(function(){save_link.href=object_url;save_link.download=name;click(save_link);dispatch_all();revoke(object_url);filesaver.readyState=filesaver.DONE});return}if(view.chrome&&type&&type!==force_saveable_type){slice=blob.slice||blob.webkitSlice;blob=slice.call(blob,0,blob.size,force_saveable_type);blob_changed=true}if(webkit_req_fs&&name!=="download"){name+=".download"}if(type===force_saveable_type||webkit_req_fs){target_view=view}if(!req_fs){fs_error();return}fs_min_size+=blob.size;req_fs(view.TEMPORARY,fs_min_size,abortable(function(fs){fs.root.getDirectory("saved",create_if_not_found,abortable(function(dir){var save=function(){dir.getFile(name,create_if_not_found,abortable(function(file){file.createWriter(abortable(function(writer){writer.onwriteend=function(event){target_view.location.href=file.toURL();filesaver.readyState=filesaver.DONE;dispatch(filesaver,"writeend",event);revoke(file)};writer.onerror=function(){var error=writer.error;if(error.code!==error.ABORT_ERR){fs_error()}};"writestart progress write abort".split(" ").forEach(function(event){writer["on"+event]=filesaver["on"+event]});writer.write(blob);filesaver.abort=function(){writer.abort();filesaver.readyState=filesaver.DONE};filesaver.readyState=filesaver.WRITING}),fs_error)}),fs_error)};dir.getFile(name,{create:false},abortable(function(file){file.remove();save()}),abortable(function(ex){if(ex.code===ex.NOT_FOUND_ERR){save()}else{fs_error()}}))}),fs_error)}),fs_error)},FS_proto=FileSaver.prototype,saveAs=function(blob,name,no_auto_bom){return new FileSaver(blob,name,no_auto_bom)};if(typeof navigator!=="undefined"&&navigator.msSaveOrOpenBlob){return function(blob,name,no_auto_bom){if(!no_auto_bom){blob=auto_bom(blob)}return navigator.msSaveOrOpenBlob(blob,name||"download")}}FS_proto.abort=function(){var filesaver=this;filesaver.readyState=filesaver.DONE;dispatch(filesaver,"abort")};FS_proto.readyState=FS_proto.INIT=0;FS_proto.WRITING=1;FS_proto.DONE=2;FS_proto.error=FS_proto.onwritestart=FS_proto.onprogress=FS_proto.onwrite=FS_proto.onabort=FS_proto.onerror=FS_proto.onwriteend=null;return saveAs}(typeof self!=="undefined"&&self||typeof window!=="undefined"&&window||this.content);if(typeof module!=="undefined"&&module.exports){module.exports.saveAs=saveAs}else if(typeof define!=="undefined"&&define!==null&&define.amd!=null){define([],function(){return saveAs})}
 
-  
+ 
   // load mux.js script and 
   // start analysing page
   injectScript(muxjsUrl, ()=>{
