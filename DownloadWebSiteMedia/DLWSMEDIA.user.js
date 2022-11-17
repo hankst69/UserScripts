@@ -5,7 +5,7 @@
 // @include     https://www.redbull.com/*
 // @copyright   2019-2021, savnt
 // @license     MIT
-// @version     0.4.2
+// @version     0.4.3
 // @grant       none
 // @inject-into page
 // ==/UserScript==
@@ -101,8 +101,11 @@ function CodeToInject(chromeExtensionScriptUrl) {
     debug("transmuxSegmentsToCombinedMp4SaveResultAs()");
     transmuxer.flush();
     if (muxedData) {
-      var videoBlob = new Blob([muxedData], {type: 'application/octet-binary'}); 
-      window.saveAs(videoBlob, videoFileName);
+      var videoBlob = new Blob([muxedData], { type: 'application/octet-binary' }); 
+      alert("videoBlob created");
+      //window.saveAs(videoBlob, videoFileName);
+      // add download anchor to the document:
+      //...
     }
   }
 
@@ -124,23 +127,10 @@ function CodeToInject(chromeExtensionScriptUrl) {
         div.style.left = "10%";
         div.style.height = "50%";
         div.style.width = "80%";
-        /* div.style.backgroundColor = "black";
-        div.style.zIndex = 2147483647;
-        div.style.opacity = 0;
-        div.style["-webkit-transition"] = "opacity 250ms";
-        */
         document.body.appendChild(div);
       }
       let lines = message.split('\n');
       lines.forEach((line)=>{
-        ////let pad = '';
-        ////while (line.length && line.startsWith(' ')) {
-        ////  pad = pad + '&nbsp;'
-        ////  line = line.substr(1);
-        ////}
-        ////line = pad + line;
-        //div.appendChild(document.createTextNode(line));
-        //div.appendChild(document.createElement('br'));
         let pre = document.createElement('pre');
         pre.innerHTML = line;
         div.appendChild(pre);   
@@ -315,7 +305,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
       if (slashPos > 0) {
         name = name.substr(slashPos+1);
       }
-      let dotPos = tsFile.lastIndexOf('.');
+      let dotPos = name.lastIndexOf('.');
       if (dotPos > 0) {
         name = name.substr(0,dotPos);
       }
@@ -408,11 +398,28 @@ function CodeToInject(chromeExtensionScriptUrl) {
             attr.valueUnquoted = attr.value.substr(1, attr.value.length-2);
           }
           m3u8Tag.attributes.push(attr);
+          // special service for UIR attributes -> copy uri into tag.uri
+          if (!m3u8Tag.uri && attr.name == "URI") {
+            m3u8Tag.uri = attr.valueUnquoted;
+          }
         }
       });
     }
     return m3u8Tag;
   }
+
+  //async function m3u8MixVideoAndAudioStreamPlaylists(m3u8StreamVideo, m3u8StreamAudio) {
+  // return m3u8Stream;
+  //}
+  //async function m3u8ProcessStreamPlaylist(m3u8Stream) {
+  // return m3u8Stream;
+  //}
+  //async function m3u8LoadStreamPlaylist(m3u8Stream) {
+  // return m3u8Stream;
+  //}
+  //async function m3u8LoadMasterPlaylistAndResolveStreams(m3u8UrlIn) {
+  // return m3u8Master;
+  //}
 
   async function loadM3U8PlayListQualities(m3u8UrlIn) {
     debug("loadM3U8PlayListQualities()");
@@ -497,57 +504,62 @@ function CodeToInject(chromeExtensionScriptUrl) {
     return qualities;
   }
   
-  function getUrlListFromM3U8VodPlayList(m3u8PlayList) {
-    debug("getUrlListFromM3U8VodPlayList()");
-    //parse:
-    // #EXT-X-PLAYLIST-TYPE:VOD
-    // #EXTINF:3.000,
-    // https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/0.ts
-    // #EXTINF:3.000,
-    // https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/1.ts
-    if (m3u8PlayList.toUpperCase().indexOf('#EXT-X-PLAYLIST-TYPE:VOD') < 0) {
-      return null;
-    }
-    let urlList = [];
-    let m3u8Lines = m3u8PlayList.split('#');
-    m3u8Lines.forEach((line) => {
-      let trimedLine = line.trim();
-      if (trimedLine.toUpperCase().startsWith('EXTINF')) {
-        let subLines = trimedLine.split('\n');
-        if (subLines.length > 1) {
-          // a valid TS segment line
-          let url = subLines[1].trim();
-          // complement url if necessary
-          if (url && !(url.toLowerCase().startsWith('http'))) {
-            let lastSlashPos = m3u8Url.lastIndexOf('/');
-            if (lastSlashPos > 0) {
-              let baseUrl = m3u8Url.substr(0,lastSlashPos);
-              let needSlash = !url.startsWith('/');
-              url = baseUrl + (needSlash ? '/' : '') + url;
-            }
-          }
-          urlList.push(url);
-        }
-      }
-    });
-    // return urlList and adapted m3u8PlayList
-    let result = {
-      "urlList": urlList,
-      "vodPlayList": m3u8PlayList
-    };
-    return result;
-  }
+  //function getUrlListFromM3U8VodPlayList(m3u8PlayList) {
+  //  debug("getUrlListFromM3U8VodPlayList()");
+  //  // todo: use m3u8DataParser and ad support for baseUrl
+  //  //
+  //  //parse:
+  //  // #EXT-X-PLAYLIST-TYPE:VOD
+  //  // #EXTINF:3.000,
+  //  // https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/0.ts
+  //  // #EXTINF:3.000,
+  //  // https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/1.ts
+  //  if (m3u8PlayList.toUpperCase().indexOf('#EXT-X-PLAYLIST-TYPE:VOD') < 0) {
+  //    debug("probably a m3u8 master playlist (not a VOD playlist) -> exit early")
+  //    return null;
+  //  }
+  //  let urlList = [];
+  //  let m3u8Lines = m3u8PlayList.split('#');
+  //  m3u8Lines.forEach((line) => {
+  //    let trimedLine = line.trim();
+  //    if (trimedLine.toUpperCase().startsWith('EXTINF')) {
+  //      let subLines = trimedLine.split('\n');
+  //      if (subLines.length > 1) {
+  //        // a valid TS segment line
+  //        let url = subLines[1].trim();
+  //        // complement url if necessary
+  //        if (url && !(url.toLowerCase().startsWith('http'))) {
+  //          let lastSlashPos = m3u8Url.lastIndexOf('/');
+  //          if (lastSlashPos > 0) {
+  //            let baseUrl = m3u8Url.substr(0,lastSlashPos);
+  //            let needSlash = !url.startsWith('/');
+  //            url = baseUrl + (needSlash ? '/' : '') + url;
+  //          }
+  //        }
+  //        urlList.push(url);
+  //      }
+  //    }
+  //  });
+  //  // return urlList and adapted m3u8PlayList
+  //  let result = {
+  //    "urlList": urlList,
+  //    "vodPlayList": m3u8PlayList
+  //  };
+  //  return result;
+  //}
 
   function getAdFreeUrlListFromM3U8VodPlayList(m3u8PlayList, m3u8Url) {
     debug("getAdFreeUrlListFromM3U8VodPlayList()");
     //debug("m3u8PlaylistData: " + m3u8PlayList);
+    // todo: rewrite based on m3u8 parser
+    // 
     //parse:
     // #EXT-X-PLAYLIST-TYPE:VOD
     // #EXT-X-VERSION:7
     // #EXT-X-MEDIA-SEQUENCE:0
     // #EXT-X-TARGETDURATION:3
     // #EXT-X-MAP:URI="../FO-2671U79W9BH15/init.mp4"
-    
+    //
     //parse:
     // #EXTM3U
     // #EXT-X-VERSION:6
@@ -579,7 +591,9 @@ function CodeToInject(chromeExtensionScriptUrl) {
     // #EXT-X-DISCONTINUITY
     // #EXTINF:0.760,
     // https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/487.ts
+    //
     if (m3u8PlayList.toUpperCase().indexOf('#EXT-X-PLAYLIST-TYPE:VOD') < 0) {
+      debug("probably a m3u8 master playlist (not a VOD playlist) -> exit early")
       return null;
     }
     let urlList = [];
@@ -742,6 +756,88 @@ function CodeToInject(chromeExtensionScriptUrl) {
     return ui8buf;
   }
 
+  async function saveM3U8LivePlayListAsync(videoFileName, m3u8Url, m3u8Content) {
+    debug("saveM3U8LivePlayListAsync()");
+    // 1) load initial playlist data (will only contain few segments)
+    if (!m3u8Content) {
+      let response = await loadWebResourceAsync(m3u8Url);
+      m3u8Content = response.data;
+      m3u8Url = response.url;
+    }
+    debug("m3u8UrlIn: " + m3u8UrlIn);
+    debug("m3u8Url: " + m3u8Url);
+    //debug("m3u8Text: " + m3u8Content);
+    let adFreeResult = getAdFreeUrlListFromM3U8VodPlayList(m3u8Content, m3u8Url);
+    //let adFreeResult = getUrlListFromM3U8VodPlayList(m3u8Content, m3u8Url);
+    if (!adFreeResult || !adFreeResult.vodPlayList) {
+      debug("error loading playlist data");
+      return null;
+    }
+    // 2) parse initial playlist data
+    let m3u8Data = m3u8ParseData(adFreeResult.vodPlayList); //m3u8ParseData(m3u8Content);
+    if (m3u8Data.segments.length < 1) {
+      debug("could not find any VOD segments -> early exit");
+    }
+    // 3) repeat loading and insert new segments into existing m3u8Data until no changes happen anymore (live stream ends)
+    let repeatLoading = true;
+    while (repeatLoading) {
+      let response = await loadWebResourceAsync(m3u8Url);
+      m3u8Content = response.data;
+      m3u8Url = response.url;
+      //debug("m3u8UrlIn: " + m3u8UrlIn);
+      //debug("m3u8Url: " + m3u8Url);
+      //debug("m3u8Text: " + m3u8Content);
+      let adFreeResult = getAdFreeUrlListFromM3U8VodPlayList(m3u8Content, m3u8Url);
+      //let adFreeResult = getUrlListFromM3U8VodPlayList(m3u8Content, m3u8Url);
+      if (!adFreeResult || !adFreeResult.vodPlayList) {
+        debug("loading playlist data failed (live stream ended?)");
+        repeatLoading = false;
+      }
+      // 2) parse playlist data
+      let newM3u8Data = m3u8ParseData(adFreeResult.vodPlayList); //m3u8ParseData(m3u8Content);
+      if (newM3u8Data.segments.length < 1) {
+        repeatLoading = false;
+      }
+      else {
+        newM3u8Data.segments.forEach((newSegment) => {
+          let isContained = false;
+          m3u8Data.segments.forEach((segment) => {
+            if (segment.uri == newSegment.uri) {
+              isContained = true;
+            }
+          });
+          if (!isContained) {
+            m3u8Data.segments.push(newSegment);
+          }
+        });
+      }
+    }
+    debug("loading of async playlist ended");
+    // 4) convert the m3u8Data inot a saveable string typed vodPlayList
+    let fullList = "";
+    m3u8Data.tags.forEach((tag) => {
+      fullList = fullList + '#' + tag.name + ':';
+      tag.values.forEach((value) => {
+        fullList = fullList + value + ',';  
+      });
+      tag.attributes.forEach((attr) => {
+        fullList = fullList + attr.name + '=' + attr.value + ',';  
+      });
+      if (fullList.endsWith(',')) {
+        fullList = fullList.substr(0, fullList.length-1);
+      }
+      tag.segments.forEach((segment) => {
+        fullList = fullList + '#EXTINF:' + segment.time + ',\n' + segment.uri;  
+      });
+      fullList = fullList + '\n';
+    });
+    // 5) create a downloadlink to this blob
+    let saveBlob = new Blob([fullList], { type: "text/html;charset=UTF-8" });
+    let saveUrl = window.URL.createObjectURL(saveBlob);
+ 
+    return saveUrl;
+  }
+
   async function saveM3U8VideoAsMP4Async(videoFileName, m3u8Url, m3u8Content) {
     debug("saveM3U8VideoAsMP4Async()");
     if (!m3u8Content) {
@@ -749,8 +845,8 @@ function CodeToInject(chromeExtensionScriptUrl) {
       m3u8Content = response.data;
       m3u8Url = response.url;
     }
-    //let playListResult = getAdFreeUrlListFromM3U8VodPlayList(m3u8Content, m3u8Url);
-    let playListResult = getUrlListFromM3U8VodPlayList(m3u8Content);
+    let playListResult = getAdFreeUrlListFromM3U8VodPlayList(m3u8Content, m3u8Url);
+    //let playListResult = getUrlListFromM3U8VodPlayList(m3u8Content);
     let urlList = playListResult.urlList;
     // mux.js
     muxedData = null;
@@ -919,6 +1015,9 @@ function CodeToInject(chromeExtensionScriptUrl) {
       if (!vimeoConfigUrl && document.URL.includes('player.vimeo.com')) {
         vimeoConfigUrl = document.URL + '/config';
       }
+      if (!vimeoConfigUrl && player.clip_page_config && player.clip_page_config.clip && player.clip_page_config.clip.id) {
+        vimeoConfigUrl = 'https://player.vimeo.com/video/' + player.clip_page_config.clip.id + '/config';
+      }
       if (vimeoConfigUrl) {
         debug("found Vimeo ConfigUrl");
         //debug("vimeoConfigUrl: " + vimeoConfigUrl);
@@ -977,19 +1076,20 @@ function CodeToInject(chromeExtensionScriptUrl) {
         }
       }
       // live video (from hls section)
-      if (vimeoConfig && vimeoConfig.request && vimeoConfig.request.files && vimeoConfig.request.files.hls && vimeoConfig.request.files.hls.cdns && vimeoConfig.request.files.hls.cdns.akamai_live) {
-        debug("found Vimeo live stream");
-        //if (mediaEntry.qualities.length < 1)
+      if (vimeoConfig && vimeoConfig.request && vimeoConfig.request.files && vimeoConfig.request.files.hls && vimeoConfig.request.files.hls.cdns) {
+        let m3u8MasterSrc = vimeoConfig.request.files.hls.cdns.akamai_live || vimeoConfig.request.files.hls.cdns.fastly_skyfire;
+        if (m3u8MasterSrc)
         {
+          debug("found Vimeo live stream");
           // todo: add media download info
           mediaEntry.qualities.push({
-            "url": vimeoConfig.request.files.hls.cdns.akamai_live.url,
-            "type": getExtensionFromUrl(vimeoConfig.request.files.hls.cdns.akamai_live.url),
+            "url": m3u8MasterSrc.url,
+            "type": getExtensionFromUrl(m3u8MasterSrc.url),
             "quality": null,
             "adfree": false,
             "content": ""
           });
-        }
+        }  
       }
       // see if we found something:
       if (mediaEntry.qualities.length > 0) {
@@ -1089,13 +1189,26 @@ function CodeToInject(chromeExtensionScriptUrl) {
           let videoUrl = getAbsoluteUrl(format.url);
           let videoType = getExtensionFromMimeType(format.mimeType);
           let videoQuality = format.qualityLabel; //format.width + 'x' format.height;
-          entry.qualities.push({
-            "url": videoUrl,
-            "type": videoType,
-            "quality": videoQuality,
-            "adfree": false,
-            "content": ""
-          });
+          if (format.signatureCipher) {
+            let kvps = format.signatureCipher.split('&');
+            kvps.forEach((kvp) => {
+              parts = kvp.split('=');
+              if (parts.length >1) {
+                if (parts[0].toLowerCase() == 'url') {
+                  videoUrl = parts[1];
+                }
+              }
+            });
+          }
+          if (videoUrl) {
+            entry.qualities.push({
+              "url": videoUrl,
+              "type": videoType,
+              "quality": videoQuality,
+              "adfree": false,
+              "content": ""
+            });
+          }
         });
       }
       if (entry.qualities.length > 0) {
@@ -1242,7 +1355,27 @@ function CodeToInject(chromeExtensionScriptUrl) {
           if (quality.url && quality.type && quality.type.toLowerCase().startsWith("m3u8")) {
             let subQuality = await createAdFreeVodPlayListAsync(quality.url, quality.quality);
             if (subQuality) {
-              subQualities.push(subQuality);
+              // analyze for specific format without segments but with EXT-X-MAP tag
+              let addedSpecificQuality = false;
+              let m3u8Data = m3u8ParseData(subQuality.content);
+              if (m3u8Data.segments.length < 1) {
+                m3u8Data.tags.forEach((tag) => {
+                  if (tag.name == 'EXT-X-MAP' && tag.uri) {
+                    // todo: add media download info
+                    subQualities.push({
+                      "url": tag.uri,
+                      "type": getExtensionFromUrl(tag.uri),
+                      "quality": subQuality.quality,
+                      "adfree": false,
+                      "content": ""
+                    });
+                    addedSpecificQuality = true;
+                  }
+                });  
+              }
+              if (!addedSpecificQuality) {
+                subQualities.push(subQuality);
+              }
             }
           }
         }
@@ -1435,8 +1568,10 @@ function CodeToInject(chromeExtensionScriptUrl) {
   }
 
   // add SaveAs feature
-  // @source http://purl.eligrey.com/github/FileSaver.js/blob/master/FileSaver.js 
-  //...
+  // @source https://github.com/eligrey/FileSaver.js
+  //... removed since it makes trouble with IOS Safari
+  // see also: https://github.com/eligrey/canvas-toBlob.js
+  // see also: https://github.com/eligrey/Blob.js
  
   debug('userAgent: ' + navigator.userAgent);
   debug('docUrl: '+ document.URL)
