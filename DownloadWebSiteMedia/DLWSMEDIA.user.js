@@ -598,51 +598,70 @@ function CodeToInject(chromeExtensionScriptUrl) {
           });
         }
 
-        else if ('clips' in player) { 
-          //Vimeo
-          var videoId = player.clip_page_config.clip.id;
-          var videoInfo = player.clips[videoId];
-          var videoTitle = videoInfo.video.title;
-          var videoDescription = "";
-          var entry = {
-            "title": videoTitle,
-            "description": videoDesciption,
-            "qualities": []
-          };
-          // sort streams descending by video resolution (by comparison of 'width' property)
-          var streams = videoInfo.request.files.progressive;
-          streams.sort( (streamA,streamB) => {
-              return streamB.width - streamA.width;
-          });
-          // iterate over video stream infos
-          for (i=0; i<streams.length; i++) {
-            var streamInfo = streams[i];
-            var videoUrl = getAbsoluteUrl(streamInfo.url);
-            var videoType = getExtensionFromUrl(videoUrl);
-            var videoQuality = streamInfo.quality;
-            entry.qualities.push({
-              "url": videoUrl,
-              "type": videoType,
-              "quality": videoQuality,
-              "adfree": false,
-              "content": ""              
+        else if (document.URL.includes('vimeo.com')) {
+          if ('clips' in player) {
+            //Vimeo
+            var videoId = player.clip_page_config.clip.id;
+            var videoInfo = player.clips[videoId];
+            var videoTitle = videoInfo.video.title;
+            var videoDescription = "";
+            var entry = {
+              "title": videoTitle,
+              "description": videoDesciption,
+              "qualities": []
+            };
+            // sort streams descending by video resolution (by comparison of 'width' property)
+            var streams = videoInfo.request.files.progressive;
+            streams.sort( (streamA,streamB) => {
+                return streamB.width - streamA.width;
             });
-          }
-          jsonMediaList.mediaList.push(entry);
-        }
-        else if (document.URL.includes('player.vimeo.com')) { //if (document.URL.startsWith('https://player.vimeo.com/video/')) {
-          //VimeoPlayer
-          var vimeoConfigUrl = document.URL + '/config';
-          var vimeoConfigJson = await loadWebResourceAsync(vimeoConfigUrl);
-          var vimeoConfig = JSON.parse(vimeoConfigJson);
-          var videoTitle = vimeoConfig.video.title;
-          var videoSubTitle = "";
-          if (vimeoConfig.request.files.progressive) {
-            var progressive = vimeoConfig.request.files.progressive;
-            for (var i=0; i<progressive.length; i++) {
-              var videoUrl = getAbsoluteUrl(progressive[i].url);
+            // iterate over video stream infos
+            for (i=0; i<streams.length; i++) {
+              var streamInfo = streams[i];
+              var videoUrl = getAbsoluteUrl(streamInfo.url);
               var videoType = getExtensionFromUrl(videoUrl);
-              var videoQuality = progressive[i].height;
+              var videoQuality = streamInfo.quality;
+              entry.qualities.push({
+                "url": videoUrl,
+                "type": videoType,
+                "quality": videoQuality,
+                "adfree": false,
+                "content": ""              
+              });
+            }
+            jsonMediaList.mediaList.push(entry);
+          }
+          else if (document.URL.includes('player.vimeo.com')) {
+            //VimeoPlayer
+            var vimeoConfigUrl = document.URL + '/config';
+            var vimeoConfigJson = await loadWebResourceAsync(vimeoConfigUrl);
+            var vimeoConfig = JSON.parse(vimeoConfigJson);
+            var videoTitle = vimeoConfig.video.title;
+            var videoSubTitle = "";
+            if (vimeoConfig.request.files.progressive) {
+              var progressive = vimeoConfig.request.files.progressive;
+              for (var i=0; i<progressive.length; i++) {
+                var videoUrl = getAbsoluteUrl(progressive[i].url);
+                var videoType = getExtensionFromUrl(videoUrl);
+                var videoQuality = progressive[i].height;
+                jsonMediaList.mediaList.push({
+                  "title": videoTitle,
+                  "description": videoSubTitle,
+                  "qualities": [{
+                    "url": videoUrl,
+                    "type": videoType,
+                    "quality": videoQuality,
+                    "adfree": false,
+                    "content": ""
+                  }]
+                });
+              }
+            }
+            else if (vimeoConfig.request.files.hls.cdns.akamai_live) {
+              //var videoUrl = getAbsoluteUrl(vimeoConfig.request.files.hls.cdns.akamai_live.url);
+              var videoUrl = vimeoConfig.request.files.hls.cdns.akamai_live.url;
+              var videoType = getExtensionFromUrl(videoUrl);
+              var videoQuality = null;
               jsonMediaList.mediaList.push({
                 "title": videoTitle,
                 "description": videoSubTitle,
@@ -655,26 +674,30 @@ function CodeToInject(chromeExtensionScriptUrl) {
                 }]
               });
             }
-          }
-          else if (vimeoConfig.request.files.hls.cdns.akamai_live) {
-            //var videoUrl = getAbsoluteUrl(vimeoConfig.request.files.hls.cdns.akamai_live.url);
+          }
+          else if (player.clip_page_config) {
+            var videoTitle = player.clip_page_config.clip.title;
+            var videoSubTitle = player.clip_page_config.clip.description;
+            var vimeoConfigUrl = player.clip_page_config.player.config_url;
+            var vimeoConfigJson = await loadWebResourceAsync(vimeoConfigUrl);
+            var vimeoConfig = JSON.parse(vimeoConfigJson);
             var videoUrl = vimeoConfig.request.files.hls.cdns.akamai_live.url;
             var videoType = getExtensionFromUrl(videoUrl);
             var videoQuality = null;
-            jsonMediaList.mediaList.push({
-              "title": videoTitle,
-              "description": videoSubTitle,
-              "qualities": [{
-                "url": videoUrl,
-                "type": videoType,
-                "quality": videoQuality,
-                "adfree": false,
-                "content": ""
-              }]
-            });
+              jsonMediaList.mediaList.push({
+                "title": videoTitle,
+                "description": videoSubTitle,
+                "qualities": [{
+                  "url": videoUrl,
+                  "type": videoType,
+                  "quality": videoQuality,
+                  "adfree": false,
+                  "content": ""
+                }]
+              });
           }
         }
-
+ 
         else if ( (player.config && player.config.args && player.config.args.video_id) && //document.URL.includes('youtube.') && 
           (    player.player_response
             || player.playerResponse
