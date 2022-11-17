@@ -4,7 +4,7 @@
 // @description Adds a download button to video player pages
 // @copyright   2019-2021, savnt
 // @license     MIT
-// @version     0.5.1
+// @version     0.5.2
 // @grant       none
 // @inject-into page
 // ==/UserScript==
@@ -1424,6 +1424,34 @@
 
   //-------------------------------------------------------------------------------------------------------
   // >> site specific functions:
+
+  async function findAirmeetMedia(document, jsonMediaList) {
+    // Airmeet:
+    if (document.location.host.startsWith('www.airmeet.com') && document.querySelector('video')) {
+      debug("found Airmeet media page with video object");
+      let videoUrl = document.querySelector('video').src;
+      // retrieve media info from active player properties -> this can break if players change
+      if (videoUrl && videoUrl.length > 0) {
+        let videoTitle = document.querySelector('p[title]').innerText;
+        let videoDescription = videoTitle; //document.querySelector('p[title]').innerText;
+        let videoUrl = getAbsoluteUrl(videoUrl);
+        let videoType = getExtensionFromUrl(videoUrl);
+        let videoQuality = null;
+        jsonMediaList.mediaList.push({
+          "title": videoTitle,
+          "description": videoDescription,
+          "qualities": [{
+            "url": videoUrl,
+            "type": videoType,
+            "quality": videoQuality
+          }]
+        });
+      }
+      else {
+        debug("could not extract Airmeet media");
+      }
+    }
+  }
 
   async function findRedBullMedia(document, jsonMediaList) {
     let player = null;
