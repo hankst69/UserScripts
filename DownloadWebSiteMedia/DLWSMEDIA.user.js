@@ -4,7 +4,7 @@
 // @description Adds a download button to video player pages
 // @copyright   2019-2021, savnt
 // @license     MIT
-// @version     0.4.8
+// @version     0.4.9
 // @grant       none
 // @inject-into page
 // ==/UserScript==
@@ -12,297 +12,297 @@
 
 (function content() {
 
-function CodeToInject(chromeExtensionScriptUrl) {
-  //'use strict';
+  function CodeToInject(chromeExtensionScriptUrl) {
+    //'use strict';
 
-  //-------------------------------------------------------------------
-  // mux.js add on
-  
-  var muxjsVersion = 'mux.js'; //'mux-min.js';
-  var muxjsUrl = chromeExtensionScriptUrl ? chromeExtensionScriptUrl + muxjsVersion : null;
-  //var muxJs = null;
+    //-------------------------------------------------------------------
+    // mux.js add on
 
-  var transmuxer = null
-  var remuxedSegments = [];
-  var remuxedInitSegment = null;
-  var remuxedBytesLength = 0;
-  var createInitSegment = false;
-  var bytes = null;
-  var muxedData = null;
+    var muxjsVersion = 'mux.js'; //'mux-min.js';
+    var muxjsUrl = chromeExtensionScriptUrl ? chromeExtensionScriptUrl + muxjsVersion : null;
+    //var muxJs = null;
 
-  function transmuxSegmentsToCombinedMp4(nextSegmentData, resetTransmuxer, progress) {
-    debug("transmuxSegmentsToCombinedMp4()");
+    var transmuxer = null
+    var remuxedSegments = [];
+    var remuxedInitSegment = null;
+    var remuxedBytesLength = 0;
+    var createInitSegment = false;
+    var bytes = null;
+    var muxedData = null;
 
-    // define mux output type (move to function arguments?)
-    //var combined = false; var outputType = 'video'; //'audio';
-    let combined = true; 
-    let outputType = 'combined';
+    function transmuxSegmentsToCombinedMp4(nextSegmentData, resetTransmuxer, progress) {
+      debug("transmuxSegmentsToCombinedMp4()");
 
-    if (resetTransmuxer || !transmuxer) {
-      remuxedSegments = [];
-      remuxedInitSegment = null;
-      remuxedBytesLength = 0;
-      muxedData = null;
-      createInitSegment = true;
+      // define mux output type (move to function arguments?)
+      //var combined = false; var outputType = 'video'; //'audio';
+      let combined = true;
+      let outputType = 'combined';
 
-      if (!('muxjs' in window) && !(window['muxjsloading'])) {
-        window['muxjsloading'] = true;
-        debug("muxjs not available -> reinjecting 'muxjs' script and defering transmuxSegmentsToCombinedMp4() call");
-        injectScript(muxjsUrl, ()=>{
-          debug("execute defered transmuxSegmentsToCombinedMp4() call");
-          window['muxjsloading'] = false;
-          transmuxSegmentsToCombinedMp4(nextSegmentData, resetTransmuxer);
-        });
-        return;
-      }
-
-      if (combined) {
-        outputType = 'combined';
-        transmuxer = new muxjs.mp4.Transmuxer();
-      } else {
-        transmuxer = new muxjs.mp4.Transmuxer({remux: false});
-      }
-
-      transmuxer.on('data', function(event) {
-        if (event.type === outputType) {
-          remuxedSegments.push(event);
-          remuxedBytesLength += event.data.byteLength;
-          remuxedInitSegment = event.initSegment;
-        }
-      });
-
-      transmuxer.on('done', function () {
-        var offset = 0;
-        if (createInitSegment) {
-          bytes = new Uint8Array(remuxedInitSegment.byteLength + remuxedBytesLength)
-          bytes.set(remuxedInitSegment, offset);
-          offset += remuxedInitSegment.byteLength;
-          createInitSegment = false;
-        } else {
-          bytes = new Uint8Array(remuxedBytesLength);
-        }
-
-        let muxedSegments = remuxedSegments.length;
-        for (let j = 0, i = offset; j < remuxedSegments.length; j++) {
-          bytes.set(remuxedSegments[j].data, i);
-          i += remuxedSegments[j].byteLength;
-        }
-        muxedData = bytes;
+      if (resetTransmuxer || !transmuxer) {
         remuxedSegments = [];
+        remuxedInitSegment = null;
         remuxedBytesLength = 0;
-        if (progress) progress(muxedSegments);
-      });
-    }
+        muxedData = null;
+        createInitSegment = true;
 
-    //transmuxer.push(new Uint8Array(nextSegmentData));
-    transmuxer.push(nextSegmentData);
-    //transmuxer.flush();
-  }
-
-  function transmuxSegmentsToCombinedMp4Blob() {
-    debug("transmuxSegmentsToCombinedMp4Blob()");
-    transmuxer.flush();
-    if (muxedData) {
-      var videoBlob = new Blob([muxedData], { type: 'application/octet-binary' }); 
-      //alert("videoBlob created");
-      //window.saveAs(videoBlob, videoFileName);
-      // add download anchor to the document:
-      //...
-      return videoBlob;
-    }
-  }
-
-  //-------------------------------------------------------------------
-  // main script
-  
-  function debug(message) {
-    console.log("[Media Download] " + message);
-    // simulate console on I(Pad)OS Safari browsers
-    if (!navigator.userAgent.includes("Windows")) //if(navigator.userAgent.includes("Safari") && !navigator.userAgent.includes("Chrome"))
-    {
-      let DEBUG_ID = "DLWSMEDIA_DEBUG";
-      let div = document.getElementById(DEBUG_ID);
-      if (!div) {
-        div = document.createElement("div");
-        div.id = DEBUG_ID;
-        //div.style.position = "fixed";
-        div.style.top = "20%";
-        div.style.left = "10%";
-        div.style.height = "50%";
-        div.style.width = "80%";
-        document.body.appendChild(div);
-      }
-      let lines = message.split('\n');
-      lines.forEach((line)=>{
-        let pre = document.createElement('pre');
-        pre.innerHTML = line;
-        div.appendChild(pre);   
-      });
-    }
-  }
-  
-  function debugJson(context, json) {
-    if (json) {
-      debug(context + JSON.stringify(json, null, 2)); 
-    }
-    else {
-      debug(context + 'null');
-    }
-  }
-  
-  function debugJsonString(context, jsonStr) {
-    debugJson(context, JSON.parse(jsonStr));
-  }
-  
-  function injectScript(url, cb, variable=null) {
-    debug("injectScript()");
-    if (variable && (variable in window) && window[variable]) {
-      debug("script already loaded -> invoking callback");
-      cb();
-    } else {
-      debug("injecting script with url:'" + url + "'");
-      let script = document.createElement("script");
-      script.src = url;
-      script.type = 'text/javascript';
-      script.onload = cb;
-      (document.head || document.documentElement).appendChild(script);
-    }
-  };
-
-  function createXHR(method, url) {
-    let xhr = new XMLHttpRequest();
-    if ("withCredentials" in xhr) {
-      // XHR for Chrome/Firefox/Opera/Safari.
-      xhr.open(method, url, true);
-    } else if (typeof XDomainRequest != "undefined") {
-      // XDomainRequest for IE.
-      xhr = new XDomainRequest();
-      xhr.open(method, url);
-    } else {
-      // XHR not supported.
-      xhr = null;
-    }
-    return xhr;
-  }
-  
-  function loadWebResourceAsync(url) {
-    // might be necessary to enable CORS (in chrome by patching request/response headers)
-    // for following url patterns:
-    //   *://*/*
-    //   https://rbmn-live.akamaized.net/*
-    return new Promise((resolve, reject) => {
-      let xhr = createXHR('GET', url);
-      if (!xhr) {
-        reject('XHR not supported');
-        return;
-      }
-      //xhr.setRequestHeader('Content-Type', 'application/xml');
-      //xhr.setRequestHeader('Content-Type', 'application/json');
-      //xhr.setRequestHeader('Content-Type', 'application/' + type);
-      //xhr.overrideMimeType('text/xml');
-      //xhr.setRequestHeader('Content-Type', 'text/xml');
-      xhr.setRequestHeader('Content-Type', 'text/plain');
-          
-      xhr.onloadstart = function() {
-        //alert("load started");
-      }
-      xhr.onload = function() {
-        //alert("load finished");
-        let response = {
-          "url" : xhr.responseURL,
-          "status" : xhr.status,
-          "data" : xhr.responseText
-        };
-        resolve(response);
-      }
-      xhr.onerror = function() {
-        //alert("load failed");
-        reject('CORS request failed : ' + xhr.statusText);
-      }
-      xhr.send();
-    })
-  }
-
-  function getAbsoluteUrl(url) {
-    if (url) {
-      if (url.toLowerCase().startsWith("http")) {
-        return url;
-      }
-      if (url.toLowerCase().startsWith("blob")) {
-        return url;
-      }
-      let a = document.createElement('a');
-      a.href = url;
-      return a.href;
-    }
-    return null;
-  }
-
-  function getExtensionFromUrl(url) {
-    if (url) {
-      let lastSlashPos = url.lastIndexOf('/');
-      if (lastSlashPos > 0 && lastSlashPos < (url.length - 1)) {
-        url = url.substr(lastSlashPos+1);
-      }
-      let extPos = url.lastIndexOf('.');
-      let extStr = extPos < 0 ? 'blob' : url.substr(extPos+1);
-      let qustnmrkPos = extStr.indexOf('?');
-      if (qustnmrkPos > 0) {
-        extStr = extStr.substr(0, qustnmrkPos);
-      }
-      if (extStr.length > 4) {
-        extStr = extStr.substr(0, 4);
-      }
-      if (extStr.endsWith('#')) {
-        extStr = extStr.substr(0, extStr.length-1);
-      }
-      return extStr.toLowerCase();
-    }
-    return null;
-  }
-
-  function getExtensionFromMimeType(mime) {
-    if (mime) {
-      let firstSlashPos = mime.indexOf('/');
-      if (firstSlashPos > 0) {
-        //let mediaType = mime.substr(0,firstSlashPos);
-        let firstSemicolonPos = mime.indexOf(';');
-        if (firstSemicolonPos < 0) {
-          firstSemicolonPos = mime.length;
+        if (!('muxjs' in window) && !(window['muxjsloading'])) {
+          window['muxjsloading'] = true;
+          debug("muxjs not available -> reinjecting 'muxjs' script and defering transmuxSegmentsToCombinedMp4() call");
+          injectScript(muxjsUrl, () => {
+            debug("execute defered transmuxSegmentsToCombinedMp4() call");
+            window['muxjsloading'] = false;
+            transmuxSegmentsToCombinedMp4(nextSegmentData, resetTransmuxer);
+          });
+          return;
         }
-        let extType = mime.substr(firstSlashPos+1, firstSemicolonPos - firstSlashPos - 1);
-        return extType.toLowerCase();
+
+        if (combined) {
+          outputType = 'combined';
+          transmuxer = new muxjs.mp4.Transmuxer();
+        } else {
+          transmuxer = new muxjs.mp4.Transmuxer({ remux: false });
+        }
+
+        transmuxer.on('data', function (event) {
+          if (event.type === outputType) {
+            remuxedSegments.push(event);
+            remuxedBytesLength += event.data.byteLength;
+            remuxedInitSegment = event.initSegment;
+          }
+        });
+
+        transmuxer.on('done', function () {
+          var offset = 0;
+          if (createInitSegment) {
+            bytes = new Uint8Array(remuxedInitSegment.byteLength + remuxedBytesLength)
+            bytes.set(remuxedInitSegment, offset);
+            offset += remuxedInitSegment.byteLength;
+            createInitSegment = false;
+          } else {
+            bytes = new Uint8Array(remuxedBytesLength);
+          }
+
+          let muxedSegments = remuxedSegments.length;
+          for (let j = 0, i = offset; j < remuxedSegments.length; j++) {
+            bytes.set(remuxedSegments[j].data, i);
+            i += remuxedSegments[j].byteLength;
+          }
+          muxedData = bytes;
+          remuxedSegments = [];
+          remuxedBytesLength = 0;
+          if (progress) progress(muxedSegments);
+        });
+      }
+
+      //transmuxer.push(new Uint8Array(nextSegmentData));
+      transmuxer.push(nextSegmentData);
+      //transmuxer.flush();
+    }
+
+    function transmuxSegmentsToCombinedMp4Blob() {
+      debug("transmuxSegmentsToCombinedMp4Blob()");
+      transmuxer.flush();
+      if (muxedData) {
+        var videoBlob = new Blob([muxedData], { type: 'application/octet-binary' });
+        //alert("videoBlob created");
+        //window.saveAs(videoBlob, videoFileName);
+        // add download anchor to the document:
+        //...
+        return videoBlob;
       }
     }
-    return null;
-  }
 
-  function convertTitleToValidFilename(videoTitle) {
-    debug("convertTitleToValidFilename()");
-    if (!videoTitle) {
-      return 'video';
+    //-------------------------------------------------------------------
+    // main script
+
+    function debug(message) {
+      console.log("[Media Download] " + message);
+      // simulate console on I(Pad)OS Safari browsers
+      if (!navigator.userAgent.includes("Windows")) //if(navigator.userAgent.includes("Safari") && !navigator.userAgent.includes("Chrome"))
+      {
+        let DEBUG_ID = "DLWSMEDIA_DEBUG";
+        let div = document.getElementById(DEBUG_ID);
+        if (!div) {
+          div = document.createElement("div");
+          div.id = DEBUG_ID;
+          //div.style.position = "fixed";
+          div.style.top = "20%";
+          div.style.left = "10%";
+          div.style.height = "50%";
+          div.style.width = "80%";
+          document.body.appendChild(div);
+        }
+        let lines = message.split('\n');
+        lines.forEach((line) => {
+          let pre = document.createElement('pre');
+          pre.innerHTML = line;
+          div.appendChild(pre);
+        });
+      }
     }
-    // modifications for: Mac, Linux, Windows
-    videoTitle = videoTitle
-      .replace(/'/g, '\'')
-      .replace(/^\s+|\s+$/g, '')
-      .replace(/\.+$/g, '')
-      .replace(/[<>:"?*]/g, '')
-      .replace(/[\|\\\/]/g, '_')
-    if (((window.navigator.userAgent || '').toLowerCase()).indexOf('windows') >= 0) {
-      // modifications for: Windows
-      videoTitle = videoTitle
-        .replace(/#/g, '')
-        .replace(/&/g, '_'); 
-    } else {
-      // modifications for: Mac, Linux
-      videoTitle = videoTitle
-        .replace(/#/g, '%23')
-        .replace(/&/g, '%26');
+
+    function debugJson(context, json) {
+      if (json) {
+        debug(context + JSON.stringify(json, null, 2));
+      }
+      else {
+        debug(context + 'null');
+      }
     }
-    videoTitle = videoTitle.replace(/^\([0-9][0-9][0-9]\) /, '');
-    return videoTitle;
-  }
+
+    function debugJsonString(context, jsonStr) {
+      debugJson(context, JSON.parse(jsonStr));
+    }
+
+    function injectScript(url, cb, variable = null) {
+      debug("injectScript()");
+      if (variable && (variable in window) && window[variable]) {
+        debug("script already loaded -> invoking callback");
+        cb();
+      } else {
+        debug("injecting script with url:'" + url + "'");
+        let script = document.createElement("script");
+        script.src = url;
+        script.type = 'text/javascript';
+        script.onload = cb;
+        (document.head || document.documentElement).appendChild(script);
+      }
+    };
+
+    function createXHR(method, url) {
+      let xhr = new XMLHttpRequest();
+      if ("withCredentials" in xhr) {
+        // XHR for Chrome/Firefox/Opera/Safari.
+        xhr.open(method, url, true);
+      } else if (typeof XDomainRequest != "undefined") {
+        // XDomainRequest for IE.
+        xhr = new XDomainRequest();
+        xhr.open(method, url);
+      } else {
+        // XHR not supported.
+        xhr = null;
+      }
+      return xhr;
+    }
+
+    function loadWebResourceAsync(url) {
+      // might be necessary to enable CORS (in chrome by patching request/response headers)
+      // for following url patterns:
+      //   *://*/*
+      //   https://rbmn-live.akamaized.net/*
+      return new Promise((resolve, reject) => {
+        let xhr = createXHR('GET', url);
+        if (!xhr) {
+          reject('XHR not supported');
+          return;
+        }
+        //xhr.setRequestHeader('Content-Type', 'application/xml');
+        //xhr.setRequestHeader('Content-Type', 'application/json');
+        //xhr.setRequestHeader('Content-Type', 'application/' + type);
+        //xhr.overrideMimeType('text/xml');
+        //xhr.setRequestHeader('Content-Type', 'text/xml');
+        xhr.setRequestHeader('Content-Type', 'text/plain');
+
+        xhr.onloadstart = function () {
+          //alert("load started");
+        }
+        xhr.onload = function () {
+          //alert("load finished");
+          let response = {
+            "url": xhr.responseURL,
+            "status": xhr.status,
+            "data": xhr.responseText
+          };
+          resolve(response);
+        }
+        xhr.onerror = function () {
+          //alert("load failed");
+          reject('CORS request failed : ' + xhr.statusText);
+        }
+        xhr.send();
+      })
+    }
+
+    function getAbsoluteUrl(url) {
+      if (url) {
+        if (url.toLowerCase().startsWith("http")) {
+          return url;
+        }
+        if (url.toLowerCase().startsWith("blob")) {
+          return url;
+        }
+        let a = document.createElement('a');
+        a.href = url;
+        return a.href;
+      }
+      return null;
+    }
+
+    function getExtensionFromUrl(url) {
+      if (url) {
+        let lastSlashPos = url.lastIndexOf('/');
+        if (lastSlashPos > 0 && lastSlashPos < (url.length - 1)) {
+          url = url.substr(lastSlashPos + 1);
+        }
+        let extPos = url.lastIndexOf('.');
+        let extStr = extPos < 0 ? 'blob' : url.substr(extPos + 1);
+        let qustnmrkPos = extStr.indexOf('?');
+        if (qustnmrkPos > 0) {
+          extStr = extStr.substr(0, qustnmrkPos);
+        }
+        if (extStr.length > 4) {
+          extStr = extStr.substr(0, 4);
+        }
+        if (extStr.endsWith('#')) {
+          extStr = extStr.substr(0, extStr.length - 1);
+        }
+        return extStr.toLowerCase();
+      }
+      return null;
+    }
+
+    function getExtensionFromMimeType(mime) {
+      if (mime) {
+        let firstSlashPos = mime.indexOf('/');
+        if (firstSlashPos > 0) {
+          //let mediaType = mime.substr(0,firstSlashPos);
+          let firstSemicolonPos = mime.indexOf(';');
+          if (firstSemicolonPos < 0) {
+            firstSemicolonPos = mime.length;
+          }
+          let extType = mime.substr(firstSlashPos + 1, firstSemicolonPos - firstSlashPos - 1);
+          return extType.toLowerCase();
+        }
+      }
+      return null;
+    }
+
+    function convertTitleToValidFilename(videoTitle) {
+      debug("convertTitleToValidFilename()");
+      if (!videoTitle) {
+        return 'video';
+      }
+      // modifications for: Mac, Linux, Windows
+      videoTitle = videoTitle
+        .replace(/'/g, '\'')
+        .replace(/^\s+|\s+$/g, '')
+        .replace(/\.+$/g, '')
+        .replace(/[<>:"?*]/g, '')
+        .replace(/[\|\\\/]/g, '_')
+      if (((window.navigator.userAgent || '').toLowerCase()).indexOf('windows') >= 0) {
+        // modifications for: Windows
+        videoTitle = videoTitle
+          .replace(/#/g, '')
+          .replace(/&/g, '_');
+      } else {
+        // modifications for: Mac, Linux
+        videoTitle = videoTitle
+          .replace(/#/g, '%23')
+          .replace(/&/g, '%26');
+      }
+      videoTitle = videoTitle.replace(/^\([0-9][0-9][0-9]\) /, '');
+      return videoTitle;
+    }
 
   //-------------------------------------------------------------------
 
@@ -571,8 +571,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
             let name = attribKvp[0].toUpperCase(); 
             let value = attribKvp[1];
             if (attribKvp.length > 2 && value.startsWith('"') && !value.endsWith('"') && attribKvp[attribKvp.length - 1].endsWith('"')) {
-              // we splited unwillingly the attribute argument since it contained '=' characters
-              // therefore we glue the parts together again
+              // we split unwillingly the attribute argument since it contained '=' characters
               for (let i = 2; i < attribKvp.length; i++) {
                 value += '=' + attribKvp[i];
               }
@@ -709,13 +708,27 @@ function CodeToInject(chromeExtensionScriptUrl) {
 
     static async loadAsync(url) {
       let promise = new Promise((resolve, reject) => {
-        let xhr = createXHR('GET', url);
+        //let xhr = createXHR('GET', url);
+        let method = 'GET';
+        let xhr = new XMLHttpRequest();
+        if ("withCredentials" in xhr) {
+          // XHR for Chrome/Firefox/Opera/Safari.
+          xhr.open(method, url, true);
+        } else if (typeof XDomainRequest != "undefined") {
+          // XDomainRequest for IE.
+          xhr = new XDomainRequest();
+          xhr.open(method, url);
+        } else {
+          // XHR not supported.
+          xhr = null;
+        }
         if (!xhr) {
           reject('XHR not supported');
           return;
         }
-        // it might be necessary to enable CORS (in chrome by patching request/response headers)
         xhr.setRequestHeader('Content-Type', 'text/plain');
+        // it might be necessary to enable CORS (in chrome by patching request/response headers)
+        //if (url.startsWith('https://live-api.cloud.vimeo.com')) { xhr.setRequestHeader("Origin", 'vimeocdn.com'); }
         xhr.onloadstart = function () {
         }
         xhr.onload = function () {
@@ -727,14 +740,22 @@ function CodeToInject(chromeExtensionScriptUrl) {
           resolve(response);
         }
         xhr.onerror = function () {
-          reject('XHR request failed : ' + xhr.statusText);
+          reject('XHR request failed with readyState:' + xhr.readyState + ' status:' + xhr.status + ' statusText:' + xhr.statusText);
         }
         xhr.send();
       });
-      let response = await promise;
-      let m3u8Data = new M3U8Data(response.data);
-      m3u8Data.complementUris(response.url);
-      return m3u8Data;
+      try {
+        let response = await promise;
+        let m3u8Data = new M3U8Data(response.data);
+        m3u8Data.complementUris(response.url);
+        return m3u8Data;
+      }
+      catch (error) {
+        // log the error
+        console.error("M3U8Data::loadAsync exception occured: '" + error + "'");
+        // return empty instance
+        return new M3U8Data();
+      }
     }
   };
 
@@ -834,10 +855,23 @@ function CodeToInject(chromeExtensionScriptUrl) {
         if (tag.is('EXT-X-MEDIA') && tag.unquotedValueOf('TYPE') == 'AUDIO' && tag.uri != null) {
           m3u8MasterData = m3u8Data;
           //#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",NAME="German",LANGUAGE="de",AUTOSELECT=YES,URI="FO-26WQ2N6ESBH16.m3u8"
+          let quality = tag.unquotedValueOf('LANGUAGE');
+          if (!quality) {
+            let quname1 = tag.unquotedValueOf('GROUP-ID');
+            let quname2 = tag.unquotedValueOf('NAME');
+            let channels = tag.unquotedValueOf('CHANNELS');
+            quality = quname1;
+            if (quname1 && quname2 && quname2.length > quname1.length) {
+              quality = quname2;
+            }
+            if (channels) {
+              quality += '-' + channels;
+            }
+          }
           streamQualities.push({
             "url": tag.uri,
             "type": 'm3u8',//getExtensionFromUrl(tag.uri),
-            "quality": tag.unquotedValueOf('LANGUAGE'),
+            "quality": quality,
             "live": isLive,
             "audio": true
           });
@@ -1160,6 +1194,11 @@ function CodeToInject(chromeExtensionScriptUrl) {
     return ui8buf;
   }
 
+  async function sleep(ms) {
+    let sleepPromise = new Promise(resolve => setTimeout(resolve, ms));
+    await sleepPromise;
+  }
+
   async function saveM3U8LivePlayListAsync(m3u8Url, resolve, reject, cancel) {
     debug("saveM3U8LivePlayListAsync()");
     debug("m3u8Url: " + m3u8Url);
@@ -1170,18 +1209,14 @@ function CodeToInject(chromeExtensionScriptUrl) {
       if (reject) reject("could not find any VOD segments -> early exit");
       return null;
     }
-    // 3) repeat loading and insert new segments into existing m3u8Data until no changes happen anymore (live stream ends)
+    // 2) repeat loading and insert new segments into existing m3u8Data until no changes happen anymore (live stream ends)
+    sleep(200);
+    let initialSegmentsCount = m3u8Data.segments.length;
+    let repeatCount = 0;
     let repeatLoading = true;
     while (repeatLoading) {
-      let response = await loadWebResourceAsync(m3u8Url);
-      m3u8Content = response.data;
-      m3u8Url = response.url;
-      //debug("m3u8UrlIn: " + m3u8UrlIn);
-      //debug("m3u8Text: " + m3u8Content);
-      debug("m3u8Url: " + m3u8Url);
-      // 4) parse playlist data
-      let newM3u8Data = new M3U8Data(m3u8Content);
-      m3u8Data.complementUris(m3u8Url);
+      repeatCount++;
+      let newM3u8Data = await M3U8Data.loadAsync(m3u8Url);
       if (newM3u8Data.segments.length < 1) {
         debug("loading playlist data failed (live stream ended?)");
         repeatLoading = false;
@@ -1198,8 +1233,13 @@ function CodeToInject(chromeExtensionScriptUrl) {
             m3u8Data.segments.push(newSegment);
           }
         });
+        // 3) check for final static state (not a live playlist after all?)
+        sleep(500);
+        if (repeatCount > 10 && newM3u8Data.segments.length == m3u8Data.segments.length && m3u8Data.segments.length == initialSegmentsCount) {
+          repeatLoading = false;
+        }
       }
-      // 5) check for user cancelation
+      // 4) check for user cancelation
       if (cancel && cancel()) {
         repeatLoading = false;
       }
@@ -1219,7 +1259,6 @@ function CodeToInject(chromeExtensionScriptUrl) {
     //debug("m3u8Content: " + m3u8Content);
     // 1) load playlist data
     let m3u8Data = m3u8Content ? new M3U8Data(m3u8Content) : await M3U8Data.loadAsync(m3u8Url);
-    m3u8Data.complementUris(m3u8Url);
     let urlList = m3u8Data.segmentUris;
     // mux.js
     muxedData = null;
@@ -1495,9 +1534,10 @@ function CodeToInject(chromeExtensionScriptUrl) {
           // todo: add media download info
         }
       }
-      // live video (from hls section)
+      // hls video (from hls section)
       if (vimeoConfig && vimeoConfig.request && vimeoConfig.request.files && vimeoConfig.request.files.hls && vimeoConfig.request.files.hls.cdns) {
         let m3u8MasterSrc = vimeoConfig.request.files.hls.cdns.akamai_live || vimeoConfig.request.files.hls.cdns.fastly_skyfire;
+        let isLive = vimeoConfig.video && vimeoConfig.video.live_event && vimeoConfig.video.live_event.status; // && vimeoConfig.video.live_event.status == "started";
         if (m3u8MasterSrc)
         {
           debug("found Vimeo live stream");
@@ -1506,7 +1546,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
             "url": m3u8MasterSrc.url,
             "type": getExtensionFromUrl(m3u8MasterSrc.url),
             "quality": null,
-            "live": true
+            "live": isLive
           });
         }  
       }
@@ -1796,7 +1836,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
       // inject download ui
       createDownloadUi(jsonMediaList.mediaList, showUiOpen, showAllFormats);
     }
-    catch ( error )
+    catch (error)
     {
       // log the error
       console.error("[Media Download] Error retrieving video meta data:", error);
@@ -1819,7 +1859,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
 
   function deleteDownloadUi() {
     debug("deleteDownloadUi()");
-    var el = document.getElementById("i2d-popup");
+    let el = document.getElementById("i2d-popup");
     if (el) {
       el.parentElement.removeChild(el);
     }
@@ -1829,14 +1869,15 @@ function CodeToInject(chromeExtensionScriptUrl) {
   {
     debug("createDownloadUiAndAddUrl()");
 
-    var mediaType = downloadInfo.type.toLowerCase();
-    var quality = downloadInfo.quality.toLowerCase();
-    var live = downloadInfo.live;
+    let mediaType = downloadInfo.type.toLowerCase();
+    let quality = downloadInfo.quality.toLowerCase();
+    let isLive = downloadInfo.live;
+    let isM3U8 = mediaType.startsWith('m3u8');
 
     // *** build filename ***
     fileTitle = downloadInfo.title || title;
     // ensure the title info is valid for filenames
-    var fileName = convertTitleToValidFilename(fileTitle);
+    let fileName = convertTitleToValidFilename(fileTitle);
     // add quality info to the file name (unless it was a dedicated quality file title already)
     if (!downloadInfo.title && quality) {
       //"quality": {
@@ -1851,23 +1892,23 @@ function CodeToInject(chromeExtensionScriptUrl) {
       //  "muxedAudioQuality": null,
       //  "content": ""
       //}] 
-      var qualityName = quality;
+      let qualityName = quality;
       qualityName = (downloadInfo.audio ? 'audio_' + quality : qualityName);
       qualityName = (downloadInfo.muxed ? 'muxed ' + qualityName + ' ' + downloadInfo.muxedAudioQuality : qualityName);
       qualityName = (downloadInfo.processed && !downloadInfo.muxed ? 'processed ' + qualityName : qualityName);
       //qualityName = (downloadInfo.loaded && !downloadInfo.processed && !downloadInfo.muxed ? 'loaded ' + qualityName : qualityName);
       qualityName = (downloadInfo.live ? 'live ' + qualityName : qualityName);
-      qualityName = (!downloadInfo.loaded ? 'original ' + qualityName : qualityName);
+      qualityName = (isM3U8 && !downloadInfo.loaded ? 'original ' + qualityName : qualityName);
       fileName = fileName + " (" + qualityName + ")";
     }
     // add filextension matching the stream container format (.mp4, .m3u8, ...)
-    var mediaFileName = fileName + '.' + mediaType;
+    let mediaFileName = fileName + '.' + mediaType;
 
     // look which ui elements we have already created before
-    var el = document.getElementById("i2d-popup");
-    var eldiv = document.getElementById("i2d-popup-div");
+    let el = document.getElementById("i2d-popup");
+    let eldiv = document.getElementById("i2d-popup-div");
     // remove already existing bottom buttons line (get recreated after adding of new download entry)
-    var eldivbottomline = document.getElementById("i2d-popup-eldivbottomline");
+    let eldivbottomline = document.getElementById("i2d-popup-eldivbottomline");
     if (eldivbottomline) {
       eldivbottomline.parentElement.removeChild(eldivbottomline);
     }
@@ -1942,7 +1983,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
     eldiv.appendChild(eldivdownload);
 
     // add download entry
-    var el_a = document.createElement("a");
+    let el_a = document.createElement("a");
     el_a.href = downloadInfo.url;
     el_a.target = '_blank';
     el_a.download = mediaFileName;
@@ -1954,14 +1995,14 @@ function CodeToInject(chromeExtensionScriptUrl) {
     el_a.style.textDecoration = "underline";
     eldivdownload.appendChild(el_a);
 
-    if (mediaType.startsWith('m3u8')) {
+    if (isM3U8) {
       spanGroup = document.createElement("span");
       //spanGroup.id = "i2d-save-group";
       spanGroup.style = "float: right; display: inline; padding-right: 10px;";
       eldivdownload.appendChild(spanGroup);
 
       // add specialized buttons for async download operations (in case of m3u8 streaming formats)
-      if (live && quality != 'master') {
+      if (isLive && quality != 'master') {
         let videoFileName = fileName + ".m3u8";
         let spanSave = document.createElement("span");
         //spanSave.id = "i2d-popup-save_" + fileName;
@@ -2063,7 +2104,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
 
     // add the 'show all' button
     if (skippedFormats) {
-      var spanShowAll = document.createElement("span");
+      let spanShowAll = document.createElement("span");
       spanShowAll.id = "i2d-popup-showall";
       //spanShowAll.innerHTML = showAllFormats ? '[show less <<]' : '[show all >>]';
       spanShowAll.innerHTML = showAllFormats ? '[<< less <<]' : '[>> show remaining ' + skippedFormats + ' >>]';
@@ -2074,7 +2115,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
     }
 
     // add the 'refesh' button
-    var spanRefresh = document.createElement("span");
+    let spanRefresh = document.createElement("span");
     spanRefresh.id = "i2d-popup-refresh";
     spanRefresh.style = "font-size: 105%; color: rgb(153, 0, 0); padding-right: 5px; float: right; display: inline; text-decoration: underline;";
     spanRefresh.style.cursor = "pointer";
