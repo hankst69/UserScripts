@@ -4,7 +4,7 @@
 // @description Adds a download button to video player pages
 // @copyright   2019-2021, savnt
 // @license     MIT
-// @version     0.4.4
+// @version     0.4.5
 // @grant       none
 // @inject-into page
 // ==/UserScript==
@@ -260,7 +260,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
     if (mime) {
       let firstSlashPos = mime.indexOf('/');
       if (firstSlashPos > 0) {
-        let mediaType = mime.substr(0,firstSlashPos);
+        //let mediaType = mime.substr(0,firstSlashPos);
         let firstSemicolonPos = mime.indexOf(';');
         if (firstSemicolonPos < 0) {
           firstSemicolonPos = mime.length;
@@ -300,212 +300,419 @@ function CodeToInject(chromeExtensionScriptUrl) {
   }
 
   //-------------------------------------------------------------------
-  // m3u8 handling
 
-  function m3u8TagToSegmentData(tag) {
-    if (tag && tag.name && tag.name == 'EXTINF' && tag.uri && tag.values.length > 0) {
-      let name = tag.uri;
-      let slashPos = name.lastIndexOf('/');
-      if (slashPos > 0) {
-        name = name.substr(slashPos+1);
-      }
-      let dotPos = name.lastIndexOf('.');
-      if (dotPos > 0) {
-        name = name.substr(0,dotPos);
-      }
-      let number = 0;
-      // assuming the name contains digits:
-      let firstDigitPos = -1;
-      let lastDigitPos = -1;
-      for (let i = 0; i < name.length; i++) {
-        let num = name.substr(i, 1);
-        let isDigit = !isNaN(num);
-        if (firstDigitPos < 0) {
-          if (isDigit) {
-            firstDigitPos = i;
-            lastDigitPos = i;
-          }
-        }
-        else {
-          if (isDigit) {
-            lastDigitPos = i;
-          }
-          else {
-            break;
-          }
-        }
-      }
-      if (firstDigitPos >= 0) {
-        number = parseInt(name.substr(firstDigitPos, lastDigitPos - firstDigitPos + 1));
-      }
-      return {
-        "name": name,
-        "number": number,
-        "time": tag.values[0],
-        "uri": tag.uri
-      };
+  class M3U8Tag {
+    constructor(tagName, tagValues, tagAttributes, tagUri) {
+      this.name = tagName;
+      this.values = tagValues;
+      this.attributes = tagAttributes;
+      this.uri = tagUri;
     }
-    return null;
-  }
-  
-  function m3u8ParseData(m3u8DataString) {
-    let m3u8Data = {
-      "tags": [],
-      "segments": []
-    };
-    m3u8DataString = m3u8DataString.trim();
-    let m3u8TagStrings = m3u8DataString.split('#');
-    m3u8TagStrings.forEach((tagString) => {
-      let tag = m3u8ParseTag(tagString);
-      if (tag.name) {
-        // we parsed a valid tag
-        // we try to convert it into an segmentTag
-        let segment = m3u8TagToSegmentData(tag);
-        if (segment) {
-          m3u8Data.segments.push(segment);
-          tag.isSegment = true;
-        }
-        m3u8Data.tags.push(tag);
-      }
-    });
-    return m3u8Data;
-  }
 
-  function m3u8ParseTag(m3u8TagString) {
-    let m3u8Tag = {
-      "name": null,
-      "values": [],
-      "attributes": [],
-      "uri": null,
-      "isSegment": false
-    };
-    m3u8TagString = m3u8TagString.trim();
-    if (m3u8TagString.startsWith('#')) {
-      m3u8TagString = m3u8TagString.substr(1);
+    is(tagName) {
+      return (this.name == tagName.toUpperCase());
     }
-    if (m3u8TagString.length < 1) {
-      // empty line
-      return m3u8Tag;
-    }
-    let colonPos = m3u8TagString.indexOf(':');
-    if (colonPos < 0) {
-      // just a tag without attributes
-      m3u8Tag.name = m3u8TagString.toUpperCase();
-      return m3u8Tag;
-    }
-    if (colonPos == 0) {
-      // no tagName since colon is on pos 0
-      return m3u8Tag;
-    }
-    // parse tagName:
-    m3u8Tag.name = m3u8TagString.substr(0, colonPos).toUpperCase();
-    // parse tagData:
-    let tagDataString = m3u8TagString.substr(colonPos + 1);
-    // split tagData into lines (second line is then the the uri):
-    let tagDataLines = tagDataString.split('\n');
-    if (tagDataLines.length > 1) {
-      m3u8Tag.uri = tagDataLines[1].trim();
-    }
-    // parse values/attributes from first line of tagData:
-    if (tagDataLines.length > 0) {
-      let attributeData = tagDataLines[0].trim();
-      let attributes = attributeData.split(',');
-      attributes.forEach((attribute) => {
-        let attribKvp = attribute.split('=');
-        if (attribKvp.length < 2) {
-          // just a pure value
-          m3u8Tag.values.push(attribute);
-        }
-        else {
-          let attr = {
-            "name" : attribKvp[0].toUpperCase(),
-            "value" : attribKvp[1],
-            "valueUnquoted" : null
-          };
-          // remove bracing quotes
-          attr.valueUnquoted = attr.value;
-          if (attr.value && attr.value.startsWith('"') && attr.value.endsWith('"')) {
-            attr.valueUnquoted = attr.value.substr(1, attr.value.length-2);
-          }
-          m3u8Tag.attributes.push(attr);
-          // special service for UIR attributes -> copy uri into tag.uri
-          if (!m3u8Tag.uri && attr.name == "URI") {
-            m3u8Tag.uri = attr.valueUnquoted;
-          }
+
+    attribute(name) {
+      let value = null;
+      this.attributes.forEach((attrib) => {
+        if (attrib.name == name.toUpperCase()) {
+          value = attrib.value;
+          return;
         }
       });
+      return value;
     }
-    if (m3u8Tag && m3u8Tag.name && m3u8Tag.name == 'EXTINF' && m3u8Tag.uri && m3u8Tag.values.length > 0) {
-      m3u8Tag.isSegment = true;
-    }
-    return m3u8Tag;
   }
 
-  //async function m3u8MixVideoAndAudioStreamPlaylists(m3u8StreamVideo, m3u8StreamAudio) {
-  // return m3u8Stream;
-  //}
-  //async function m3u8ProcessStreamPlaylist(m3u8Stream) {
-  // return m3u8Stream;
-  //}
-  //async function m3u8LoadStreamPlaylist(m3u8Stream) {
-  // return m3u8Stream;
-  //}
-  //async function m3u8LoadMasterPlaylistAndResolveStreams(m3u8UrlIn) {
-  // return m3u8Master;
-  //}
+  class M3u8Data {
+    //m3u8Data {
+    //  "tags": [],
+    //  "segments": []
+    //};
+    //m3u8Tag {
+    //  "name": null,
+    //  "values": [],
+    //  "attributes": [],
+    //  "uri": null
+    //};
+    //m3u8Segment {
+    //  "name": null,
+    //  "number": 0,
+    //  "time": null,
+    //  "uri": null
+    //};
+    //m3u8Attribute {
+    //  "name": null,
+    //  "value": null,
+    //  "valueUnquoted": null
+    //};
+    constructor(m3u8StringOrData = null) {
+      this.tags = [];
+      this.segments = [];
+      if (m3u8StringOrData == null) {
+        return;
+      }
+      if (m3u8StringOrData instanceof M3u8Data) {
+        this.tags = m3u8Data.tags;
+        this.segments = m3u8Data.segments;
+        return;
+      }
+      if (typeof m3u8StringOrData == 'string') {
+        this.parseData(m3u8StringOrData);
+        return;
+      }
+    }
+    //get tags() { return this.tags; }
+    //set tags(value) { this.tags = value; }
+    //get segments() { return this.segments; }
+    //set segments(value) { this.segments = value; }
 
-  //function m3u8GetAudioCodecFromCodecs() {
-  //}
+    get segmentsUris() {
+      let urlList = [];
+      this.segments.forEach((segment) => {
+        urlList.push(segment.uri);
+      });
+      return urlList;
+    }
 
-  //class m3u8Data {
-  //  "tags": [],
-  //  "segments": []
-  //};
-  //class m3u8Tag = {
-  //  "name": null,
-  //  "values": [],
-  //  "attributes": [],
-  //  "uri": null
-  //};
-  //class m3u8Segment {
-  //  "name": null,
-  //  "number": 0,
-  //  "time": null,
-  //  "uri": null
-  //};
-  //class m3u8Attribute = {
-  //  "name": null,
-  //  "value": null,
-  //  "valueUnquoted": null
-  //};
-  //
-  //class m3u8Master = {
-  //  "uri": null,
-  //  "live": false,
-  //  "streams": [],
-  //
-  //  "m3u8text": null,
-  //  "m3u8data": null,
-  //  "downloadblob": null
-  //};
-  //
-  //class m3u8Stream = {
-  //  "uri": url,           //https://dms.redbull.tv/dms/media/AP-1XCY6DVFN1W11/1920x1080@7556940/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJjYXRlZ29yeSI6InBlcnNvbmFsX2NvbXB1dGVyIiwib3NfZmFtaWx5IjoiaHR0cCIsIm9zX3ZlcnNpb24iOiIiLCJ1aWQiOiIwMmRjMzc1Mi01NjA4LTQ3YWMtOGY3Mi1hNmUwZDE5ZTI3MWYiLCJsYXRpdHVkZSI6MC4wLCJsb25ndGl0dWRlIjowLjAsImNvdW50cnlfaXNvIjoiZGUiLCJhZGRyZXNzIjoiMjAwMzplYTo5NzI4OjIwMDA6YjQ2MDpkZGZhOjJiODg6M2QwMCIsInVzZXItYWdlbnQiOiJNb3ppbGxhLzUuMCAoV2luZG93cyBOVCAxMC4wOyBXaW42NDsgeDY0KSBBcHBsZVdlYktpdC81MzcuMzYgKEtIVE1MLCBsaWtlIEdlY2tvKSBDaHJvbWUvNzQuMC4zNzI5LjE1NyBTYWZhcmkvNTM3LjM2IiwiZGV2aWNlX3R5cGUiOiIiLCJkZXZpY2VfaWQiOiIiLCJpYXQiOjE1NTgwNDQ3NTJ9.sTG_v7V_mGR2DMsvjVC10fOmvpfJR3T4h78Y5VaFa-w=/playlist.m3u8
-  //  "live": false,
-  //  "mediatype": null,    //AUDIO|VIDEO|MUXED
-  //  "codecs": null,       //mp4a.40.2,avc1.4d001f
-  //  "language": null,     //de
-  //  "resolution: null,    //1920x1080
-  //  "quality": null,      //720|480p|1080p|1920x1080|mp4a.40.2|avc1.4d001f
-  //  "type": null,         //mp4|m4a|webm|weba|...
-  //
-  //  "m3u8text": null,
-  //  "m3u8data": null,
-  //  "processed": false,
-  //  "processedText": null,
-  //  "processedData": null
-  //};
+    tagAsSegment(tag) {
+      if (tag && tag.name && tag.name == 'EXTINF' && tag.uri && tag.values.length > 0) {
+        let name = tag.uri;
+        let slashPos = name.lastIndexOf('/');
+        if (slashPos > 0) {
+          name = name.substr(slashPos + 1);
+        }
+        let dotPos = name.lastIndexOf('.');
+        if (dotPos > 0) {
+          name = name.substr(0, dotPos);
+        }
+        let number = 0;
+        // assuming the name contains digits:
+        let firstDigitPos = -1;
+        let lastDigitPos = -1;
+        for (let i = 0; i < name.length; i++) {
+          let num = name.substr(i, 1);
+          let isDigit = !isNaN(num);
+          if (firstDigitPos < 0) {
+            if (isDigit) {
+              firstDigitPos = i;
+              lastDigitPos = i;
+            }
+          }
+          else {
+            if (isDigit) {
+              lastDigitPos = i;
+            }
+            else {
+              break;
+            }
+          }
+        }
+        if (firstDigitPos >= 0) {
+          number = parseInt(name.substr(firstDigitPos, lastDigitPos - firstDigitPos + 1));
+        }
+        return {
+          "name": name,
+          "number": number,
+          "time": tag.values[0],
+          "uri": tag.uri
+        };
+      }
+      return null;
+    }
 
+    parseTag(m3u8TagString) {
+      //let m3u8Tag = {
+      //  "name": null,
+      //  "values": [],
+      //  "attributes": [],
+      //  "uri": null,
+      //};
+      let m3u8Tag = new M3U8Tag(null, [], [], null);
+      m3u8TagString = m3u8TagString.trim();
+      if (m3u8TagString.startsWith('#')) {
+        m3u8TagString = m3u8TagString.substr(1);
+      }
+      if (m3u8TagString.length < 1) {
+        // empty line
+        return m3u8Tag;
+      }
+      let colonPos = m3u8TagString.indexOf(':');
+      if (colonPos < 0) {
+        // just a tag without attributes
+        m3u8Tag.name = m3u8TagString.toUpperCase();
+        return m3u8Tag;
+      }
+      if (colonPos == 0) {
+        // no tagName since colon is on pos 0
+        return m3u8Tag;
+      }
+      // parse tagName:
+      m3u8Tag.name = m3u8TagString.substr(0, colonPos).toUpperCase();
+      // parse tagData:
+      let tagDataString = m3u8TagString.substr(colonPos + 1);
+      // split tagData into lines (second line is then the the uri):
+      let tagDataLines = tagDataString.split('\n');
+      if (tagDataLines.length > 1) {
+        m3u8Tag.uri = tagDataLines[1].trim();
+      }
+      // parse values/attributes from first line of tagData:
+      if (tagDataLines.length > 0) {
+        let attributeData = tagDataLines[0].trim();
+        let attributes = attributeData.split(',');
+        attributes.forEach((attribute) => {
+          let attribKvp = attribute.split('=');
+          if (attribKvp.length < 2) {
+            // just a pure value
+            m3u8Tag.values.push(attribute);
+          }
+          else {
+            //let attr = new m3u8Attribute(attribKvp[0].toUpperCase(), attribKvp[1], null);
+            let attr = {
+              "name": attribKvp[0].toUpperCase(),
+              "value": attribKvp[1],
+              "valueUnquoted": null
+            };
+            // remove bracing quotes
+            attr.valueUnquoted = attr.value;
+            if (attr.value && attr.value.startsWith('"') && attr.value.endsWith('"')) {
+              attr.valueUnquoted = attr.value.substr(1, attr.value.length - 2);
+            }
+            m3u8Tag.attributes.push(attr);
+            // special service for UIR attributes -> copy uri into tag.uri
+            if (!m3u8Tag.uri && attr.name == "URI") {
+              m3u8Tag.uri = attr.valueUnquoted;
+            }
+          }
+        });
+      }
+      return m3u8Tag;
+    }
+
+    parseData(m3u8DataString) {
+      this.tags = [];
+      this.segments = [];
+      m3u8DataString = m3u8DataString.trim();
+      let m3u8TagStrings = m3u8DataString.split('#');
+      m3u8TagStrings.forEach((tagString) => {
+        let tag = this.parseTag(tagString);
+        if (tag.name) {
+          // we parsed a valid tag
+          // we try to convert it into an segmentTag
+          let segment = this.tagAsSegment(tag);
+          if (segment) {
+            this.segments.push(segment);
+          }
+          this.tags.push(tag);
+        }
+      });
+      return this;
+    }
+
+    complementUri(urlIn, baseUrlIn) {
+      // complement url if necessary
+      if (!urlIn || urlIn.toLowerCase().startsWith('http') || urlIn.toLowerCase().startsWith('blob')) {
+        return urlIn;
+      }
+      let baseUrl = baseUrlIn;
+      let lastSlashPos = baseUrlIn.lastIndexOf('/');
+      if (lastSlashPos > 0) {
+        baseUrl = baseUrlIn.substr(0, lastSlashPos);
+      }
+      let needSlash = !urlIn.startsWith('/');
+      let url = baseUrl + (needSlash ? '/' : '') + urlIn;
+      // concat baseUrl search if necessary:
+      let searchStartPos = baseUrlIn.indexOf('?');
+      if (searchStartPos > 0 && searchStartPos < baseUrlIn.length - 1 && searchStartPos > lastSlashPos) {
+        let queryStartPos = url.indexOf('?');
+        if (queryStartPos < 0) {
+          url = url + '?' + baseUrlIn.substr(searchStartPos + 1);
+        } else {
+          url = url + '&' + baseUrlIn.substr(searchStartPos + 1);
+        }
+      }
+      return url;
+    }
+
+    complementUris(baseUrl) {
+      for (let i = 0; i < this.tags.length; i++) {
+        this.tags[i].uri = this.complementUri(this.tags[i].uri, baseUrl);
+        for (let j = 0; j < this.tags[i].attributes.length; j++) {
+          if (this.tags[i].attributes[j].name == "URI") {
+            let newUri = this.complementUri(this.tags[i].attributes[j].valueUnquoted, baseUrl);
+            this.tags[i].attributes[j].valueUnquoted = newUri;
+            this.tags[i].attributes[j].value = '"' + newUri + '"';
+          }
+        }
+      }
+      for (let i = 0; i < this.segments.length; i++) {
+        this.segments[i].uri = this.complementUri(this.segments[i].uri, baseUrl);
+      }
+    }
+
+    static fromString(m3u8DataString) {
+      if (typeof m3u8DataString != 'string') {
+        return null;
+      }
+      let m3u8Data = new M3u8Data();
+      m3u8Data.parseData(m3u8DataString);
+      return m3u8Data;
+    }
+
+    toString() {
+      let fullList = "";
+      let appendEndList = false;
+      this.tags.forEach((tag) => {
+        if (!tag) {
+          return;
+        }
+        if (tag.name == 'EXTINF') {
+          return;
+        }
+        if (tag.name == 'EXT-X-ENDLIST') {
+          appendEndList = true;
+          return;
+        }
+        fullList += '#' + tag.name;
+        if (tag.values.length > 0 || tag.attributes.length > 0) {
+          fullList += ':';
+          tag.values.forEach((value) => {
+            fullList += value + ',';
+          });
+          tag.attributes.forEach((attr) => {
+            fullList += attr.name + '=' + attr.value + ',';
+          });
+          if (fullList.endsWith(',')) {
+            fullList = fullList.substr(0, fullList.length - 1);
+          }
+        }
+        fullList += '\n';
+      });
+      this.segments.forEach((segment) => {
+        if (!segment.uri || segment.uri.length < 1) {
+          return;
+        }
+        fullList += '#EXTINF:' + segment.time + ',\n' + segment.uri;
+        fullList += '\n';
+      });
+      if (appendEndList) {
+        fullList += '#EXT-X-ENDLIST\n';
+      }
+      return fullList;
+    }
+  };
+
+  //-------------------------------------------------------------------
+  // CLASS M3u8Playlist
+
+  class M3u8Playlist {
+    //m3u8Master = {
+    //  "uri": null,
+    //  "live": false,
+    //  "streams": [],
+    //
+    //  "m3u8text": null,
+    //  "m3u8data": null,
+    //  "downloadblob": null
+    //};
+    //m3u8Stream = {
+    //  "uri": url,           //https://dms.redbull.tv/dms/media/AP-1XCY6DVFN1W11/1920x1080@7556940/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJjYXRlZ29yeSI6InBlcnNvbmFsX2NvbXB1dGVyIiwib3NfZmFtaWx5IjoiaHR0cCIsIm9zX3ZlcnNpb24iOiIiLCJ1aWQiOiIwMmRjMzc1Mi01NjA4LTQ3YWMtOGY3Mi1hNmUwZDE5ZTI3MWYiLCJsYXRpdHVkZSI6MC4wLCJsb25ndGl0dWRlIjowLjAsImNvdW50cnlfaXNvIjoiZGUiLCJhZGRyZXNzIjoiMjAwMzplYTo5NzI4OjIwMDA6YjQ2MDpkZGZhOjJiODg6M2QwMCIsInVzZXItYWdlbnQiOiJNb3ppbGxhLzUuMCAoV2luZG93cyBOVCAxMC4wOyBXaW42NDsgeDY0KSBBcHBsZVdlYktpdC81MzcuMzYgKEtIVE1MLCBsaWtlIEdlY2tvKSBDaHJvbWUvNzQuMC4zNzI5LjE1NyBTYWZhcmkvNTM3LjM2IiwiZGV2aWNlX3R5cGUiOiIiLCJkZXZpY2VfaWQiOiIiLCJpYXQiOjE1NTgwNDQ3NTJ9.sTG_v7V_mGR2DMsvjVC10fOmvpfJR3T4h78Y5VaFa-w=/playlist.m3u8
+    //  "live": false,
+    //  "mediatype": null,    //AUDIO|VIDEO|MUXED
+    //  "codecs": null,       //mp4a.40.2,avc1.4d001f
+    //  "language": null,     //de
+    //  "resolution: null,    //1920x1080
+    //  "quality": null,      //720|480p|1080p|1920x1080|mp4a.40.2|avc1.4d001f
+    //  "type": null,         //mp4|m4a|webm|weba|...
+    //
+    //  "m3u8text": null,
+    //  "m3u8data": null,
+    //  "processed": false,
+    //  "processedText": null,
+    //  "processedData": null
+    //};
+    //
+    //function m3u8GetAudioCodecFromCodecs() {
+    //}
+    //async function m3u8MixVideoAndAudioStreamPlaylists(m3u8StreamVideo, m3u8StreamAudio) {
+    // return m3u8Stream;
+    //}
+    //async function m3u8ProcessStreamPlaylist(m3u8Stream) {
+    // return m3u8Stream;
+    //}
+    //async function m3u8LoadStreamPlaylist(m3u8Stream) {
+    // return m3u8Stream;
+    //}
+    //async function m3u8LoadMasterPlaylistAndResolveStreams(m3u8UrlIn) {
+    // return m3u8Stream;
+    //}
+    constructor(m3u8StringOrData = null) {
+      //this.tags = [];
+      //this.segments = [];
+      //if (m3u8StringOrData == null) {
+      //  return;
+      //}
+      //if (m3u8StringOrData instanceof M3u8Data) {
+      //  this.tags = m3u8Data.tags;
+      //  this.segments = m3u8Data.segments;
+      //  return;
+      //}
+      //if (typeof m3u8StringOrData == 'string') {
+      //  this.parseData(m3u8StringOrData);
+      //  return;
+      //}
+    }
+
+    async m3u8LoadMasterPlaylistAndResolveStreams(m3u8UrlIn) {
+      debug("m3u8LoadMasterPlaylistAndResolveStreams()");
+      let response = await loadWebResourceAsync(m3u8UrlIn);
+      let m3u8Url = response.url;
+      let m3u8Text = response.data;
+      debug("m3u8UrlIn: " + m3u8UrlIn);
+      debug("m3u8Url: " + m3u8Url);
+      // debug("m3u8Text: " + m3u8Text);
+      let m3u8Data = new M3u8Data(m3u8Text);
+      m3u8Data.complementUris(m3u8Url);
+      //parse:
+      //#EXTM3U
+      //#EXT-X-INDEPENDENT-SEGMENTS
+      //#EXT-X-VERSION:6
+      //
+      //#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",NAME="German",LANGUAGE="de",AUTOSELECT=YES,URI="FO-26WQ2N6ESBH16.m3u8"
+      //
+      //#EXT-X-STREAM-INF:BANDWIDTH=7570689,AVERAGE-BANDWIDTH=6110867,CODECS="avc1.640028,mp4a.40.2",RESOLUTION=1920x1080,AUDIO="audio",FRAME-RATE=25.0
+      //FO-26WQ2N6ESBH15.m3u8
+      //#EXT-X-STREAM-INF:BANDWIDTH=1963711,AVERAGE-BANDWIDTH=1576374,CODECS="avc1.4D401F,mp4a.40.2",RESOLUTION=960x540,AUDIO="audio",FRAME-RATE=25.0
+      //FO-26WQ2N6ESBH13.m3u8
+      //#EXT-X-STREAM-INF:BANDWIDTH=1058492,AVERAGE-BANDWIDTH=889347,CODECS="avc1.4D401E,mp4a.40.2",RESOLUTION=640x360,AUDIO="audio",FRAME-RATE=25.0
+      //FO-26WQ2N6ESBH12.m3u8
+      //#EXT-X-STREAM-INF:BANDWIDTH=3734151,AVERAGE-BANDWIDTH=2991914,CODECS="avc1.4D401F,mp4a.40.2",RESOLUTION=1280x720,AUDIO="audio",FRAME-RATE=25.0
+      //FO-26WQ2N6ESBH14.m3u8
+      //#EXT-X-STREAM-INF:BANDWIDTH=610169,AVERAGE-BANDWIDTH=536072,CODECS="avc1.4D401E,mp4a.40.2",RESOLUTION=426x240,AUDIO="audio",FRAME-RATE=25.0
+      //FO-26WQ2N6ESBH11.m3u8
+      let qualities = [];
+      m3u8Data.tags.forEach((tag) => {
+        if (tag.name == 'EXT-X-STREAM-INF') {
+          let url = tag.uri;
+          let resolution = "unknown";
+          tag.attributes.forEach((attribute) => { if (attribute.name == 'RESOLUTION') resolution = attribute.value });
+          let quality = {
+            "url": url,
+            "type": getExtensionFromUrl(url),
+            "quality": resolution,
+            "live": false,
+            "adfree": false,
+            "content": ""
+          };
+          qualities.push(quality);
+        }
+      });
+      return qualities;
+    }
+  };
+
+  // --------------------------------------------------------------------
 
   async function loadM3U8PlayListQualities(m3u8UrlIn) {
     debug("loadM3U8PlayListQualities()");
@@ -514,73 +721,55 @@ function CodeToInject(chromeExtensionScriptUrl) {
     let m3u8Text = response.data;
     debug("m3u8UrlIn: " + m3u8UrlIn);
     debug("m3u8Url: " + m3u8Url);
-    //debug("m3u8Text: " + m3u8Text);
-    //parse:
-    // #EXT-X-STREAM-INF:BANDWIDTH=7556940,AVERAGE-BANDWIDTH=5745432,RESOLUTION=1920x1080,CODECS="avc1.640028,mp4a.40.2"
-    // https://dms.redbull.tv/dms/media/AP-1XCY6DVFN1W11/1920x1080@7556940/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJjYXRlZ29yeSI6InBlcnNvbmFsX2NvbXB1dGVyIiwib3NfZmFtaWx5IjoiaHR0cCIsIm9zX3ZlcnNpb24iOiIiLCJ1aWQiOiIwMmRjMzc1Mi01NjA4LTQ3YWMtOGY3Mi1hNmUwZDE5ZTI3MWYiLCJsYXRpdHVkZSI6MC4wLCJsb25ndGl0dWRlIjowLjAsImNvdW50cnlfaXNvIjoiZGUiLCJhZGRyZXNzIjoiMjAwMzplYTo5NzI4OjIwMDA6YjQ2MDpkZGZhOjJiODg6M2QwMCIsInVzZXItYWdlbnQiOiJNb3ppbGxhLzUuMCAoV2luZG93cyBOVCAxMC4wOyBXaW42NDsgeDY0KSBBcHBsZVdlYktpdC81MzcuMzYgKEtIVE1MLCBsaWtlIEdlY2tvKSBDaHJvbWUvNzQuMC4zNzI5LjE1NyBTYWZhcmkvNTM3LjM2IiwiZGV2aWNlX3R5cGUiOiIiLCJkZXZpY2VfaWQiOiIiLCJpYXQiOjE1NTgwNDQ3NTJ9.sTG_v7V_mGR2DMsvjVC10fOmvpfJR3T4h78Y5VaFa-w=/playlist.m3u8
-    //or:
-    // #EXT-X-STREAM-INF:BANDWIDTH=1838389,AVERAGE-BANDWIDTH=1461672,RESOLUTION=960x540,CODECS="mp4a.40.2,avc1.4d001f"
-    // AA-1Z4QM5U2W1W12_FO-1Z6B52KKN5N11.m3u8
-    //and:
-    //#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",NAME="German",LANGUAGE="de",AUTOSELECT=YES,URI="FO-264JJREMSBH16.m3u8"
     let qualities = [];
-    let m3u8Data = m3u8ParseData(m3u8Text);
+    let m3u8Data = new M3u8Data(m3u8Text);
+    m3u8Data.complementUris(m3u8Url);
     m3u8Data.tags.forEach((tag) => {
       if (tag.name == 'EXT-X-STREAM-INF') {
+        //#EXT-X-STREAM-INF:BANDWIDTH=7570689,AVERAGE-BANDWIDTH=6110867,CODECS="avc1.640028,mp4a.40.2",RESOLUTION=1920x1080,AUDIO="audio",FRAME-RATE=25.0
         let url = tag.uri;
-        let resolution = "unknown"; 
-        tag.attributes.forEach((attribute) => {if (attribute.name == 'RESOLUTION') resolution = attribute.value});
-        // complement url if necessary
-        if (url && !(url.toLowerCase().startsWith('http'))) {
-          let lastSlashPos = m3u8Url.lastIndexOf('/');
-          if (lastSlashPos > 0) {
-            let baseUrl = m3u8Url.substr(0,lastSlashPos);
-            let needSlash = !url.startsWith('/');
-            url = baseUrl + (needSlash ? '/' : '') + url;
-          }
-          // concat baseUrl search if necessary:
-          let searchStartPos = m3u8Url.indexOf('?');
-          if (searchStartPos > 0 && searchStartPos < m3u8Url.length-1) {
-            let queryStartPos = url.indexOf('?');
-            if (queryStartPos < 0) {
-              url = url + '?' + m3u8Url.substr(searchStartPos+1);
-            } else {
-              url = url + '&' + m3u8Url.substr(searchStartPos+1);
-            }
-          }
-        }
-        // extract videoHeight from resolution parameter
-        let videoHeight = 0;
-        if (resolution.toLowerCase().indexOf('x') >= 0) {
-          let widthHeight = resolution.split('x');
-          videoHeight = widthHeight.pop();
-        }
+        let resolution = tag.attribute('RESOLUTION');
+        //// extract videoHeight from resolution parameter
+        //let videoHeight = 0;
+        //if (resolution.toLowerCase().indexOf('x') >= 0) {
+        //  let widthHeight = resolution.split('x');
+        //  videoHeight = widthHeight.pop();
+        //}
         let quality = {
           "url": url,
           "type": getExtensionFromUrl(url),
-          "quality": videoHeight,
+          "quality": resolution, //videoHeight,
           "live": false,
           "adfree": false,
           "content": ""
         };
         qualities.push(quality);
       }
+      if (tag.is('EXT-X-MEDIA') && tag.attribute('TYPE') == 'AUDIO' && tag.uri != null) {
+        //#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",NAME="German",LANGUAGE="de",AUTOSELECT=YES,URI="FO-26WQ2N6ESBH16.m3u8"
+        qualities.push({
+          "url": tag.uri,
+          "type": getExtensionFromUrl(tag.uri),
+          "quality": tag.attribute('LANGUAGE'),
+          "live": false,
+          "adfree": false,
+          "content": ""
+        });
+      }
+       
     });
     return qualities;
   }
   
   function getUrlListFromM3U8VodPlayList(m3u8Text, m3u8Url) {
     debug("getUrlListFromM3U8VodPlayList()");
-    // todo: use m3u8DataParser and ad support for baseUrl
-    //
     //parse:
     // #EXT-X-PLAYLIST-TYPE:VOD
     // #EXTINF:3.000,
     // https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/0.ts
     // #EXTINF:3.000,
     // https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/1.ts
-    let urlList = [];
-    let m3u8Data = m3u8ParseData(m3u8Text);
+    let m3u8Data = new M3u8Data(m3u8Text);
     if (m3u8Data.segments.length < 1) {
       debug("given playlist does not cntain segments -> exit early")
       return null;
@@ -589,44 +778,20 @@ function CodeToInject(chromeExtensionScriptUrl) {
       debug("given playlist is not of VOD playlist type (probably a m3u8 master instead) -> exit early")
       return null;
     }
-    for (let i = 0; i < m3u8Data.segments.length; i++) {
-      let url = m3u8Data.segments[i].uri;
-      // complement url if necessary
-      if (url && !(url.toLowerCase().startsWith('http'))) {
-        let lastSlashPos = m3u8Url.lastIndexOf('/');
-        if (lastSlashPos > 0) {
-          let baseUrl = m3u8Url.substr(0, lastSlashPos);
-          let needSlash = !url.startsWith('/');
-          url = baseUrl + (needSlash ? '/' : '') + url;
-        }
-        // concat baseUrl search if necessary:
-        let searchStartPos = m3u8Url.indexOf('?');
-        if (searchStartPos > 0 && searchStartPos < m3u8Url.length - 1) {
-          let queryStartPos = url.indexOf('?');
-          if (queryStartPos < 0) {
-            url = url + '?' + m3u8Url.substr(searchStartPos + 1);
-          } else {
-            url = url + '&' + m3u8Url.substr(searchStartPos + 1);
-          }
-        }
-        // update segment uri
-        m3u8Data.segments[i].uri = url;
-      }
-      urlList.push(url);
-    }
     // return urlList and adapted m3u8PlayList
+    m3u8Data.complementUris(m3u8Url);
     let result = {
-      "urlList": urlList,
-      "vodPlayList": m3u8Text,
+      "urlList": m3u8Data.segmentUris,
+      "vodPlayList": m3u8Data.toString(),
       "m3u8Data": m3u8Data
     };
     return result;
   }
 
   function getAdFreeUrlListFromM3U8VodPlayList(m3u8PlayList, m3u8Url) {
-    debug("getAdFreeUrlListFromM3U8VodPlayList()");
+    return getUrlListFromM3U8VodPlayList(m3u8PlayList, m3u8Url);
+    //debug("getAdFreeUrlListFromM3U8VodPlayList()");
     //debug("m3u8PlaylistData: " + m3u8PlayList);
-    // todo: rewrite based on m3u8 parser
     // 
     //parse:
     // #EXT-X-PLAYLIST-TYPE:VOD
@@ -667,127 +832,6 @@ function CodeToInject(chromeExtensionScriptUrl) {
     // #EXTINF:0.760,
     // https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/487.ts
     //
-    if (m3u8PlayList.toUpperCase().indexOf('#EXT-X-PLAYLIST-TYPE:VOD') < 0) {
-      debug("probably a m3u8 master playlist (not a VOD playlist) -> exit early")
-      return null;
-    }
-    let urlList = [];
-    let newVodPlayList = '';
-    let lastValidSegment = -1;
-    let m3u8Lines = m3u8PlayList.split('#');
-    m3u8Lines.forEach((line) => {
-      let trimedLine = line.trim();
-      if (trimedLine.toUpperCase().startsWith('EXT-X-MAP')) {
-        let newTrimedLine = trimedLine;
-        let newUrl = null;
-        let colonPos = trimedLine.indexOf(':');
-        if (colonPos > 0) {
-          newTrimedLine = 'EXT-X-MAP:';
-          let attributeData = trimedLine.substr(colonPos+1);
-          let attributes = attributeData.split(',');
-          let firstAttribute = true;
-          attributes.forEach((attribute) => {
-            let newAttribute = attribute;
-            let attribKvp = attribute.split('=');
-            if (attribKvp.length > 1 && attribKvp[0].toUpperCase() == 'URI' && attribKvp[1]) {
-              newUrl = attribKvp[1].trim();
-              // remove bracing quotes
-              if (newUrl.startsWith('"')) {
-                newUrl = newUrl.substr(1);
-              }
-              if (newUrl.endsWith('"')) {
-                newUrl = newUrl.substr(0,newUrl.length-1);
-              }
-              // complement url if necessary
-              if (!(newUrl.toLowerCase().startsWith('http'))) {
-                let lastSlashPos = m3u8Url.lastIndexOf('/');
-                if (lastSlashPos > 0) {
-                  let baseUrl = m3u8Url.substr(0,lastSlashPos);
-                  let needSlash = !newUrl.startsWith('/');
-                  newUrl = baseUrl + (needSlash ? '/' : '') + newUrl;
-                }
-                newAttribute = 'URI="' + newUrl + '"';
-              }
-              else {
-                newUrl = null;
-              }
-            }
-            if (!firstAttribute) {
-              newAttribute = "," + newAttribute;
-            }
-            firstAttribute = false;
-            newTrimedLine += newAttribute;
-          });
-        }
-        // write modified line
-        newVodPlayList += '#' + newTrimedLine + '\n';
-        if (newUrl) {
-          urlList.push(newUrl);
-        }
-      }
-      else if (trimedLine.toUpperCase().startsWith('EXTINF')) {
-        let subLines = trimedLine.split('\n');
-        if (subLines.length > 1) {
-          // a valid TS segment line
-          let url = subLines[1].trim();
-          // complement url if necessary
-          if (url && !(url.toLowerCase().startsWith('http'))) {
-            let lastSlashPos = m3u8Url.lastIndexOf('/');
-            if (lastSlashPos > 0) {
-              let baseUrl = m3u8Url.substr(0,lastSlashPos);
-              let needSlash = !url.startsWith('/');
-              url = baseUrl + (needSlash ? '/' : '') + url;
-            }
-          }
-          if (url.toLowerCase().endsWith('.ts') || url.toLowerCase().endsWith('.m4s')) {
-            let slashPos = url.lastIndexOf('/');
-            if (slashPos > 0) {
-              let tsFile = url.substr(slashPos+1);
-              let dotPos = tsFile.lastIndexOf('.');
-              if (dotPos > 0) {
-                let segmentNumberName = tsFile.substr(0,dotPos);
-                let segmentNumber = parseInt(segmentNumberName);
-                if (!isNaN(segmentNumber)) {
-                  let addSegment = false;
-                  if (lastValidSegment < 0) {
-                    // first valid segment
-                    addSegment = true;
-                    lastValidSegment = segmentNumber;
-                  }
-                  else if (segmentNumber > lastValidSegment) {
-                    // this is a simple parsing mechanism only matching above documented scenario!
-                    // do some validations
-                    let missingSegments = segmentNumber - lastValidSegment - 1;
-                    if (missingSegments > 0) {
-                      debug("missing " + missingSegments + " segment(s)");
-                    }
-                    // seems we have the next valid segment after the intermediate advertisment
-                    addSegment = true;
-                    lastValidSegment = segmentNumber;
-                  }
-                  if (addSegment) {
-                    // write modified line
-                    newVodPlayList += '#' + subLines[0] + '\n' + url + '\n';
-                    urlList.push(url);
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-      else if (trimedLine.length > 0 && !trimedLine.toUpperCase().startsWith('EXT-X-DISCONTINUITY')) {
-        // write original line (leave out empty lines and 'EXT-X-DISCONTINUITY' lines)
-        newVodPlayList += '#' + trimedLine + '\n';
-        //urlList.push(url);
-      }
-    });
-    // return urlList and adapted m3u8PlayList
-    let result = {
-      "urlList": urlList,
-      "vodPlayList": newVodPlayList
-    };
-    return result;
   }
   
   async function processQualityToAdFreeAsync(quality) {
@@ -841,18 +885,11 @@ function CodeToInject(chromeExtensionScriptUrl) {
       m3u8Url = response.url;
     }
     //debug("m3u8UrlIn: " + m3u8UrlIn);
-    debug("m3u8Url: " + m3u8Url);
     //debug("m3u8Text: " + m3u8Content);
-    //let urlList = getAdFreeUrlListFromM3U8VodPlayList(m3u8Content, m3u8Url);
-    let urlList = getUrlListFromM3U8VodPlayList(m3u8Content, m3u8Url);
-    if (!urlList || !urlList.vodPlayList || !urlList.m3u8Data) {
-      debug("error loading playlist data");
-      if (reject) reject("error loading playlist data");
-      return null;
-    }
+    debug("m3u8Url: " + m3u8Url);
     // 2) parse initial playlist data
-    //let m3u8Data = m3u8ParseData(urlList.vodPlayList); //m3u8ParseData(m3u8Content);
-    let m3u8Data = urlList.m3u8Data;
+    let m3u8Data = new M3u8Data(m3u8Content);
+    m3u8Data.complementUris(m3u8Url);
     if (m3u8Data.segments.length < 1) {
       debug("could not find any VOD segments -> early exit");
       if (reject) reject("could not find any VOD segments -> early exit");
@@ -865,36 +902,29 @@ function CodeToInject(chromeExtensionScriptUrl) {
       m3u8Content = response.data;
       m3u8Url = response.url;
       //debug("m3u8UrlIn: " + m3u8UrlIn);
-      debug("m3u8Url: " + m3u8Url);
       //debug("m3u8Text: " + m3u8Content);
-      //let urlList = getAdFreeUrlListFromM3U8VodPlayList(m3u8Content, m3u8Url);
-      let urlList = getUrlListFromM3U8VodPlayList(m3u8Content, m3u8Url);
-      if (!urlList || !urlList.vodPlayList || !urlList.m3u8Data) {
+      debug("m3u8Url: " + m3u8Url);
+      // 4) parse playlist data
+      let newM3u8Data = new M3u8Data(m3u8Content);
+      m3u8Data.complementUris(m3u8Url);
+      if (newM3u8Data.segments.length < 1) {
         debug("loading playlist data failed (live stream ended?)");
         repeatLoading = false;
       }
       else {
-        // parse playlist data
-        //let newM3u8Data = m3u8ParseData(urlList.vodPlayList); //m3u8ParseData(m3u8Content);
-        let newM3u8Data = urlList.m3u8Data;
-        if (newM3u8Data.segments.length < 1) {
-          repeatLoading = false;
-        }
-        else {
-          newM3u8Data.segments.forEach((newSegment) => {
-            let isContained = false;
-            m3u8Data.segments.forEach((segment) => {
-              if (segment.uri == newSegment.uri) {
-                isContained = true;
-              }
-            });
-            if (!isContained) {
-              m3u8Data.segments.push(newSegment);
+        newM3u8Data.segments.forEach((newSegment) => {
+          let isContained = false;
+          m3u8Data.segments.forEach((segment) => {
+            if (segment.uri == newSegment.uri) {
+              isContained = true;
             }
           });
-        }
+          if (!isContained) {
+            m3u8Data.segments.push(newSegment);
+          }
+        });
       }
-      // check for use cancelation
+      // 5) check for use cancelation
       if (cancel) {
         if (cancel()) {
           repeatLoading = false;
@@ -903,26 +933,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
     }
     debug("loading of async playlist ended");
     // 4) convert the m3u8Data inot a saveable string typed vodPlayList
-    let fullList = "";
-    m3u8Data.tags.forEach((tag) => {
-      if (!tag.isSegment) {
-        fullList = fullList + '#' + tag.name + ':';
-        tag.values.forEach((value) => {
-          fullList = fullList + value + ',';
-        });
-        tag.attributes.forEach((attr) => {
-          fullList = fullList + attr.name + '=' + attr.value + ',';
-        });
-        if (fullList.endsWith(',')) {
-          fullList = fullList.substr(0, fullList.length - 1);
-        }
-        fullList = fullList + '\n';
-      }
-    });
-    m3u8Data.segments.forEach((segment) => {
-      fullList = fullList + '#EXTINF:' + segment.time + ',\n' + segment.uri;  
-      fullList = fullList + '\n';
-    });
+    let fullList = m3u8Data.toString();
     // 5) create a blob and return
     let saveBlob = new Blob([fullList], { type: "text/html;charset=UTF-8" });
     if (resolve) {
@@ -1478,7 +1489,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
             if (subQuality) {
               // analyze for specific format without segments but with EXT-X-MAP tag
               let addedSpecificQuality = false;
-              let m3u8Data = m3u8ParseData(subQuality.content);
+              let m3u8Data = new M3u8Data(subQuality.content);
               if (m3u8Data.segments.length < 1) {
                 m3u8Data.tags.forEach((tag) => {
                   if (tag.name == 'EXT-X-MAP' && tag.uri) {
