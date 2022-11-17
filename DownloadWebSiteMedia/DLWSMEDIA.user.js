@@ -4,7 +4,7 @@
 // @description Adds a download button to video player pages
 // @copyright   2019-2021, savnt
 // @license     MIT
-// @version     0.4.5
+// @version     0.4.6
 // @grant       none
 // @inject-into page
 // ==/UserScript==
@@ -308,24 +308,43 @@ function CodeToInject(chromeExtensionScriptUrl) {
       this.attributes = tagAttributes;
       this.uri = tagUri;
     }
+    //get name() { return this.name; }
+    //set name(value) { this.name = value; }
+    //get values() { return this.values; }
+    //set values(value) { this.values = value; }
+    //get attributes() { return this.attributes; }
+    //set attributes(value) { this.attributes = value; }
+    //get uri() { return this.uri; }
+    //set uri(value) { this.uri = value; }
+
+    get value() {
+      if (this.values && this.values.length > 0) {
+        return this.values[0];
+      }
+      return null;
+    }
 
     is(tagName) {
       return (this.name == tagName.toUpperCase());
     }
 
     attribute(name) {
-      let value = null;
-      this.attributes.forEach((attrib) => {
-        if (attrib.name == name.toUpperCase()) {
-          value = attrib.value;
-          return;
+      for (let i = 0; i < this.attributes.length; i++) {
+        if (this.attributes[i].name == name.toUpperCase()) {
+          //return this.attributes[i].value;
+          return this.attributes[i];
         }
-      });
-      return value;
+      }
+      return null;
+    }
+
+    unquotedValueOf(name) {
+      let attrib = this.attribute(name);
+      return attrib ? attrib.valueUnquoted : null;
     }
   }
 
-  class M3u8Data {
+  class M3U8Data {
     //m3u8Data {
     //  "tags": [],
     //  "segments": []
@@ -353,13 +372,13 @@ function CodeToInject(chromeExtensionScriptUrl) {
       if (m3u8StringOrData == null) {
         return;
       }
-      if (m3u8StringOrData instanceof M3u8Data) {
-        this.tags = m3u8Data.tags;
-        this.segments = m3u8Data.segments;
+      if (m3u8StringOrData instanceof M3U8Data) {
+        this.tags = m3u8StringOrData.tags;
+        this.segments = m3u8StringOrData.segments;
         return;
       }
       if (typeof m3u8StringOrData == 'string') {
-        this.parseData(m3u8StringOrData);
+        this.initFromString(m3u8StringOrData);
         return;
       }
     }
@@ -368,12 +387,75 @@ function CodeToInject(chromeExtensionScriptUrl) {
     //get segments() { return this.segments; }
     //set segments(value) { this.segments = value; }
 
-    get segmentsUris() {
+    initFromString(m3u8DataString) {
+      this.tags = [];
+      this.segments = [];
+      if (typeof m3u8DataString != 'string') {
+        return null;
+      }
+      let m3u8Data = this.parseData(m3u8DataString);
+      if (m3u8Data == null) {
+        return null;
+      }
+      this.tags = m3u8Data.tags;
+      this.segments = m3u8Data.segments;
+      return this;
+    }
+
+    async initFromUrl(m3u8Url) {
+      this.tags = [];
+      this.segments = [];
+      if (typeof m3u8Url != 'string') {
+        return null;
+      }
+      let m3u8Data = await M3U8Data.loadAsync(m3u8Url);
+      if (m3u8Data == null) {
+        return null;
+      }
+      this.tags = m3u8Data.tags;
+      this.segments = m3u8Data.segments;
+      return this;
+    }
+
+    equals(m3u8Data) {
+      if (m3u8Data instanceof M3U8Data) {
+        return this.toString() == m3u8Data.toString();
+      }
+      return false;
+    }
+
+    get segmentUris() {
       let urlList = [];
       this.segments.forEach((segment) => {
         urlList.push(segment.uri);
       });
       return urlList;
+    }
+
+    containsTag(name) {
+      for (let i = 0; i < this.tags.length; i++) {
+        if (this.tags[i].name == name.toUpperCase()) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    tag(name) {
+      for (let i = 0; i < this.tags.length; i++) {
+        if (this.tags[i].name == name.toUpperCase()) {
+          return this.tags[i];
+        }
+      }
+      return null;
+    }
+
+    valueOf(name) {
+      // returns first value of given tag
+      if (this.containsTag(name)) {
+        return this.tag(name).value;
+      }
+      return null;
     }
 
     tagAsSegment(tag) {
@@ -423,6 +505,9 @@ function CodeToInject(chromeExtensionScriptUrl) {
     }
 
     parseTag(m3u8TagString) {
+      if (typeof m3u8TagString != 'string') {
+        return null;
+      }
       //let m3u8Tag = {
       //  "name": null,
       //  "values": [],
@@ -491,23 +576,24 @@ function CodeToInject(chromeExtensionScriptUrl) {
     }
 
     parseData(m3u8DataString) {
-      this.tags = [];
-      this.segments = [];
+      if (typeof m3u8DataString != 'string') {
+        return null;
+      }
+      let m3u8Data = new M3U8Data();
       m3u8DataString = m3u8DataString.trim();
       let m3u8TagStrings = m3u8DataString.split('#');
       m3u8TagStrings.forEach((tagString) => {
         let tag = this.parseTag(tagString);
         if (tag.name) {
-          // we parsed a valid tag
-          // we try to convert it into an segmentTag
+          // we parsed a valid tag -> we try to convert it into an segment
           let segment = this.tagAsSegment(tag);
           if (segment) {
-            this.segments.push(segment);
+            m3u8Data.segments.push(segment);
           }
-          this.tags.push(tag);
+          m3u8Data.tags.push(tag);
         }
       });
-      return this;
+      return m3u8Data;
     }
 
     complementUri(urlIn, baseUrlIn) {
@@ -551,15 +637,6 @@ function CodeToInject(chromeExtensionScriptUrl) {
       }
     }
 
-    static fromString(m3u8DataString) {
-      if (typeof m3u8DataString != 'string') {
-        return null;
-      }
-      let m3u8Data = new M3u8Data();
-      m3u8Data.parseData(m3u8DataString);
-      return m3u8Data;
-    }
-
     toString() {
       let fullList = "";
       let appendEndList = false;
@@ -600,6 +677,36 @@ function CodeToInject(chromeExtensionScriptUrl) {
         fullList += '#EXT-X-ENDLIST\n';
       }
       return fullList;
+    }
+
+    static async loadAsync(url) {
+      let promise = new Promise((resolve, reject) => {
+        let xhr = createXHR('GET', url);
+        if (!xhr) {
+          reject('XHR not supported');
+          return;
+        }
+        // it might be necessary to enable CORS (in chrome by patching request/response headers)
+        xhr.setRequestHeader('Content-Type', 'text/plain');
+        xhr.onloadstart = function () {
+        }
+        xhr.onload = function () {
+          let response = {
+            "url": xhr.responseURL,
+            "status": xhr.status,
+            "data": xhr.responseText
+          };
+          resolve(response);
+        }
+        xhr.onerror = function () {
+          reject('XHR request failed : ' + xhr.statusText);
+        }
+        xhr.send();
+      });
+      let response = await promise;
+      let m3u8Data = new M3U8Data(response.data);
+      m3u8Data.complementUris(response.url);
+      return m3u8Data;
     }
   };
 
@@ -648,20 +755,6 @@ function CodeToInject(chromeExtensionScriptUrl) {
     // return m3u8Stream;
     //}
     constructor(m3u8StringOrData = null) {
-      //this.tags = [];
-      //this.segments = [];
-      //if (m3u8StringOrData == null) {
-      //  return;
-      //}
-      //if (m3u8StringOrData instanceof M3u8Data) {
-      //  this.tags = m3u8Data.tags;
-      //  this.segments = m3u8Data.segments;
-      //  return;
-      //}
-      //if (typeof m3u8StringOrData == 'string') {
-      //  this.parseData(m3u8StringOrData);
-      //  return;
-      //}
     }
 
     async m3u8LoadMasterPlaylistAndResolveStreams(m3u8UrlIn) {
@@ -672,15 +765,13 @@ function CodeToInject(chromeExtensionScriptUrl) {
       debug("m3u8UrlIn: " + m3u8UrlIn);
       debug("m3u8Url: " + m3u8Url);
       // debug("m3u8Text: " + m3u8Text);
-      let m3u8Data = new M3u8Data(m3u8Text);
+      let m3u8Data = new M3U8Data(m3u8Text);
       m3u8Data.complementUris(m3u8Url);
       //parse:
       //#EXTM3U
       //#EXT-X-INDEPENDENT-SEGMENTS
       //#EXT-X-VERSION:6
-      //
       //#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",NAME="German",LANGUAGE="de",AUTOSELECT=YES,URI="FO-26WQ2N6ESBH16.m3u8"
-      //
       //#EXT-X-STREAM-INF:BANDWIDTH=7570689,AVERAGE-BANDWIDTH=6110867,CODECS="avc1.640028,mp4a.40.2",RESOLUTION=1920x1080,AUDIO="audio",FRAME-RATE=25.0
       //FO-26WQ2N6ESBH15.m3u8
       //#EXT-X-STREAM-INF:BANDWIDTH=1963711,AVERAGE-BANDWIDTH=1576374,CODECS="avc1.4D401F,mp4a.40.2",RESOLUTION=960x540,AUDIO="audio",FRAME-RATE=25.0
@@ -701,9 +792,6 @@ function CodeToInject(chromeExtensionScriptUrl) {
             "url": url,
             "type": getExtensionFromUrl(url),
             "quality": resolution,
-            "live": false,
-            "adfree": false,
-            "content": ""
           };
           qualities.push(quality);
         }
@@ -714,85 +802,174 @@ function CodeToInject(chromeExtensionScriptUrl) {
 
   // --------------------------------------------------------------------
 
-  async function loadM3U8PlayListQualities(m3u8UrlIn) {
-    debug("loadM3U8PlayListQualities()");
-    let response = await loadWebResourceAsync(m3u8UrlIn);
-    let m3u8Url = response.url;
-    let m3u8Text = response.data;
-    debug("m3u8UrlIn: " + m3u8UrlIn);
+  async function loadM3U8DataAsync(m3u8Url) {
+    debug("loadM3U8DataAsync()");
+    let response = await loadWebResourceAsync(m3u8Url);
     debug("m3u8Url: " + m3u8Url);
-    let qualities = [];
-    let m3u8Data = new M3u8Data(m3u8Text);
-    m3u8Data.complementUris(m3u8Url);
-    m3u8Data.tags.forEach((tag) => {
-      if (tag.name == 'EXT-X-STREAM-INF') {
-        //#EXT-X-STREAM-INF:BANDWIDTH=7570689,AVERAGE-BANDWIDTH=6110867,CODECS="avc1.640028,mp4a.40.2",RESOLUTION=1920x1080,AUDIO="audio",FRAME-RATE=25.0
-        let url = tag.uri;
-        let resolution = tag.attribute('RESOLUTION');
-        //// extract videoHeight from resolution parameter
-        //let videoHeight = 0;
-        //if (resolution.toLowerCase().indexOf('x') >= 0) {
-        //  let widthHeight = resolution.split('x');
-        //  videoHeight = widthHeight.pop();
-        //}
-        let quality = {
-          "url": url,
-          "type": getExtensionFromUrl(url),
-          "quality": resolution, //videoHeight,
-          "live": false,
-          "adfree": false,
-          "content": ""
-        };
-        qualities.push(quality);
+    debug("responseUrl: " + response.url);
+    //debug("responseData: " + response.data);
+    let m3u8Data = new M3U8Data(response.data);
+    m3u8Data.complementUris(response.url);
+    return m3u8Data;
+  }
+
+  async function loadM3U8PlayListQualities(m3u8Url, isLive) {
+    debug("loadM3U8PlayListQualities()");
+    let streamQualities = [];
+    {
+      debug("loadM3U8MasterPlayListAsync()");
+      //let m3u8Data = await loadM3U8DataAsync(m3u8Url);
+      let m3u8Data = await M3U8Data.loadAsync(m3u8Url);
+      m3u8Data.tags.forEach((tag) => {
+        if (tag.is('EXT-X-STREAM-INF')) {
+          //#EXT-X-STREAM-INF:BANDWIDTH=7570689,AVERAGE-BANDWIDTH=6110867,CODECS="avc1.640028,mp4a.40.2",RESOLUTION=1920x1080,AUDIO="audio",FRAME-RATE=25.0
+          streamQualities.push({
+            "url": tag.uri,
+            "type": getExtensionFromUrl(tag.uri),
+            "quality": tag.unquotedValueOf('RESOLUTION'),
+            "isLive": isLive
+          });
+        }
+        if (tag.is('EXT-X-MEDIA') && tag.unquotedValueOf('TYPE') == 'AUDIO' && tag.uri != null) {
+          //#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",NAME="German",LANGUAGE="de",AUTOSELECT=YES,URI="FO-26WQ2N6ESBH16.m3u8"
+          streamQualities.push({
+            "url": tag.uri,
+            "type": getExtensionFromUrl(tag.uri),
+            "quality": tag.unquotedValueOf('LANGUAGE'),
+            "audio": true,
+            "isLive": isLive
+          });
+        }
+      });
+      //return streamQualities;
+    }
+
+    let loadedStreamQualities = [];
+    for (let i = 0; i < streamQualities.length; i++) {
+      let streamQuality = streamQualities[i];
+      debug("loadM3U8StreamQualityAsync()");
+      //let m3u8Data = await loadM3U8DataAsync(streamQuality.url);
+      let m3u8Data = await M3U8Data.loadAsync(streamQuality.url);
+      if (m3u8Data.segments.length < 1) {
+        debug("given stream playlist does not contain segments -> exit early")
+        //return null;
+        continue;
       }
-      if (tag.is('EXT-X-MEDIA') && tag.attribute('TYPE') == 'AUDIO' && tag.uri != null) {
-        //#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",NAME="German",LANGUAGE="de",AUTOSELECT=YES,URI="FO-26WQ2N6ESBH16.m3u8"
-        qualities.push({
-          "url": tag.uri,
-          "type": getExtensionFromUrl(tag.uri),
-          "quality": tag.attribute('LANGUAGE'),
-          "live": false,
-          "adfree": false,
-          "content": ""
-        });
+      if (m3u8Data.valueOf('EXT-X-PLAYLIST-TYPE') != 'VOD') {
+        debug("given stream playlist is not of VOD playlist type (probably a m3u8 master instead) -> exit early")
+        //return null;
+        continue;
       }
-       
+      // create a downloadable blob
+      let saveBlob = new Blob([m3u8Data.toString()], { type: "text/html;charset=UTF-8" });
+      let saveUrl = window.URL.createObjectURL(saveBlob);
+      let loadedQuality = {
+        "url": saveUrl,
+        "type": streamQuality.type, //"m3u8",
+        "quality": streamQuality.quality,
+        "live": streamQuality.live,
+        "loaded": true,
+        "content": m3u8Data
+      };
+      loadedStreamQualities.push(loadedQuality);
+      //return loadedQuality;
+    }
+
+    let processedStreamQualities = [];
+    loadedStreamQualities.forEach((loadedStreamQuality) => {
+      debug("processM3U8StreamQuality()");
+      let m3u8Data = loadedStreamQuality.content;
+      if (!m3u8Data) {
+        debug("m3u8Data is null")
+        return null;
+      }
+      if (m3u8Data.segments.length < 1) {
+        debug("given stream playlist does not contain segments -> exit early")
+        return null;
+      }
+      if (m3u8Data.valueOf('EXT-X-PLAYLIST-TYPE') != 'VOD') {
+        debug("given stream playlist is not of VOD playlist type (probably a m3u8 master instead) -> exit early")
+        return null;
+      }
+      // create a copy of the original playlist data where interfering segments have been removed...
+      //let processedM3U8Data = new M3U8Data();
+      //m3u8Data.segments.forEach(...
+      let processedM3U8Data = new M3U8Data(m3u8Data);
+      if (processedM3U8Data.equals(m3u8Data)) {
+        debug("processing of given stream playlist did not lead to any change -> exit early")
+        return null;
+      }
+      // create a downloadable blob
+      let saveBlob = new Blob([processedM3U8Data.toString()], { type: "text/html;charset=UTF-8" });
+      let saveUrl = window.URL.createObjectURL(saveBlob);
+      let processedQuality = {
+        "url": saveUrl,
+        "type": loadedStreamQuality.type, //"m3u8",
+        "quality": loadedStreamQuality.quality,
+        "live": loadedStreamQuality.live,
+        "loaded": true,
+        "processed": true,
+        "content": processedM3U8Data
+      };
+      processedStreamQualities.push(processedQuality);
+      return processedQuality;
     });
+
+    // sort qualities
+    sortQualities(streamQualities);
+    sortQualities(loadedStreamQualities);
+    sortQualities(processedStreamQualities);
+    // append qualties
+    loadedStreamQualities.forEach((subQuality) => { streamQualities.push(subQuality) });
+    processedStreamQualities.forEach((subQuality) => { streamQualities.push(subQuality) });
+    return streamQualities;
+  }
+
+  function sortQualities(qualities) {
+    function qualityToNumber(quality) {
+      //debug("qualityToNumber()");
+      if (!quality) {
+        return 0;
+      }
+      if (quality.endsWith('p')) { //video format e.g.'720p' -> derive qnumber from pure value (ignoring progressive mark)
+        quality = quality.substr(0, quality.length - 1);
+      }
+      if (quality.lastIndexOf('x') >= 0) { //resolution e.g.'1920x1080' -> derive qnumber from height
+        quality = quality.substr(quality.lastIndexOf('x') + 1);
+      }
+      if (quality.toLowerCase().startsWith('mp4a.')) { //audio codec e.g.'mp4a.40.2' -> derive qnumber from product of numbers
+        let parts = quality.split('.');
+        let number = parts.length > 1 ? parseInt(parts[1]) : 0;
+        number *= parts.length > 2 ? parseInt(parts[2]) : 1;
+        return number;
+      }
+      if (quality.toLowerCase().startsWith('avc1.')) { //video codec e.g.'avc1.4d001f' -> derive qnumber from hexnumber
+        let parts = quality.split('.');
+        let number = parts.length > 1 ? parseInt(parts[1]) : 0;
+        return number;
+      }
+      return parseInt(quality);
+    }
+    debug("sortQualities()");
+    if (qualities == undefined || qualities == null) {
+      debug("qualities is null");
+      return;
+    }
+    qualities.sort((streamA, streamB) => { return qualityToNumber(streamB.quality) - qualityToNumber(streamA.quality); });
     return qualities;
   }
-  
-  function getUrlListFromM3U8VodPlayList(m3u8Text, m3u8Url) {
-    debug("getUrlListFromM3U8VodPlayList()");
+    
+  function getAdFreeUrlListFromM3U8VodPlayList(m3u8Text, m3u8Url) {
+    debug("getAdFreeUrlListFromM3U8VodPlayList()");
+    //debug("m3u8PlaylistData: " + m3u8Text);
+    // 
     //parse:
     // #EXT-X-PLAYLIST-TYPE:VOD
     // #EXTINF:3.000,
     // https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/0.ts
     // #EXTINF:3.000,
     // https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/1.ts
-    let m3u8Data = new M3u8Data(m3u8Text);
-    if (m3u8Data.segments.length < 1) {
-      debug("given playlist does not cntain segments -> exit early")
-      return null;
-    }
-    if (!m3u8Data.tags['EXT-X-PLAYLIST-TYPE'] == 'VOD') {
-      debug("given playlist is not of VOD playlist type (probably a m3u8 master instead) -> exit early")
-      return null;
-    }
-    // return urlList and adapted m3u8PlayList
-    m3u8Data.complementUris(m3u8Url);
-    let result = {
-      "urlList": m3u8Data.segmentUris,
-      "vodPlayList": m3u8Data.toString(),
-      "m3u8Data": m3u8Data
-    };
-    return result;
-  }
-
-  function getAdFreeUrlListFromM3U8VodPlayList(m3u8PlayList, m3u8Url) {
-    return getUrlListFromM3U8VodPlayList(m3u8PlayList, m3u8Url);
-    //debug("getAdFreeUrlListFromM3U8VodPlayList()");
-    //debug("m3u8PlaylistData: " + m3u8PlayList);
-    // 
+    //
     //parse:
     // #EXT-X-PLAYLIST-TYPE:VOD
     // #EXT-X-VERSION:7
@@ -832,35 +1009,25 @@ function CodeToInject(chromeExtensionScriptUrl) {
     // #EXTINF:0.760,
     // https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/487.ts
     //
-  }
-  
-  async function processQualityToAdFreeAsync(quality) {
-    debug("processQualityToAdFreeAsync()");
-    let response = await loadWebResourceAsync(quality.url);
-    let m3u8Url = response.url;
-    let m3u8Text = response.data;
-    debug("m3u8UrlIn: " + quality.url);
-    debug("m3u8Url: " + m3u8Url);
-    //debug("m3u8Text: " + m3u8Text);
-    let adFreeResult = getAdFreeUrlListFromM3U8VodPlayList(m3u8Text, m3u8Url);
-    if (!adFreeResult || !adFreeResult.vodPlayList) {
+    let m3u8Data = new M3U8Data(m3u8Text);
+    if (m3u8Data.segments.length < 1) {
+      debug("given playlist does not cntain segments -> exit early")
       return null;
     }
-    //debug(adFreeResult.vodPlayList);
-    // create a downloadlink to this blob
-    let saveBlob = new Blob([adFreeResult.vodPlayList], { type: "text/html;charset=UTF-8" });
-    let saveUrl = window.URL.createObjectURL(saveBlob);
-    let quali = {
-      "url": saveUrl,
-      "type": quality.type, //"m3u8",
-      "quality": quality.quality,
-      "live": quality.live,
-      "adfree": true,
-      "content": adFreeResult.vodPlayList
+    if (!m3u8Data.valueOf('EXT-X-PLAYLIST-TYPE') == 'VOD') {
+      debug("given playlist is not of VOD playlist type (probably a m3u8 master instead) -> exit early")
+      return null;
+    }
+    // return urlList and adapted m3u8PlayList
+    m3u8Data.complementUris(m3u8Url);
+    let result = {
+      "urlList": m3u8Data.segmentUris,
+      "vodPlayList": m3u8Data.toString(),
+      "m3u8Data": m3u8Data
     };
-    return quali;
+    return result;
   }
-
+  
   function stringToUint8Array(str) {
     //let buf = new ArrayBuffer(str.length*2); // 2 bytes for each char
     //let srcBufView = new Uint16Array(buf);
@@ -888,7 +1055,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
     //debug("m3u8Text: " + m3u8Content);
     debug("m3u8Url: " + m3u8Url);
     // 2) parse initial playlist data
-    let m3u8Data = new M3u8Data(m3u8Content);
+    let m3u8Data = new M3U8Data(m3u8Content);
     m3u8Data.complementUris(m3u8Url);
     if (m3u8Data.segments.length < 1) {
       debug("could not find any VOD segments -> early exit");
@@ -905,7 +1072,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
       //debug("m3u8Text: " + m3u8Content);
       debug("m3u8Url: " + m3u8Url);
       // 4) parse playlist data
-      let newM3u8Data = new M3u8Data(m3u8Content);
+      let newM3u8Data = new M3U8Data(m3u8Content);
       m3u8Data.complementUris(m3u8Url);
       if (newM3u8Data.segments.length < 1) {
         debug("loading playlist data failed (live stream ended?)");
@@ -949,8 +1116,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
       m3u8Content = response.data;
       m3u8Url = response.url;
     }
-    //let playListResult = getAdFreeUrlListFromM3U8VodPlayList(m3u8Content, m3u8Url);
-    let playListResult = getUrlListFromM3U8VodPlayList(m3u8Content, m3u8Url);
+    let playListResult = getAdFreeUrlListFromM3U8VodPlayList(m3u8Content, m3u8Url);
     let urlList = playListResult.urlList;
     // mux.js
     muxedData = null;
@@ -1011,10 +1177,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
         "qualities": [{
           "url": videoUrl,
           "type": videoType,
-          "quality": videoQuality,
-          "live": false,
-          "adfree": false,
-          "content": ""
+          "quality": videoQuality
         }]
       });
     } 
@@ -1047,10 +1210,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
         "qualities": [{
           "url": videoUrl,
           "type": videoType,
-          "quality": videoQuality,
-          "live": false,
-          "adfree": false,
-          "content": ""
+          "quality": videoQuality
         }]
       });
     }
@@ -1083,10 +1243,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
         "qualities": [{
           "url": videoUrl,
           "type": videoType,
-          "quality": videoQuality,
-          "live": false,
-          "adfree": false,
-          "content": ""
+          "quality": videoQuality
         }]
       });
     }
@@ -1164,10 +1321,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
             mediaEntry.qualities.push({
               "url": format.url,
               "type": getExtensionFromMimeType(format.mime),
-              "quality": format.quality,
-              "live": false,
-              "adfree": false,
-              "content": ""
+              "quality": format.quality
             });
           });
         }
@@ -1199,9 +1353,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
             "url": m3u8MasterSrc.url,
             "type": getExtensionFromUrl(m3u8MasterSrc.url),
             "quality": null,
-            "live": true,
-            "adfree": false,
-            "content": ""
+            "live": true
           });
         }  
       }
@@ -1293,9 +1445,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
           "url": videoUrl,
           "type": videoType,
           "quality": videoQuality,
-          "live": true,
-          "adfree": false,
-          "content": ""
+          "live": true
         });
       }
       else if (videoPlayerResponse.streamingData) {
@@ -1320,10 +1470,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
             entry.qualities.push({
               "url": videoUrl,
               "type": videoType,
-              "quality": videoQuality,
-              "live": false,
-              "adfree": false,
-              "content": ""
+              "quality": videoQuality
             });
           }
         });
@@ -1361,10 +1508,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
         "qualities": [{
           "url": videoUrl,
           "type": videoType,
-          "quality": videoQuality,
-          "live": false,
-          "adfree": false,
-          "content": ""
+          "quality": videoQuality
         }]
       });
     }
@@ -1375,31 +1519,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
 
   // << end of site specific functions
   //-------------------------------------------------------------------------------------------------------
-  
-  function QualityToNumber(quality) {
-    if (!quality) {
-      return 0;
-    }
-    if (quality.endsWith('p')) { //video format e.g.'720p' -> derive qnumber from pure value (ignoring progressive mark)
-      quality = quality.substr(0, quality.length-1);
-    }
-    if (quality.lastIndexOf('x') >= 0) { //resolution e.g.'1920x1080' -> derive qnumber from height
-      quality = quality.substr(quality.lastIndexOf('x')+1);
-    }
-    if (quality.startsWith('mp4a.') >= 0) { //audio codec e.g.'mp4a.40.2' -> derive qnumber from product of numbers
-      let parts = quality.split('.');
-      let number = parts.length > 1 ? parseInt(parts[1]) : 0;
-      number *= parts.length > 2 ? parseInt(parts[2]) : 1;
-      return number;
-    }
-    if (quality.startsWith('avc1.') >= 0) { //video codec e.g.'avc1.4d001f' -> derive qnumber from hexnumber
-      let parts = quality.split('.');
-      let number = parts.length > 1 ?  parseInt(parts[1]) : 0;
-      return number;
-    }
-    return parseInt(quality);
-  }
-  
+ 
   async function analysePageAndCreateUiAsync(showUiOpen) {
     debug("analysePageAndCreateUiAsync()");
 
@@ -1422,8 +1542,11 @@ function CodeToInject(chromeExtensionScriptUrl) {
             "url": null,
             "type": "",
             "quality": "",
+            "audio": false,
             "live": false,
-            "adfree": false,
+            "loaded": false,
+            "processed": false,
+            "muxed": false,
             "content": ""
           }] 
         }*/]
@@ -1458,7 +1581,12 @@ function CodeToInject(chromeExtensionScriptUrl) {
           return;
       }
 
-      // resolve m3u8 playlists 
+      // sort available qualities
+      for (let i = 0; i < jsonMediaList.mediaList.length; i++) {
+        sortQualities(jsonMediaList.mediaList[i].qualities);
+      }
+
+      // resolve m3u8 playlists
       // we need to use Array index operator in order to have a reference to mediaEntry since we are about to modify it
       // therefore we need to use a classical for loop instead of Array.forEach (which would deliver a copy of the mediaEntry)
       for (let i=0; i<jsonMediaList.mediaList.length; i++) {
@@ -1466,65 +1594,18 @@ function CodeToInject(chromeExtensionScriptUrl) {
         // we need to run backwards over qualities since we add new entries
         for (let j=mediaEntry.qualities.length; j>0; j--) {
           let quality = mediaEntry.qualities[j-1];
-          if (quality.type && quality.type.toLowerCase().startsWith("m3u8") && quality.quality == null) {
+          if (quality.type && quality.type.toLowerCase().startsWith("m3u8")) {
             //quality.quality = "m3u8-multi";
-            let subQualities = await loadM3U8PlayListQualities(quality.url);
+            let subQualities = await loadM3U8PlayListQualities(quality.url, quality.live);
+            if (!quality.quality && subQualities.length > 0) {
+              quality.quality = 'master';
+            }
             // add the created downloadable quality playlists to mediaEntry for showing up in ui
             subQualities.forEach((subQuality) => {
-              subQuality.live = quality.live;
               mediaEntry.qualities.push(subQuality)
             });
           }
         }
-      }
-
-      // postprocess m3u8 quality playlists (this adds modified copies of original quality playlists)
-      for (let i=0; i<jsonMediaList.mediaList.length; i++) {
-        let mediaEntry = jsonMediaList.mediaList[i];
-        let subQualities = [];
-        for (let j=0; j<mediaEntry.qualities.length; j++) {
-          let quality = mediaEntry.qualities[j];
-          if (quality.url && quality.type && quality.type.toLowerCase().startsWith("m3u8")) {
-            let subQuality = await processQualityToAdFreeAsync(quality);
-            if (subQuality) {
-              // analyze for specific format without segments but with EXT-X-MAP tag
-              let addedSpecificQuality = false;
-              let m3u8Data = new M3u8Data(subQuality.content);
-              if (m3u8Data.segments.length < 1) {
-                m3u8Data.tags.forEach((tag) => {
-                  if (tag.name == 'EXT-X-MAP' && tag.uri) {
-                    // todo: add media download info
-                    subQualities.push({
-                      "url": tag.uri,
-                      "type": getExtensionFromUrl(tag.uri),
-                      "quality": subQuality.quality,
-                      "live": quality.live,
-                      "adfree": false,
-                      "content": ""
-                    });
-                    addedSpecificQuality = true;
-                  }
-                });  
-              }
-              if (!addedSpecificQuality) {
-                subQualities.push(subQuality);
-              }
-            }
-          }
-        }
-        // add the created downloadable quality playlists to mediaEntry for showing up in ui
-        //subQualities.sort((streamA,streamB) => { return streamB.quality - streamA.quality; });
-        subQualities.forEach((subQuality) => { mediaEntry.qualities.push(subQuality) });
-      }
-      
-      // sort available qualities
-      for (let i=0; i<jsonMediaList.mediaList.length; i++) {
-        let mediaEntry = jsonMediaList.mediaList[i];
-        mediaEntry.qualities.sort((streamA,streamB) => {
-          //debug('qa: '+ QualityToNumber(streamA.quality));
-          //debug('qb: '+ QualityToNumber(streamB.quality));
-          return QualityToNumber(streamB.quality) - QualityToNumber(streamA.quality);
-        });
       }
 
       // process title infos
@@ -1542,25 +1623,40 @@ function CodeToInject(chromeExtensionScriptUrl) {
           debug("Url         : '" + quality.url + "'");
           debug("Type        : '" + quality.type + "'");
           debug("Quality     : '" + quality.quality + "'");
+          debug("Audio       : '" + quality.audio + "'");
           debug("Live        : '" + quality.live + "'");
+          debug("Loaded      : '" + quality.loaded + "'");
+          debug("Processed   : '" + quality.processed + "'");
           debug("AdFree      : '" + quality.adfree + "'");
-          debug("Content     : '" + (quality.content.length > 0) ? quality.content.substr(0,7) + "...'" : "'");
+          quality.content == undefined ?
+            debug("Content     : 'undefined'") :
+            debug("Content     : '" + (quality.content.toString().length > 0) ? quality.content.toString().substr(0, 7) + "...'" : "'");
           debug("------------------------------");
         });
       });
 
       // inject download ui
-      jsonMediaList.mediaList.forEach((entry) => {
-        entry.qualities.forEach(async (quality) => {
-          createDownloadUiAndAddUrl(showUiOpen, entry.title, entry.description, quality);
-        })
-      });
+      let showAll = true;
+      createDownloadUi(jsonMediaList.mediaList, showUiOpen, showAll);
     }
     catch ( error )
     {
       // log the error
       console.error("[Media Download] Error retrieving video meta data:", error);
     }
+  }
+
+  async function createDownloadUi(mediaList, showUiOpen, showAll) {
+    mediaList.forEach((entry) => {
+      entry.qualities.forEach(async (quality) => {
+        if (!showAll) {
+          if (!quality.loaded) {
+            return;
+          }
+        }
+        createDownloadUiAndAddUrl(showUiOpen, entry.title, entry.description, quality);
+      })
+    });
   }
 
   function deleteDownloadUi() {
@@ -1571,23 +1667,25 @@ function CodeToInject(chromeExtensionScriptUrl) {
     }
   }
 
-  function createDownloadUiAndAddUrl(showUiOpen, fileTitle, subTitle, downloadInfo)
+  function createDownloadUiAndAddUrl(showUiOpen, title, description, downloadInfo)
   {
     debug("createDownloadUiAndAddUrl()");
 
     var fileUrl = downloadInfo.url;
     var mediaType = downloadInfo.type;
-    var quality = downloadInfo.quality;
-    var adfree = downloadInfo.adfree;
     var live = downloadInfo.live;
 
     // make valid filename from title and url
+    fileTitle = downloadInfo.title || title;
     var fileName = convertTitleToValidFilename(fileTitle);
-    if (quality) {
-      var qualiName = quality + (adfree ? '-AdFree' : '');
-      fileName = fileName + " (" + qualiName + ")";
+    if (!downloadInfo.title && downloadInfo.quality) {
+      var qualityName = downloadInfo.quality;
+      qualityName += (downloadInfo.muxed ? '-Muxed' : '');
+      qualityName += (downloadInfo.processed && !downloadInfo.muxed ? '-Processed' : '');
+      qualityName += (downloadInfo.loaded && !downloadInfo.processed && downloadInfo.adfree ? '-Loaded' : '');
+      fileName = fileName + " (" + qualityName + ")";
     }
-    var mediaFileName = fileName + '.' + mediaType
+    var mediaFileName = fileName + '.' + mediaType;
 
     var el = document.getElementById("i2d-popup");
     var elspan = document.getElementById("i2d-popup-x");
