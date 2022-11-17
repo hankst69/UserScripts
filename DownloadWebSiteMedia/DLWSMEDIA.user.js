@@ -2,9 +2,9 @@
 // @name        WebSite Media Download
 // @namespace   savnt
 // @description Adds a download button to video player pages
-// @copyright   2019-2021, savnt
+// @copyright   2019-2022, savnt
 // @license     MIT
-// @version     0.5.2
+// @version     0.5.3
 // @grant       none
 // @inject-into page
 // ==/UserScript==
@@ -1425,7 +1425,7 @@
   //-------------------------------------------------------------------------------------------------------
   // >> site specific functions:
 
-  async function findAirmeetMedia(document, jsonMediaList) {
+  async function findAirmeetMedia(document, resultContainer) {
     // Airmeet:
     if (document.location.host.startsWith('www.airmeet.com') && document.querySelector('video')) {
       debug("found Airmeet media page with video object");
@@ -1437,7 +1437,7 @@
         let videoUrl = getAbsoluteUrl(videoUrl);
         let videoType = getExtensionFromUrl(videoUrl);
         let videoQuality = null;
-        jsonMediaList.mediaList.push({
+        resultContainer.mediaList.push({
           "title": videoTitle,
           "description": videoDescription,
           "qualities": [{
@@ -1453,7 +1453,7 @@
     }
   }
 
-  async function findRedBullMedia(document, jsonMediaList) {
+  async function findRedBullMedia(document, resultContainer) {
     let player = null;
     // RedBull:
     if (!player && document.querySelector('div.rbPlyr-container') && 'rbPlyr_rbPlyrwrapper' in window) {
@@ -1485,7 +1485,7 @@
       let videoUrl = getAbsoluteUrl(videoInfo.videoUrl);
       let videoType = getExtensionFromUrl(videoUrl);
       let videoQuality = null;
-      jsonMediaList.mediaList.push({
+      resultContainer.mediaList.push({
         "title": videoTitle,
         "description": videoDescription,
         "qualities": [{
@@ -1500,7 +1500,7 @@
     }
   }
 
-  async function findServusTVMedia(document, jsonMediaList) {
+  async function findServusTVMedia(document, resultContainer) {
     let player = null;
     // ServusTV:
     if (!player && document.querySelector('div.rbPlyr-container') && 'rbPlyr_rbunifiedplayer1' in window) {
@@ -1518,7 +1518,7 @@
       let videoUrl = getAbsoluteUrl(videoInfo.videoUrl);
       let videoType = getExtensionFromUrl(videoUrl);
       let videoQuality = null;
-      jsonMediaList.mediaList.push({
+      resultContainer.mediaList.push({
         "title": videoTitle,
         "description": videoDescription,
         "qualities": [{
@@ -1533,7 +1533,7 @@
     }
   }
 
-  async function findDailymotionMedia(document, jsonMediaList) {
+  async function findDailymotionMedia(document, resultContainer) {
     let documentUrl = document.URL;
     if (!documentUrl.includes('dailymotion.com/video/')) {
       return;
@@ -1570,7 +1570,7 @@
       }
       // see if we found something:
       if (mediaEntry.qualities.length > 0) {
-        jsonMediaList.mediaList.push(mediaEntry);
+        resultContainer.mediaList.push(mediaEntry);
         return;
       }
     }
@@ -1579,7 +1579,7 @@
     }
   }
 
-  async function findMySpassMedia(document, jsonMediaList) {
+  async function findMySpassMedia(document, resultContainer) {
     let player = null;
     // MySpass:
     if (!player && document.querySelector('div.videoPlayerWrapper') && 'MyspassPlayer' in window) {
@@ -1597,7 +1597,7 @@
       let videoUrl = getAbsoluteUrl(videoInfo.videoUrl);
       let videoType = getExtensionFromUrl(videoUrl);
       let videoQuality = null;
-      jsonMediaList.mediaList.push({
+      resultContainer.mediaList.push({
         "title": videoTitle,
         "description": videoDescription,
         "qualities": [{
@@ -1612,8 +1612,9 @@
     }
   }
  
-  async function findVimeoMedia(document, jsonMediaList) {
+  async function findVimeoMedia(document, resultContainer) {
     let player = null;
+    let vimeoConfigUrl = null;
     // Vimeo:
     if (!player && document.querySelector('.player video') && 'vimeo' in window) {
       debug("found Vimeo page");
@@ -1624,10 +1625,34 @@
       debug("found VimeoPlayer page");
       player = window.VimeoPlayer;
     }        
-    if (!player) {
+    // redirect to VimeoPlayer in case of vimeo page and no videos found
+    if (!player && 'vimeo' in window) {
+      debug("found Vimeo page without player - trying to redirect to VimeoPlayer");
+      if (window.vimeo && window.vimeo.clip_page_config && window.vimeo.clip_page_config.clip && window.vimeo.clip_page_config.clip.id) {
+        let vimeoVideoId = window.vimeo.clip_page_config.clip.id;
+        vimeoPlaybackUrl = 'https://player.vimeo.com/video/' + vimeoVideoId;
+        vimeoConfigUrl = 'https://player.vimeo.com/video/' + vimeoVideoId + '/config';
+        // add redirection linkt to downloadui
+        
+        let redirectEntry = {
+          "title": "open in video VimeoPlayer",
+          "description": "",
+          "qualities": [{
+              "url": vimeoPlaybackUrl,
+              "type": "",
+              "quality": "",
+              "islive": false
+            }
+          ]
+        };
+        resultContainer.mediaList.push(redirectEntry);
+        //return;
+      }
+    }
+    if (!player && !vimeoConfigUrl) {
       return;     
     }
-    debug("found Vimeo media page with player object");
+    debug("found Vimeo media page with player object or valid vimeoConfigUrl");
     // retrieve media info from active player properties -> this can break if players change
     //debugJson(player.clip_page_config);
     let vimeoConfig = null;
@@ -1635,9 +1660,8 @@
       debug("found Vimeo clips data (direct access to vimeoConfig)");
       vimeoConfig = player.clips[player.clip_page_config.clip.id];
     }
-    if (!vimeoConfig) {
+    if (!vimeoConfig && !vimeoConfigUrl) {
       // going the longer way over videoConfig Json info (to be downloaded)
-      vimeoConfigUrl = null;
       if (player && player.clip_page_config && player.clip_page_config.player) {
         vimeoConfigUrl = player.clip_page_config.player.config_url;
       }
@@ -1647,14 +1671,14 @@
       if (!vimeoConfigUrl && player.clip_page_config && player.clip_page_config.clip && player.clip_page_config.clip.id) {
         vimeoConfigUrl = 'https://player.vimeo.com/video/' + player.clip_page_config.clip.id + '/config';
       }
-      if (vimeoConfigUrl) {
-        debug("found Vimeo ConfigUrl");
-        //debug("vimeoConfigUrl: " + vimeoConfigUrl);
-        let httpRequest = new HttpRequest();
-        let response = await httpRequest.downloadAsync(vimeoConfigUrl);
-        let vimeoConfigJson = response.data;
-        vimeoConfig = JSON.parse(vimeoConfigJson);
-      }
+    }
+    if (vimeoConfigUrl) {
+      debug("found Vimeo ConfigUrl");
+      //debug("vimeoConfigUrl: " + vimeoConfigUrl);
+      let httpRequest = new HttpRequest();
+      let response = await httpRequest.downloadAsync(vimeoConfigUrl);
+      let vimeoConfigJson = response.data;
+      vimeoConfig = JSON.parse(vimeoConfigJson);
     }
     if (vimeoConfig) {
       debug("found Vimeo Config");
@@ -1721,7 +1745,7 @@
       }
       // see if we found something:
       if (mediaEntry.qualities.length > 0) {
-        jsonMediaList.mediaList.push(mediaEntry);
+        resultContainer.mediaList.push(mediaEntry);
         return;
       }
     }
@@ -1730,7 +1754,7 @@
     }
   }
 
-  async function findYouTubeMedia(document, jsonMediaList) {
+  async function findYouTubeMedia(document, resultContainer) {
     // YouTube:
     //<ytmusic-player id="player" class="style-scope ytmusic-player-page" mini-player-required_="" video-mode_="" playback-mode="OMV_PREFERRED" player-ui-state_="PLAYER_PAGE_OPEN" player-page-open_="" playable_=""><!--css-build:shady--><dom-if class="style-scope ytmusic-player"><template is="dom-if"></template></dom-if>
     if (!(document.querySelector('#ytd-player') || document.querySelector('ytmusic-player'))) {
@@ -1838,7 +1862,7 @@
         });
       }
       if (entry.qualities.length > 0) {
-        jsonMediaList.mediaList.push(entry);
+        resultContainer.mediaList.push(entry);
       }
     }
     else {
@@ -1846,7 +1870,7 @@
     }
   }
  
-  async function findArdMedia(document, jsonMediaList) {
+  async function findArdMedia(document, resultContainer) {
     let player = null;
     // ARD:
     if (!player && this && '_state' in this && 'playerConfig' in this._state) {
@@ -1864,7 +1888,7 @@
       let videoUrl = getAbsoluteUrl(videoInfo.agfMetaDataSDK.assetid);
       let videoType = getExtensionFromUrl(videoUrl);
       let videoQuality = null;
-      jsonMediaList.mediaList.push({
+      resultContainer.mediaList.push({
         "title": videoTitle,
         "description": videoDescription,
         "qualities": [{
@@ -1901,7 +1925,7 @@
     // try to get video metadata
     try 
     {
-      let jsonMediaList = {
+      let resultContainer = {
         "mediaList": [/*{ 
           "title": "",
           "description": "",
@@ -1919,30 +1943,31 @@
         }*/]
       };
 
-      await findRedBullMedia(document, jsonMediaList);
-      await findServusTVMedia(document, jsonMediaList);
-      await findMySpassMedia(document, jsonMediaList);
-      await findVimeoMedia(document, jsonMediaList);
-      await findYouTubeMedia(document, jsonMediaList);
-      await findDailymotionMedia(document, jsonMediaList);
-      await findArdMedia(document, jsonMediaList);
+      await findRedBullMedia(document, resultContainer);
+      await findServusTVMedia(document, resultContainer);
+      await findMySpassMedia(document, resultContainer);
+      await findVimeoMedia(document, resultContainer);
+      await findYouTubeMedia(document, resultContainer);
+      await findDailymotionMedia(document, resultContainer);
+      await findArdMedia(document, resultContainer);
+      await findAirmeetMedia(document, resultContainer);
         
       // POSTPROCESS AND DISPLAY retrieved media information
       // remove invalid entries
-      for (let i=jsonMediaList.mediaList.length; i>0; i--) {
-        let entry = jsonMediaList.mediaList[i-1];
+      for (let i=resultContainer.mediaList.length; i>0; i--) {
+        let entry = resultContainer.mediaList[i-1];
         for (let j=entry.qualities.length; j>0; j--) {
           if (entry.qualities[j-1].url == null) {
             entry.qualities.pop();
           }
         }
         if (entry.qualities.length < 1) {
-          jsonMediaList.mediaList.pop();
+          resultContainer.mediaList.pop();
         }
       }
 
       // validate mediaList and retry if necessary
-      if (jsonMediaList.mediaList.length < 1) {
+      if (resultContainer.mediaList.length < 1) {
         // try again later
         retryCount = (!retryCount || retryCount < 1) ? 1 : ++retryCount;
         let sleepTime = 500 * retryCount * retryCount * retryCount / 2;
@@ -1952,15 +1977,15 @@
       }
 
       // sort available qualities
-      for (let i = 0; i < jsonMediaList.mediaList.length; i++) {
-        sortQualities(jsonMediaList.mediaList[i].qualities);
+      for (let i = 0; i < resultContainer.mediaList.length; i++) {
+        sortQualities(resultContainer.mediaList[i].qualities);
       }
 
       // resolve m3u8 playlists
       // we need to use Array index operator in order to have a reference to mediaEntry since we are about to modify it
       // therefore we need to use a classical for loop instead of Array.forEach (which would deliver a copy of the mediaEntry)
-      for (let i=0; i<jsonMediaList.mediaList.length; i++) {
-        let mediaEntry = jsonMediaList.mediaList[i];
+      for (let i=0; i<resultContainer.mediaList.length; i++) {
+        let mediaEntry = resultContainer.mediaList[i];
         // we need to run backwards over qualities since we add new entries
         for (let j=mediaEntry.qualities.length; j>0; j--) {
           let quality = mediaEntry.qualities[j-1];
@@ -1979,13 +2004,13 @@
 
       // process title infos
       let defaultTitle = document.title || 'video';
-      for (let i=0; i<jsonMediaList.mediaList.length; i++) {
-        let mediaEntry = jsonMediaList.mediaList[i];
+      for (let i=0; i<resultContainer.mediaList.length; i++) {
+        let mediaEntry = resultContainer.mediaList[i];
         mediaEntry.title = mediaEntry.title || defaultTitle;
       }
  
-      // debug output of retieved media information
-      jsonMediaList.mediaList.forEach((entry) => {
+      // debug output of retrieved media information
+      resultContainer.mediaList.forEach((entry) => {
         entry.qualities.forEach((quality) => {
           debug("Title       : '" + entry.title + "'");
           debug("Description : '" + entry.description + "'");
@@ -2004,9 +2029,9 @@
           debug("------------------------------");
         });
       });
-
+      
       // inject download ui
-      createDownloadUi(jsonMediaList.mediaList, showUiOpen, showAllFormats);
+      createDownloadUi(resultContainer.mediaList, showUiOpen, showAllFormats);
     }
     catch (error)
     {
@@ -2350,8 +2375,34 @@
     script.id = scriptId; //ThisScriptId;
     //script.textContent = '(' + setupScriptCode + ')("' + chromeExtensionScriptUrl.toString() + '");';
     script.textContent = setupScriptCode + ' CodeToInject("' + chromeExtensionScriptUrl.toString() + '");';
-    document.head.appendChild(script);
+    
+    // workaround manifest v3 security limitations
+    // https://stackoverflow.com/questions/46256983/script-causes-refused-to-execute-inline-script-either-the-unsafe-inline-keyw
+    // https://cheatsheetseries.owasp.org/cheatsheets/Content_Security_Policy_Cheat_Sheet.html#Refactoring_inline_code
+    // https://developers.google.com/web/fundamentals/security/csp/#if_you_absolutely_must_use_it
+    // https://content-security-policy.com/examples/meta/
+    // https://content-security-policy.com/nonce/
+    // https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/nonce
+    //<meta http-equiv="Content-Security-Policy" content="default-src 'self';  style-src 'self' 'unsafe-inline';  media-src *;  script-src 'sha256-U/1Cp5Elz9NfczwpPo+2+ttf/q3uGeHkNzfBRlH5crA='">
+    let random = 'rAnd0m';
+    let csp = document.createElement('meta');
+    csp.setAttribute('http-equiv', "Content-Security-Policy");
+    //csp.setAttribute('content', "default-src 'self' 'unsafe-inline' *;  media-src 'self' 'unsafe-inline' *;  style-src 'self' 'unsafe-inline' *;  script-src 'self' 'unsafe-inline' 'sha256-U/1Cp5Elz9NfczwpPo+2+ttf/q3uGeHkNzfBRlH5crA='");
+    csp.setAttribute('content', "default-src 'self' 'unsafe-inline' *;  media-src 'self' 'unsafe-inline' *;  style-src 'self' 'unsafe-inline' *;  script-src 'nonce-" + random + "' 'self' 'unsafe-inline' *;");
+    script.nonce = random;
+    document.body.onload = function() { 
+      console.log("[Media Download] injectCode - script");
+      script.nonce = "";
+      document.head.appendChild(script); 
+    }
+    
+    //console.log("[Media Download] injectCode - csp");
+    //document.head.appendChild(csp)
+
+    //script.nonce = "";
+    //document.head.appendChild(script);
   }
+
 
   //window.onload = function () {
   //  console.log("[Media Download] window.onload");
