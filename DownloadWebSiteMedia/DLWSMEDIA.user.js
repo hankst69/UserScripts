@@ -4,7 +4,7 @@
 // @description Adds a download button to video player pages
 // @copyright   2019-2021, savnt
 // @license     MIT
-// @version     0.5.0
+// @version     0.5.1
 // @grant       none
 // @inject-into page
 // ==/UserScript==
@@ -857,7 +857,7 @@
   class M3u8Playlist {
     //m3u8Master = {
     //  "uri": null,
-    //  "live": false,
+    //  "islive": false,
     //  "streams": [],
     //
     //  "m3u8text": null,
@@ -866,7 +866,7 @@
     //};
     //m3u8Stream = {
     //  "uri": url,           //https://dms.redbull.tv/dms/media/AP-1XCY6DVFN1W11/1920x1080@7556940/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJjYXRlZ29yeSI6InBlcnNvbmFsX2NvbXB1dGVyIiwib3NfZmFtaWx5IjoiaHR0cCIsIm9zX3ZlcnNpb24iOiIiLCJ1aWQiOiIwMmRjMzc1Mi01NjA4LTQ3YWMtOGY3Mi1hNmUwZDE5ZTI3MWYiLCJsYXRpdHVkZSI6MC4wLCJsb25ndGl0dWRlIjowLjAsImNvdW50cnlfaXNvIjoiZGUiLCJhZGRyZXNzIjoiMjAwMzplYTo5NzI4OjIwMDA6YjQ2MDpkZGZhOjJiODg6M2QwMCIsInVzZXItYWdlbnQiOiJNb3ppbGxhLzUuMCAoV2luZG93cyBOVCAxMC4wOyBXaW42NDsgeDY0KSBBcHBsZVdlYktpdC81MzcuMzYgKEtIVE1MLCBsaWtlIEdlY2tvKSBDaHJvbWUvNzQuMC4zNzI5LjE1NyBTYWZhcmkvNTM3LjM2IiwiZGV2aWNlX3R5cGUiOiIiLCJkZXZpY2VfaWQiOiIiLCJpYXQiOjE1NTgwNDQ3NTJ9.sTG_v7V_mGR2DMsvjVC10fOmvpfJR3T4h78Y5VaFa-w=/playlist.m3u8
-    //  "live": false,
+    //  "islive": false,
     //  "mediatype": null,    //AUDIO|VIDEO|MUXED
     //  "codecs": null,       //mp4a.40.2,avc1.4d001f
     //  "language": null,     //de
@@ -898,6 +898,7 @@
     //#EXTM3U
     //#EXT-X-INDEPENDENT-SEGMENTS
     //#EXT-X-VERSION:6
+    //#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="Subtitles",NAME="German",FORCED=NO,LANGUAGE="ger",URI="playlist.m3u8"
     //#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",NAME="German",LANGUAGE="de",AUTOSELECT=YES,URI="FO-26WQ2N6ESBH16.m3u8"
     //#EXT-X-STREAM-INF:BANDWIDTH=7570689,AVERAGE-BANDWIDTH=6110867,CODECS="avc1.640028,mp4a.40.2",RESOLUTION=1920x1080,AUDIO="audio",FRAME-RATE=25.0
     //FO-26WQ2N6ESBH15.m3u8
@@ -932,7 +933,7 @@
             "url": tag.uri,
             "type": 'm3u8',//getExtensionFromUrl(tag.uri),
             "quality": tag.unquotedValueOf('RESOLUTION'),
-            "live": isLive
+            "islive": isLive
           });
           if (tag.valueOf('PROGRESSIVE-URI') != null) {
             let uri = tag.attribute('PROGRESSIVE-URI').valueUnquoted;
@@ -940,7 +941,7 @@
               "url": uri,
               "type": getExtensionFromUrl(uri),
               "quality": tag.unquotedValueOf('RESOLUTION'),
-              "live": false
+              "islive": false
             });
           }
         }
@@ -964,8 +965,32 @@
             "url": tag.uri,
             "type": 'm3u8',//getExtensionFromUrl(tag.uri),
             "quality": quality,
-            "live": isLive,
-            "audio": true
+            "islive": isLive,
+            "isaudio": true
+          });
+        }
+        if (tag.is('EXT-X-MEDIA') && tag.unquotedValueOf('TYPE') == 'SUBTITLES' && tag.uri != null) {
+          m3u8MasterData = m3u8Data;
+          //#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="Subtitles",NAME="German",FORCED=NO,LANGUAGE="ger",URI="playlist.m3u8"
+          let quality = tag.unquotedValueOf('LANGUAGE');
+          if (!quality) {
+            let quname1 = tag.unquotedValueOf('GROUP-ID');
+            let quname2 = tag.unquotedValueOf('NAME');
+            let channels = tag.unquotedValueOf('CHANNELS');
+            quality = quname1;
+            if (quname1 && quname2 && quname2.length > quname1.length) {
+              quality = quname2;
+            }
+            if (channels) {
+              quality += '-' + channels;
+            }
+          }
+          streamQualities.push({
+            "url": tag.uri,
+            "type": 'm3u8',//getExtensionFromUrl(tag.uri),
+            "quality": quality,
+            "islive": isLive,
+            "issubtitle": true
           });
         }
       });
@@ -984,8 +1009,8 @@
           "url": saveUrl,
           "type": 'm3u8',
           "quality": 'master',
-          "live": isLive,
-          "loaded": true,
+          "islive": isLive,
+          "isloaded": true,
           "content": m3u8MasterData
         });
       }
@@ -1004,16 +1029,36 @@
             //return null;
             continue;
           }
+          let blobData = m3u8Data.toString();
+          let blobType = 'm3u8';//streamQuality.type;
+          // special handling for subtitles
+          if (streamQuality.issubtitle && m3u8Data.segments.length == 1) {
+            let url = m3u8Data.segments[0].uri;
+            try {
+              let httpRequest = new HttpRequest();
+              let response = await httpRequest.downloadAsync(url);
+              blobData = response.data;
+              blobType = getExtensionFromUrl(url);
+            }
+            catch (error) {
+              // log the error
+              console.error("loadM3U8StreamQualitiesAsync() exception occured: '" + error + "'");
+              // return empty values
+              blobData = 'error';
+              blobType = 'error';
+            }
+          }
           // create a downloadable blob
-          let saveBlob = new Blob([m3u8Data.toString()], { type: "text/html;charset=UTF-8" });
+          let saveBlob = new Blob([blobData], { type: "text/html;charset=UTF-8" });
           let saveUrl = window.URL.createObjectURL(saveBlob);
           let loadedQuality = {
             "url": saveUrl,
-            "type": 'm3u8',//streamQuality.type,
+            "type": blobType,
             "quality": streamQuality.quality,
-            "live": streamQuality.live,
-            "audio": streamQuality.audio,
-            "loaded": true,
+            "islive": streamQuality.islive,
+            "isaudio": streamQuality.isaudio,
+            "issubtitle": streamQuality.issubtitle,
+            "isloaded": true,
             "content": m3u8Data
           };
           loadedStreamQualities.push(loadedQuality);
@@ -1099,9 +1144,9 @@
           "url": saveUrl,
           "type": 'm3u8',//loadedStreamQuality.type,
           "quality": loadedStreamQuality.quality,
-          "live": loadedStreamQuality.live,
-          "audio": loadedStreamQuality.audio,
-          "loaded": true,
+          "islive": loadedStreamQuality.islive,
+          "isaudio": loadedStreamQuality.isaudio,
+          "isloaded": true,
           "processed": true,
           "content": processedM3U8Data
         };
@@ -1117,7 +1162,7 @@
       debug("muxM3U8StreamQualitiesAsync()");
       let audioStreamQuality = null;
       loadedStreamQualities.forEach((loadedStreamQuality) => {
-        if (loadedStreamQuality && loadedStreamQuality.audio && loadedStreamQuality.content && loadedStreamQuality.content.segments.length > 0) {
+        if (loadedStreamQuality && loadedStreamQuality.isaudio && loadedStreamQuality.content && loadedStreamQuality.content.segments.length > 0) {
           // init with first available audio stream
           if (!audioStreamQuality) {
             audioStreamQuality = loadedStreamQuality;
@@ -1133,7 +1178,7 @@
       let m3u8AudioData = audioStreamQuality ? audioStreamQuality.content : null;
       if (m3u8AudioData) {
         loadedStreamQualities.forEach((loadedStreamQuality) => {
-          if (!loadedStreamQuality || loadedStreamQuality.audio || !loadedStreamQuality.content || loadedStreamQuality.content.segments.length < 1) {
+          if (!loadedStreamQuality || loadedStreamQuality.isaudio || !loadedStreamQuality.content || loadedStreamQuality.content.segments.length < 1) {
             return;
           }
           debug("muxing audio and video stream");
@@ -1208,10 +1253,10 @@
               "url": saveUrl,
               "type": 'm3u8',//loadedStreamQuality.type,
               "quality": loadedStreamQuality.quality,
-              "live": loadedStreamQuality.live,
-              "loaded": true,
+              "islive": loadedStreamQuality.islive,
+              "isloaded": true,
               "processed": true,
-              "muxed": true,
+              "ismuxed": true,
               "muxedAudioQuality": audioStreamQuality.quality,
               "content": new M3U8Data(muxedPlaylist)
             };
@@ -1642,7 +1687,7 @@
             "url": m3u8MasterSrc.url,
             "type": getExtensionFromUrl(m3u8MasterSrc.url),
             "quality": null,
-            "live": isLive
+            "islive": isLive
           });
         }  
       }
@@ -1734,7 +1779,7 @@
           "url": videoUrl,
           "type": videoType,
           "quality": videoQuality,
-          "live": true
+          "islive": true
         });
       }
       else if (videoPlayerResponse.streamingData) {
@@ -1836,11 +1881,11 @@
             "url": null,
             "type": "",
             "quality": "",
-            "audio": false,
-            "live": false,
-            "loaded": false,
+            "isaudio": false,
+            "islive": false,
+            "isloaded": false,
             "processed": false,
-            "muxed": false,
+            "ismuxed": false,
             "content": ""
           }] 
         }*/]
@@ -1892,7 +1937,7 @@
         for (let j=mediaEntry.qualities.length; j>0; j--) {
           let quality = mediaEntry.qualities[j-1];
           if (quality.type && quality.type.toLowerCase().startsWith("m3u8")) {
-            let subQualities = await loadM3U8PlayListQualities(quality.url, quality.live);
+            let subQualities = await loadM3U8PlayListQualities(quality.url, quality.islive);
             if (!quality.quality && subQualities.length > 0) {
               quality.quality = 'master';
             }
@@ -1919,11 +1964,12 @@
           debug("Url         : '" + quality.url + "'");
           debug("Type        : '" + quality.type + "'");
           debug("Quality     : '" + quality.quality + "'");
-          debug("Audio       : '" + quality.audio + "'");
-          debug("Live        : '" + quality.live + "'");
-          debug("Loaded      : '" + quality.loaded + "'");
+          debug("Audio       : '" + quality.isaudio + "'");
+          debug("Subtitle    : '" + quality.issubtitle + "'");
+          debug("Live        : '" + quality.islive + "'");
+          debug("Loaded      : '" + quality.isloaded + "'");
           debug("Processed   : '" + quality.processed + "'");
-          debug("Muxed       : '" + quality.muxed + "'");
+          debug("Muxed       : '" + quality.ismuxed + "'");
           quality.content == undefined ?
             debug("Content     : 'undefined'") :
             debug("Content     : '" + (quality.content.toString().length > 0) ? quality.content.toString().substr(0, 7) + "...'" : "'");
@@ -1946,7 +1992,7 @@
     mediaList.forEach((entry) => {
       entry.qualities.forEach(async (quality) => {
         let isM3u8 = quality.type.toLowerCase().startsWith('m3u8');
-        let showAlways = !isM3u8 || (isM3u8 && ((quality.live || quality.loaded) && !quality.muxed));
+        let showAlways = !isM3u8 || (isM3u8 && ((quality.islive || quality.isloaded) && !quality.ismuxed));
         skipped += !showAlways;
         if (showAlways || showAllFormats) {
           createDownloadUiAndAddUrl(showUiOpen, showAllFormats, entry.title, entry.description, quality, skipped);
@@ -1969,7 +2015,7 @@
 
     let mediaType = downloadInfo.type.toLowerCase();
     let quality = downloadInfo.quality.toLowerCase();
-    let isLive = downloadInfo.live;
+    let isLive = downloadInfo.islive;
     let isM3U8 = mediaType.startsWith('m3u8');
 
     // *** build filename ***
@@ -1982,21 +2028,22 @@
       //  "url": null,
       //  "type": "",
       //  "quality": "",
-      //  "audio": false,
-      //  "live": false,
-      //  "loaded": false,
+      //  "isaudio": false,
+      //  "islive": false,
+      //  "isloaded": false,
       //  "processed": false,
-      //  "muxed": false,
+      //  "ismuxed": false,
       //  "muxedAudioQuality": null,
       //  "content": ""
       //}] 
       let qualityName = quality;
-      qualityName = (downloadInfo.audio ? 'audio_' + quality : qualityName);
-      qualityName = (downloadInfo.muxed ? 'muxed ' + qualityName + ' ' + downloadInfo.muxedAudioQuality : qualityName);
-      qualityName = (downloadInfo.processed && !downloadInfo.muxed ? 'processed ' + qualityName : qualityName);
-      //qualityName = (downloadInfo.loaded && !downloadInfo.processed && !downloadInfo.muxed ? 'loaded ' + qualityName : qualityName);
-      qualityName = (downloadInfo.live ? 'live ' + qualityName : qualityName);
-      qualityName = (isM3U8 && !downloadInfo.loaded ? 'original ' + qualityName : qualityName);
+      qualityName = (downloadInfo.isaudio ? 'audio_' + quality : qualityName);
+      qualityName = (downloadInfo.issubtitle ? 'sub_' + quality : qualityName);
+      qualityName = (downloadInfo.ismuxed ? 'muxed ' + qualityName + ' ' + downloadInfo.muxedAudioQuality : qualityName);
+      qualityName = (downloadInfo.processed && !downloadInfo.ismuxed ? 'processed ' + qualityName : qualityName);
+      //qualityName = (downloadInfo.isloaded && !downloadInfo.processed && !downloadInfo.ismuxed ? 'loaded ' + qualityName : qualityName);
+      qualityName = (downloadInfo.islive ? 'live ' + qualityName : qualityName);
+      qualityName = (isM3U8 && !downloadInfo.isloaded ? 'original ' + qualityName : qualityName);
       fileName = fileName + " (" + qualityName + ")";
     }
     // add filextension matching the stream container format (.mp4, .m3u8, ...)
