@@ -5,7 +5,7 @@
 // @include     https://www.redbull.com/*
 // @copyright   2019-2021, savnt
 // @license     MIT
-// @version     0.4.1
+// @version     0.4.2
 // @grant       none
 // @inject-into page
 // ==/UserScript==
@@ -112,7 +112,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
   function debug(message) {
     console.log("[Media Download] " + message);
     // simulate console on I(Pad)OS Safari browsers
-    //if(navigator.userAgent.indexOf("Safari") != -1)
+    if (!navigator.userAgent.includes("Windows")) //if(navigator.userAgent.includes("Safari") && !navigator.userAgent.includes("Chrome"))
     {
       let DEBUG_ID = "DLWSMEDIA_DEBUG";
       let div = document.getElementById(DEBUG_ID);
@@ -781,7 +781,6 @@ function CodeToInject(chromeExtensionScriptUrl) {
         player = window[playerName];
       }
     }
- 
     if (!player) {
       return;     
     }
@@ -827,7 +826,6 @@ function CodeToInject(chromeExtensionScriptUrl) {
     if (!player) {
       return;     
     }
-   
     debug("found ServusTV media page with player object");
     // retrieve media info from active player properties -> this can break if players change
     if ('getVidMeta' in player) { 
@@ -891,16 +889,14 @@ function CodeToInject(chromeExtensionScriptUrl) {
  
   async function findVimeoMedia(document, jsonMediaList) {
     let player = null;
-    let isVimeoPlayer = false;
     // Vimeo:
     if (!player && document.querySelector('.player video') && 'vimeo' in window) {
       debug("found Vimeo page");
       player = window.vimeo;
     }
-    // VimeoPlayer:        
+    // VimeoPlayer:
     if (!player && document.querySelector('.player video') && 'VimeoPlayer' in window) {
       debug("found VimeoPlayer page");
-      isVimeoPlayer = true;
       player = window.VimeoPlayer;
     }        
     if (!player) {
@@ -908,130 +904,98 @@ function CodeToInject(chromeExtensionScriptUrl) {
     }
     debug("found Vimeo media page with player object");
     // retrieve media info from active player properties -> this can break if players change
-    //debug(JSON.stringify(player.clip_page_config));
-    if (player.clip_page_config && 'clips' in player) {
-      debug("found Vimeo media data");
-      //Vimeo
-      let videoId = player.clip_page_config.clip.id;
-      let videoInfo = player.clips[videoId];
-      let videoTitle = videoInfo.video.title;
+    //debugJson(player.clip_page_config);
+    let vimeoConfig = null;
+    if (player && player.clip_page_config && player.clips && player.clip_page_config.clip) {
+      debug("found Vimeo clips data (direct access to vimeoConfig)");
+      vimeoConfig = player.clips[player.clip_page_config.clip.id];
+    }
+    if (!vimeoConfig) {
+      // going the longer way over videoConfig Json info (to be downloaded)
+      vimeoConfigUrl = null;
+      if (player && player.clip_page_config && player.clip_page_config.player) {
+        vimeoConfigUrl = player.clip_page_config.player.config_url;
+      }
+      if (!vimeoConfigUrl && document.URL.includes('player.vimeo.com')) {
+        vimeoConfigUrl = document.URL + '/config';
+      }
+      if (vimeoConfigUrl) {
+        debug("found Vimeo ConfigUrl");
+        //debug("vimeoConfigUrl: " + vimeoConfigUrl);
+        let response = await loadWebResourceAsync(vimeoConfigUrl);
+        let vimeoConfigJson = response.data;
+        vimeoConfig = JSON.parse(vimeoConfigJson);
+      }
+    }
+    if (vimeoConfig) {
+      debug("found Vimeo Config");
+      //debugJson("vimeoConfig:\n", vimeoConfig);
+      let videoTitle = vimeoConfig.video.title;
       let videoDescription = "";
-      let entry = {
+      //if (player && player.clip_page_config && player.clip_page_config.clip && player.clip_page_config.clip.title) {
+      //  videoTitle = player.clip_page_config.clip.title;
+      //}
+      if (player && player.clip_page_config && player.clip_page_config.clip && player.clip_page_config.clip.description) {
+        videoDescription = player.clip_page_config.clip.description;
+      }
+      let mediaEntry = {
         "title": videoTitle,
         "description": videoDescription,
         "qualities": []
       };
-      // sort streams descending by video resolution (by comparison of 'width' property)
-      let streams = videoInfo.request.files.progressive;
-      streams.sort( (streamA,streamB) => {
-          return streamB.width - streamA.width;
-      });
-      // iterate over video stream infos
-      for (let i=0; i<streams.length; i++) {
-        let streamInfo = streams[i];
-        let videoUrl = getAbsoluteUrl(streamInfo.url);
-        let videoType = getExtensionFromUrl(videoUrl);
-        let videoQuality = streamInfo.quality;
-        entry.qualities.push({
-          "url": videoUrl,
-          "type": videoType,
-          "quality": videoQuality,
-          "adfree": false,
-          "content": ""              
-        });
-      }
-      jsonMediaList.mediaList.push(entry);
-    }    
-    else if (document.URL.includes('player.vimeo.com')) {
-      //VimeoPlayer
-      debug("found VimeoPlayer");
-      let vimeoConfigUrl = document.URL + '/config'; //https://player.vimeo.com/video/497651456/config
-      let response = await loadWebResourceAsync(vimeoConfigUrl);
-      let vimeoConfigJson = response.data;
-      let vimeoConfig = JSON.parse(vimeoConfigJson);
-      let videoTitle = vimeoConfig.video.title;
-      let videoDescription = "";
-      if (vimeoConfig.request.files.progressive) {
-        debug("found VimeoPlayer media data");
-        let progressive = vimeoConfig.request.files.progressive;
-        for (let i=0; i<progressive.length; i++) {
-          let videoUrl = getAbsoluteUrl(progressive[i].url);
-          let videoType = getExtensionFromUrl(videoUrl);
-          let videoQuality = progressive[i].height;
-          jsonMediaList.mediaList.push({
-            "title": videoTitle,
-            "description": videoDescription,
-            "qualities": [{
-              "url": videoUrl,
-              "type": videoType,
-              "quality": videoQuality,
-              "adfree": false,
-              "content": ""
-            }]
-          });
-        }
-      }
-      else if (vimeoConfig.request.files.hls.cdns.akamai_live) {
-        debug("found VimeoPlayer live stream");
-        //let videoUrl = getAbsoluteUrl(vimeoConfig.request.files.hls.cdns.akamai_live.url);
-        let videoUrl = vimeoConfig.request.files.hls.cdns.akamai_live.url;
-        let videoType = getExtensionFromUrl(videoUrl);
-        let videoQuality = null;
-        jsonMediaList.mediaList.push({
-          "title": videoTitle,
-          "description": videoDescription,
-          "qualities": [{
-            "url": videoUrl,
-            "type": videoType,
-            "quality": videoQuality,
-            "adfree": false,
-            "content": ""
-          }]
-        });
-      }
-    }
-    else if (player.clip_page_config) {
-      debug("found standard Vimeo data");
-      let mediaEntry = {
-        "title": player.clip_page_config.clip.title,
-        "description": player.clip_page_config.clip.description,
-        "qualities": []
-      };
-      let vimeoConfigUrl = player.clip_page_config.player.config_url;
-      //debug("vimeoConfigUrl: " + vimeoConfigUrl);
-      let response = await loadWebResourceAsync(vimeoConfigUrl);
-      let vimeoConfigJson = response.data;
-      let vimeoConfig = JSON.parse(vimeoConfigJson);
-      //debugJson("vimeoConfig:\n", vimeoConfig);
-      //debugJson("vimeoConfig.request.files.dash[]:\n", vimeoConfig.request.files.dash);
-      //debugJson("vimeoConfig.request.files.hls[]:\n", vimeoConfig.request.files.hls);
       //debugJson("vimeoConfig.request.files.progressive[]:\n", vimeoConfig.request.files.progressive);
       if (vimeoConfig && vimeoConfig.request && vimeoConfig.request.files && vimeoConfig.request.files.progressive) {
         debug("found Vimeo progressive formats");
-        vimeoConfig.request.files.progressive.forEach((format)=>{
+        //if (mediaEntry.qualities.length < 1)
+        {
+          // add media download info
+          vimeoConfig.request.files.progressive.forEach((format)=>{
+            mediaEntry.qualities.push({
+              "url": format.url,
+              "type": getExtensionFromMimeType(format.mime),
+              "quality": format.quality,
+              "adfree": false,
+              "content": ""
+            });
+          });
+        }
+      }
+      //debugJson("vimeoConfig.request.files.hls[]:\n", vimeoConfig.request.files.hls);
+      if (vimeoConfig && vimeoConfig.request && vimeoConfig.request.files && vimeoConfig.request.files.hls) {
+        debug("found Vimeo hls formats");
+        //if (mediaEntry.qualities.length < 1)
+        {
+          // todo: add media download info
+        }
+      }
+      //debugJson("vimeoConfig.request.files.dash[]:\n", vimeoConfig.request.files.dash);
+      if (vimeoConfig && vimeoConfig.request && vimeoConfig.request.files && vimeoConfig.request.files.dash) {
+        debug("found Vimeo dash formats");
+        //if (mediaEntry.qualities.length < 1)
+        {
+          // todo: add media download info
+        }
+      }
+      // live video (from hls section)
+      if (vimeoConfig && vimeoConfig.request && vimeoConfig.request.files && vimeoConfig.request.files.hls && vimeoConfig.request.files.hls.cdns && vimeoConfig.request.files.hls.cdns.akamai_live) {
+        debug("found Vimeo live stream");
+        //if (mediaEntry.qualities.length < 1)
+        {
+          // todo: add media download info
           mediaEntry.qualities.push({
-            "url": format.url,
-            "type": getExtensionFromMimeType(format.mime),
-            "quality": format.quality,
+            "url": vimeoConfig.request.files.hls.cdns.akamai_live.url,
+            "type": getExtensionFromUrl(vimeoConfig.request.files.hls.cdns.akamai_live.url),
+            "quality": null,
             "adfree": false,
             "content": ""
           });
-        });
+        }
       }
-      if (vimeoConfig && vimeoConfig.request && vimeoConfig.request.files && vimeoConfig.request.files.hls) {
-        debug("found Vimeo hls formats");
+      // see if we found something:
+      if (mediaEntry.qualities.length > 0) {
+        jsonMediaList.mediaList.push(mediaEntry);
+        return;
       }
-      if (vimeoConfig && vimeoConfig.request && vimeoConfig.request.files && vimeoConfig.request.files.hls && vimeoConfig.request.files.hls.cdns && vimeoConfig.request.files.hls.cdns.akamai_live) {
-        debug("found Vimeo live stream");
-        mediaEntry.qualities.push({
-          "url": vimeoConfig.request.files.hls.cdns.akamai_live.url,
-          "type": getExtensionFromUrl(vimeoConfig.request.files.hls.cdns.akamai_live.url),
-          "quality": null,
-          "adfree": false,
-          "content": ""
-        });
-      }
-      jsonMediaList.mediaList.push(mediaEntry);
     }
     else {
       debug("could not extract Vimeo media"); 
@@ -1039,9 +1003,13 @@ function CodeToInject(chromeExtensionScriptUrl) {
   }
  
   async function findYouTubeMedia(document, jsonMediaList) {
+    // YouTube:
+    //<ytmusic-player id="player" class="style-scope ytmusic-player-page" mini-player-required_="" video-mode_="" playback-mode="OMV_PREFERRED" player-ui-state_="PLAYER_PAGE_OPEN" player-page-open_="" playable_=""><!--css-build:shady--><dom-if class="style-scope ytmusic-player"><template is="dom-if"></template></dom-if>
+    if (!(document.querySelector('#ytd-player') || document.querySelector('ytmusic-player'))) {
+      return;
+    }
     let player = null;
-    // YouTube:        
-    if (!player && document.querySelector('#ytd-player') && 'ytplayer' in window) {
+    if (!player && 'ytplayer' in window) {
       debug('window.ytplayer');
       player = window.ytplayer;
     }
@@ -1049,10 +1017,10 @@ function CodeToInject(chromeExtensionScriptUrl) {
       debug('window.yt.player');
       player = window.yt ? window.yt.player : null;
     }
-    if (!player || !player.config && 'getPlayer' in window) {
-      debug('window.getPlayer()');
-      player = window.getPlayer();
-    }
+    //if (!player || !player.config && 'getPlayer' in window) {
+    //  debug('window.getPlayer()');
+    //  player = window.getPlayer();
+    //}
     //if (!player && 'yt' in window) {
     //  debug('window.yt');
     //  player = window.yt;
