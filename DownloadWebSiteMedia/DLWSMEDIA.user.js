@@ -112,7 +112,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
       cb();
     } else {
       debug("injecting script with url:'" + url + "'");
-      var script = document.createElement("script");
+      let script = document.createElement("script");
       script.src = url;
       script.type = 'text/javascript';
       script.onload = cb;
@@ -121,7 +121,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
   };
 
   function createXHR(method, url) {
-    var xhr = new XMLHttpRequest();
+    let xhr = new XMLHttpRequest();
     if ("withCredentials" in xhr) {
       // XHR for Chrome/Firefox/Opera/Safari.
       xhr.open(method, url, true);
@@ -142,7 +142,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
     //   *://*/*
     //   https://rbmn-live.akamaized.net/*
     return new Promise((resolve, reject) => {
-      var xhr = createXHR('GET', url);
+      let xhr = createXHR('GET', url);
       if (!xhr) {
         reject('XHR not supported');
         return;
@@ -178,7 +178,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
       if (url.toLowerCase().startsWith("blob")) {
         return url;
       }
-      var a = document.createElement('a');
+      let a = document.createElement('a');
       a.href = url;
       return a.href;
     }
@@ -187,9 +187,9 @@ function CodeToInject(chromeExtensionScriptUrl) {
 
   function getExtensionFromUrl(url) {
     if (url) {
-      var extPos = url.lastIndexOf('.');
-      var extStr = extPos < 0 ? 'blob' : url.substr(extPos+1);
-      var qustnmrkPos = extStr.indexOf('?');
+      let extPos = url.lastIndexOf('.');
+      let extStr = extPos < 0 ? 'blob' : url.substr(extPos+1);
+      let qustnmrkPos = extStr.indexOf('?');
       if (qustnmrkPos > 0) {
         extStr = extStr.substr(0, qustnmrkPos);
       }
@@ -203,7 +203,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
 
   async function loadM3U8PlayListQualities(m3u8Url) {
     debug("loadM3U8PlayListQualities()");
-    var m3u8PlayList = await loadWebResourceAsync(m3u8Url);
+    let m3u8PlayList = await loadWebResourceAsync(m3u8Url);
     //debug(m3u8PlayList);
     //parse:
     // #EXT-X-STREAM-INF:BANDWIDTH=7556940,AVERAGE-BANDWIDTH=5745432,RESOLUTION=1920x1080,CODECS="avc1.640028,mp4a.40.2"
@@ -211,17 +211,17 @@ function CodeToInject(chromeExtensionScriptUrl) {
     //or:
     // #EXT-X-STREAM-INF:BANDWIDTH=1838389,AVERAGE-BANDWIDTH=1461672,RESOLUTION=960x540,CODECS="mp4a.40.2,avc1.4d001f"
     // AA-1Z4QM5U2W1W12_FO-1Z6B52KKN5N11.m3u8
-    var qualities = [];
-    var m3u8Lines = m3u8PlayList.split('#');
+    let qualities = [];
+    let m3u8Lines = m3u8PlayList.split('#');
     m3u8Lines.forEach((line) => {
       //debug(line);
-      var trimedLine = line.trim();
+      let trimedLine = line.trim();
       if (trimedLine.toUpperCase().startsWith('EXT-X-STREAM-INF:')) {
-        var subLines = trimedLine.substr('EXT-X-STREAM-INF:'.length).split('\n');
+        let subLines = trimedLine.substr('EXT-X-STREAM-INF:'.length).split('\n');
         if (subLines.length > 1) {
-          var params = subLines[0].split(',');
-          var url = subLines[1].trim();
-          var resolution = null;
+          let params = subLines[0].split(',');
+          let url = subLines[1].trim();
+          let resolution = null;
           params.forEach((param) => {
             if (param.trim().toUpperCase().startsWith('RESOLUTION=')) {
               resolution = param.trim().substr('RESOLUTION='.length);
@@ -229,20 +229,20 @@ function CodeToInject(chromeExtensionScriptUrl) {
           });
           // complement url if necessary
           if (url && !(url.toLowerCase().startsWith('http'))) {
-            var lastSlashPos = m3u8Url.lastIndexOf('/');
+            let lastSlashPos = m3u8Url.lastIndexOf('/');
             if (lastSlashPos > 0) {
-              var baseUrl = m3u8Url.substr(0,lastSlashPos);
-              var needSlash = !url.startsWith('/');
+              let baseUrl = m3u8Url.substr(0,lastSlashPos);
+              let needSlash = !url.startsWith('/');
               url = baseUrl + (needSlash ? '/' : '') + url;
             }
           }
           // extract videoHeight from resolutuion parameter
-          var videoHeight = 0;
+          let videoHeight = 0;
           if (resolution.toLowerCase().indexOf('x') >= 0) {
-            var widthHeight = resolution.split('x');
+            let widthHeight = resolution.split('x');
             videoHeight = widthHeight.pop();
           }
-          var quality = {
+          let quality = {
             "url": url,
             "type": getExtensionFromUrl(url),
             "quality": videoHeight,
@@ -270,21 +270,21 @@ function CodeToInject(chromeExtensionScriptUrl) {
     if (m3u8PlayList.toUpperCase().indexOf('#EXT-X-PLAYLIST-TYPE:VOD') < 0) {
       return null;
     }
-    var urlList = [];
-    var m3u8Lines = m3u8PlayList.split('#');
+    let urlList = [];
+    let m3u8Lines = m3u8PlayList.split('#');
     m3u8Lines.forEach((line) => {
-      var trimedLine = line.trim();
+      let trimedLine = line.trim();
       if (trimedLine.toUpperCase().startsWith('EXTINF')) {
-        var subLines = trimedLine.split('\n');
+        let subLines = trimedLine.split('\n');
         if (subLines.length > 1) {
           // a valid TS segment line
-          var url = subLines[1].trim();
+          let url = subLines[1].trim();
           // complement url if necessary
           if (url && !(url.toLowerCase().startsWith('http'))) {
-            var lastSlashPos = m3u8Url.lastIndexOf('/');
+            let lastSlashPos = m3u8Url.lastIndexOf('/');
             if (lastSlashPos > 0) {
-              var baseUrl = m3u8Url.substr(0,lastSlashPos);
-              var needSlash = !url.startsWith('/');
+              let baseUrl = m3u8Url.substr(0,lastSlashPos);
+              let needSlash = !url.startsWith('/');
               url = baseUrl + (needSlash ? '/' : '') + url;
             }
           }
@@ -293,7 +293,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
       }
     });
     // return urlList and adapted m3u8PlayList
-    var result = {
+    let result = {
       "urlList": urlList,
       "vodPlayList": m3u8PlayList
     };
@@ -332,36 +332,36 @@ function CodeToInject(chromeExtensionScriptUrl) {
     if (m3u8PlayList.toUpperCase().indexOf('#EXT-X-PLAYLIST-TYPE:VOD') < 0) {
       return null;
     }
-    var urlList = [];
-    var newVodPlayList = '';
-    var lastValidSegment = -1;
-    var m3u8Lines = m3u8PlayList.split('#');
+    let urlList = [];
+    let newVodPlayList = '';
+    let lastValidSegment = -1;
+    let m3u8Lines = m3u8PlayList.split('#');
     m3u8Lines.forEach((line) => {
-      var trimedLine = line.trim();
+      let trimedLine = line.trim();
       if (trimedLine.toUpperCase().startsWith('EXTINF')) {
-        var subLines = trimedLine.split('\n');
+        let subLines = trimedLine.split('\n');
         if (subLines.length > 1) {
           // a valid TS segment line
-          var url = subLines[1].trim();
+          let url = subLines[1].trim();
           // complement url if necessary
           if (url && !(url.toLowerCase().startsWith('http'))) {
-            var lastSlashPos = m3u8Url.lastIndexOf('/');
+            let lastSlashPos = m3u8Url.lastIndexOf('/');
             if (lastSlashPos > 0) {
-              var baseUrl = m3u8Url.substr(0,lastSlashPos);
-              var needSlash = !url.startsWith('/');
+              let baseUrl = m3u8Url.substr(0,lastSlashPos);
+              let needSlash = !url.startsWith('/');
               url = baseUrl + (needSlash ? '/' : '') + url;
             }
           }
           if (url.toLowerCase().endsWith('.ts')) {
-            var slashPos = url.lastIndexOf('/');
+            let slashPos = url.lastIndexOf('/');
             if (slashPos > 0) {
-              var tsFile = url.substr(slashPos+1);
-              var dotPos = tsFile.lastIndexOf('.');
+              let tsFile = url.substr(slashPos+1);
+              let dotPos = tsFile.lastIndexOf('.');
               if (dotPos > 0) {
-                var segmentNumberName = tsFile.substr(0,dotPos);
-                var segmentNumber = parseInt(segmentNumberName);
+                let segmentNumberName = tsFile.substr(0,dotPos);
+                let segmentNumber = parseInt(segmentNumberName);
                 if (!isNaN(segmentNumber)) {
-                  var addSegment = false;
+                  let addSegment = false;
                   if (lastValidSegment < 0) {
                     // first valid segment
                     addSegment = true;
@@ -370,7 +370,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
                   else if (segmentNumber > lastValidSegment) {
                     // this is a simple parsing mechanism only matching above documented scenario!
                     // do some validations
-                    var missingSegments = segmentNumber - lastValidSegment - 1;
+                    let missingSegments = segmentNumber - lastValidSegment - 1;
                     if (missingSegments > 0) {
                       debug("missing " + missingSegments + " segment(s)");
                     }
@@ -394,7 +394,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
       }
     });
     // return urlList and adapted m3u8PlayList
-    var result = {
+    let result = {
       "urlList": urlList,
       "vodPlayList": newVodPlayList
     };
@@ -403,16 +403,16 @@ function CodeToInject(chromeExtensionScriptUrl) {
 
   async function createAdFreeVodPlayListAsync(m3u8Url, quality) {
     debug("createAdFreeVodPlayListAsync()");
-    var m3u8PlayList = await loadWebResourceAsync(m3u8Url);
-    var adFreeResult = getAdFreeUrlListFromM3U8VodPlayList(m3u8PlayList);
+    let m3u8PlayList = await loadWebResourceAsync(m3u8Url);
+    let adFreeResult = getAdFreeUrlListFromM3U8VodPlayList(m3u8PlayList);
     if (!adFreeResult || !adFreeResult.vodPlayList) {
       return null;
     }
     //debug(adFreeResult.vodPlayList);
     // create a downloadlink to this blob
-    var saveBlob = new Blob([adFreeResult.vodPlayList], { type: "text/html;charset=UTF-8" });
-    var saveUrl = window.URL.createObjectURL(saveBlob);
-    var quali = {
+    let saveBlob = new Blob([adFreeResult.vodPlayList], { type: "text/html;charset=UTF-8" });
+    let saveUrl = window.URL.createObjectURL(saveBlob);
+    let quali = {
       "url": saveUrl,
       "type": "m3u8",
       "quality": quality,
@@ -423,15 +423,15 @@ function CodeToInject(chromeExtensionScriptUrl) {
   }
 
   function stringToUint8Array(str) {
-    //var buf = new ArrayBuffer(str.length*2); // 2 bytes for each char
-    //var srcBufView = new Uint16Array(buf);
-    //var tgtBufView = new Uint8Array(buf);
-    //for (var i=0, strLen=str.length; i < strLen; i++) {
+    //let buf = new ArrayBuffer(str.length*2); // 2 bytes for each char
+    //let srcBufView = new Uint16Array(buf);
+    //let tgtBufView = new Uint8Array(buf);
+    //for (let i=0, strLen=str.length; i < strLen; i++) {
     //  srcBufView[i] = str.charCodeAt(i);
     //}
     //return tgtBufView;
-    var ui8buf = new Uint8Array(str.length);
-    for (var i=0, strLen=str.length; i < strLen; i++) {
+    let ui8buf = new Uint8Array(str.length);
+    for (let i=0, strLen=str.length; i < strLen; i++) {
       ui8buf[i] = str.charCodeAt(i);
     }
     return ui8buf;
@@ -442,33 +442,23 @@ function CodeToInject(chromeExtensionScriptUrl) {
     if (!m3u8Content) {
       m3u8Content = await loadWebResourceAsync(m3u8Url);
     }
-    //var playListResult = getAdFreeUrlListFromM3U8VodPlayList(m3u8Content);
-    var playListResult = getUrlListFromM3U8VodPlayList(m3u8Content);
-    var urlList = playListResult.urlList;
+    //let playListResult = getAdFreeUrlListFromM3U8VodPlayList(m3u8Content);
+    let playListResult = getUrlListFromM3U8VodPlayList(m3u8Content);
+    let urlList = playListResult.urlList;
     // mux.js
     muxedData = null;
-    for (var i=0; i<urlList.length; i++) {
-      var tsSegmentUrl = urlList[i];
+    for (let i=0; i<urlList.length; i++) {
+      let tsSegmentUrl = urlList[i];
       debug(tsSegmentUrl);
-      var tsSegmentString = await loadWebResourceAsync(tsSegmentUrl);
-      var tsSegment = stringToUint8Array(tsSegmentString);
+      let tsSegmentString = await loadWebResourceAsync(tsSegmentUrl);
+      let tsSegment = stringToUint8Array(tsSegmentString);
       transmuxSegmentsToCombinedMp4(tsSegment, !i);
     }
     transmuxSegmentsToCombinedMp4SaveResultAs(videoFileName);
   }
 
-  async function analysePageAndCreateUiAsync(showUiOpen) {
-    debug("analysePageAndCreateUiAsync()");
-
-    // clean up old ui first
-    deleteDownloadUi();
-    
-    // controller object in DOM and video element available?
-    if(!window) {
-      return;
-    }
+  async function findRedBullMedia(document, jsonMediaList) {
     var player = null;
-    
     // RedBull:
     if (!player && document.querySelector('div.rbPlyr-container') && 'rbPlyr_rbPlyrwrapper' in window) {
       player = window.rbPlyr_rbPlyrwrapper;     
@@ -479,366 +469,443 @@ function CodeToInject(chromeExtensionScriptUrl) {
       if (playerName in window) {
         player = window[playerName];
       }
+    } 
+    if (!player) {
+      return;     
     }
+    debug("found RedBull media page with player object");
+    // retrieve media info from active player properties -> this can break if players change
+    let videoInfo = null;
+    if ('getVidInfo' in player) {
+      videoInfo = player.getVidInfo();
+    } 
+    if ('getVidMeta' in player) {
+      videoInfo = player.getVidMeta();
+    } 
+    if (videoInfo) {
+      var videoTitle = videoInfo.title;
+      var videoDescription = videoInfo.subtitle;
+      var videoUrl = getAbsoluteUrl(videoInfo.videoUrl);
+      var videoType = getExtensionFromUrl(videoUrl);
+      var videoQuality = null;
+      jsonMediaList.mediaList.push({
+        "title": videoTitle,
+        "description": videoDescription,
+        "qualities": [{
+          "url": videoUrl,
+          "type": videoType,
+          "quality": videoQuality,
+          "adfree": false,
+          "content": ""
+        }]
+      });
+    } 
+    else { 
+      debug("could not extract RedBull media"); 
+    }
+  }
+
+  async function findServusTVMedia(document, jsonMediaList) {
+    var player = null;
     // ServusTV:
     if (!player && document.querySelector('div.rbPlyr-container') && 'rbPlyr_rbunifiedplayer1' in window) {
       player = window.rbPlyr_rbunifiedplayer1;
     }
+    if (!player) {
+      return;     
+    }   
+    debug("found ServusTV media page with player object");
+    // retrieve media info from active player properties -> this can break if players change
+    if ('getVidMeta' in player) { 
+      var videoInfo = player.getVidMeta();
+      var videoTitle = videoInfo.title;
+      var videoDescription = videoInfo.subtitle;
+      var videoUrl = getAbsoluteUrl(videoInfo.videoUrl);
+      var videoType = getExtensionFromUrl(videoUrl);
+      var videoQuality = null;
+      jsonMediaList.mediaList.push({
+        "title": videoTitle,
+        "description": videoDescription,
+        "qualities": [{
+          "url": videoUrl,
+          "type": videoType,
+          "quality": videoQuality,
+          "adfree": false,
+          "content": ""
+        }]
+      });
+    }
+    else {
+      debug("could not extract ServusTV media"); 
+    }
+  } 
+
+  async function findMySpassMedia(document, jsonMediaList) {
+    var player = null;
     // MySpass:
     if (!player && document.querySelector('div.videoPlayerWrapper') && 'MyspassPlayer' in window) {
       player = window.MyspassPlayer;
     }
+    if (!player) {
+      return;     
+    }
+    debug("found MySpass media page with player object");
+    // retrieve media info from active player properties -> this can break if players change
+    if ('videoMetadata' in player) { 
+      var videoInfo = player.videoMetadata;
+      var videoTitle = videoInfo.title;
+      var videoDescription = videoInfo.description;
+      var videoUrl = getAbsoluteUrl(videoInfo.videoUrl);
+      var videoType = getExtensionFromUrl(videoUrl);
+      var videoQuality = null;
+      jsonMediaList.mediaList.push({
+        "title": videoTitle,
+        "description": videoDescription,
+        "qualities": [{
+          "url": videoUrl,
+          "type": videoType,
+          "quality": videoQuality,
+          "adfree": false,
+          "content": ""
+        }]
+      });
+    }
+    else {
+      debug("could not extract MySpass media"); 
+    }
+  }
+ 
+  async function findVimeoMedia(document, jsonMediaList) {
+    var player = null;
+    var isVimeoPlayer = false;
     // Vimeo:
     if (!player && document.querySelector('.player video') && 'vimeo' in window) {
+      debug("found Vimeo page");
       player = window.vimeo;
     }
     // VimeoPlayer:        
     if (!player && document.querySelector('.player video') && 'VimeoPlayer' in window) {
+      debug("found VimeoPlayer page");
+      isVimeoPlayer = true;
       player = window.VimeoPlayer;
     }        
+    if (!player) {
+      return;     
+    }
+    debug("found Vimeo media page with player object");
+    // retrieve media info from active player properties -> this can break if players change
+    if ('clips' in player) {
+      debug("found Vimeo media data");
+      //Vimeo
+      var videoId = player.clip_page_config.clip.id;
+      var videoInfo = player.clips[videoId];
+      var videoTitle = videoInfo.video.title;
+      var videoDescription = "";
+      var entry = {
+        "title": videoTitle,
+        "description": videoDescription,
+        "qualities": []
+      };
+      // sort streams descending by video resolution (by comparison of 'width' property)
+      var streams = videoInfo.request.files.progressive;
+      streams.sort( (streamA,streamB) => {
+          return streamB.width - streamA.width;
+      });
+      // iterate over video stream infos
+      for (i=0; i<streams.length; i++) {
+        var streamInfo = streams[i];
+        var videoUrl = getAbsoluteUrl(streamInfo.url);
+        var videoType = getExtensionFromUrl(videoUrl);
+        var videoQuality = streamInfo.quality;
+        entry.qualities.push({
+          "url": videoUrl,
+          "type": videoType,
+          "quality": videoQuality,
+          "adfree": false,
+          "content": ""              
+        });
+      }
+      jsonMediaList.mediaList.push(entry);
+    }
+    else if (player.clip_page_config) {
+      debug("found Vimeo live data");
+      var videoTitle = player.clip_page_config.clip.title;
+      var videoDescription = player.clip_page_config.clip.description;
+      var vimeoConfigUrl = player.clip_page_config.player.config_url;
+      var vimeoConfigJson = await loadWebResourceAsync(vimeoConfigUrl);
+      var vimeoConfig = JSON.parse(vimeoConfigJson);
+      var videoUrl = vimeoConfig.request.files.hls.cdns.akamai_live.url;
+      var videoType = getExtensionFromUrl(videoUrl);
+      var videoQuality = null;
+        jsonMediaList.mediaList.push({
+          "title": videoTitle,
+          "description": videoDescription,
+          "qualities": [{
+            "url": videoUrl,
+            "type": videoType,
+            "quality": videoQuality,
+            "adfree": false,
+            "content": ""
+          }]
+        });
+    }
+    else if (document.URL.includes('player.vimeo.com')) {
+      //VimeoPlayer
+      var vimeoConfigUrl = document.URL + '/config'; //https://player.vimeo.com/video/497651456/config
+      var vimeoConfigJson = await loadWebResourceAsync(vimeoConfigUrl);
+      var vimeoConfig = JSON.parse(vimeoConfigJson);
+      var videoTitle = vimeoConfig.video.title;
+      var videoDescription = "";
+      if (vimeoConfig.request.files.progressive) {
+        debug("found VimeoPlayer media data");
+        var progressive = vimeoConfig.request.files.progressive;
+        for (var i=0; i<progressive.length; i++) {
+          var videoUrl = getAbsoluteUrl(progressive[i].url);
+          var videoType = getExtensionFromUrl(videoUrl);
+          var videoQuality = progressive[i].height;
+          jsonMediaList.mediaList.push({
+            "title": videoTitle,
+            "description": videoDescription,
+            "qualities": [{
+              "url": videoUrl,
+              "type": videoType,
+              "quality": videoQuality,
+              "adfree": false,
+              "content": ""
+            }]
+          });
+        }
+      }
+      else if (vimeoConfig.request.files.hls.cdns.akamai_live) {
+        debug("found VimeoPlayer dash data");
+        //var videoUrl = getAbsoluteUrl(vimeoConfig.request.files.hls.cdns.akamai_live.url);
+        var videoUrl = vimeoConfig.request.files.hls.cdns.akamai_live.url;
+        var videoType = getExtensionFromUrl(videoUrl);
+        var videoQuality = null;
+        jsonMediaList.mediaList.push({
+          "title": videoTitle,
+          "description": videoDescription,
+          "qualities": [{
+            "url": videoUrl,
+            "type": videoType,
+            "quality": videoQuality,
+            "adfree": false,
+            "content": ""
+          }]
+        });
+      }
+    }
+    else {
+      debug("could not extract Vimeo media"); 
+    }
+  }
+ 
+  async function findYouTubeMedia(document, jsonMediaList) {
+    var player = null;
     // YouTube:        
     if (!player && document.querySelector('#ytd-player') && 'ytplayer' in window) {
       player = window.ytplayer;
-    }        
+    }
     //if (!player && document.querySelector('div#player.ytd-watch-flexy') && 'ytplayer' in window) {
     //  player = window.ytplayer;
     //}        
+    if (!player) {
+      return;     
+    }
+    debug("found YouTube media page with player object");
+    // retrieve media info from active player properties -> this can break if players change
+    if ((player.config && player.config.args && player.config.args.video_id) &&
+        (  player.player_response
+        || player.playerResponse
+        || player.config.args.player_response
+        || player.config.args.raw_player_response)) {
+
+      var plrResponseJson = player.player_response || player.playerResponse || player.config.args.player_response;
+      var videoPlayerResponse = plrResponseJson ? JSON.parse(plrResponseJson) : null;
+      videoPlayerResponse = videoPlayerResponse || player.config.args.raw_player_response;
+
+      var videoID = player.config.args.video_id;
+
+      var videoTitle=document.title || 'video';
+      videoTitle=videoTitle.replace(/\s*\-\s*YouTube$/i, '').replace(/'/g, '\'').replace(/^\s+|\s+$/g, '').replace(/\.+$/g, '');
+      videoTitle=videoTitle.replace(/[:"\?\*]/g, '').replace(/[\|\\\/]/g, '_'); //Mac, Linux, Windows
+      if (((window.navigator.userAgent || '').toLowerCase()).indexOf('windows') >= 0) {
+        videoTitle=videoTitle.replace(/#/g, '').replace(/&/g, '_'); //Windows
+      } else {
+        videoTitle=videoTitle.replace(/#/g, '%23').replace(/&/g, '%26'); //Mac, Linux
+      }
+      videoTitle=videoTitle.replace(/^\([0-9][0-9][0-9]\) /, '');
+      
+      if (videoPlayerResponse.streamingData && videoPlayerResponse.streamingData.hlsManifestUrl) {
+        // add youtube live media stream info for download
+        var videoDescription = "";
+        var videoUrl = getAbsoluteUrl(videoPlayerResponse.streamingData.hlsManifestUrl);
+        var videoType = getExtensionFromUrl(videoUrl);
+        var videoQuality = null;
+        jsonMediaList.mediaList.push({
+          "title": videoTitle,
+          "description": videoDescription,
+          "qualities": [{
+            "url": videoUrl,
+            "type": videoType,
+            "quality": videoQuality,
+            "adfree": false,
+            "content": ""
+          }]
+        });
+      }
+    }
+    else {
+      debug("could not extract YouTube media"); 
+    }
+  }
+ 
+  async function findArdMedia(document, jsonMediaList) {
+    var player = null;
     // ARD:
     if (!player && this && '_state' in this && 'playerConfig' in this._state) {
       player = this._state.playerConfig;        //ard mediathek (_state exported by webpack:///./src/common/components/widgets/player/PlayerModel.js
-    }        
-
+    }
     if (!player) {
-      // try again later
-      debug("could not find player object, trying again later");
-      setTimeout( function(){ analysePageAndCreateUiAsync(false); }, 1000 );
+      return;     
+    }
+    debug("found ARD media page with player object");
+    // retrieve media info from active player properties -> this can break if players change
+    if ('_pixelConfig' in player && player._pixelConfig.length > 0) { 
+      var videoInfo = player._pixelConfig[0];
+      var videoTitle = videoInfo.clipTitle;
+      var videoDescription = videoInfo.agfMetaDataSDK.title;
+      var videoUrl = getAbsoluteUrl(videoInfo.agfMetaDataSDK.assetid);
+      var videoType = getExtensionFromUrl(videoUrl);
+      var videoQuality = null;
+      jsonMediaList.mediaList.push({
+        "title": videoTitle,
+        "description": videoDescription,
+        "qualities": [{
+          "url": videoUrl,
+          "type": videoType,
+          "quality": videoQuality,
+          "adfree": false,
+          "content": ""
+        }]
+      });
+    }
+    else {
+      debug("could not extract ARD media"); 
+    }
+  }
+  
+  async function analysePageAndCreateUiAsync(showUiOpen) {
+    debug("analysePageAndCreateUiAsync()");
+
+    // clean up old ui first
+    deleteDownloadUi();
+    
+    // controller object in DOM and video element available?
+    if(!window) {
+      return;
     }
 
-    if (player)
+    // try to get video metadata
+    try 
     {
-      debug("found proper media page with player object");
-      // try to get video metadata
-      try 
-      {
-        var jsonMediaList = {
-          "mediaList": [/*{ 
-            "title": "",
-            "description": "",
-            "qualities": [{
-              "url": null,
-              "type": "",
-              "quality": "",
-              "adfree": false,
-              "content": ""
-            }] 
-          }*/]
-        };
+      var jsonMediaList = {
+        "mediaList": [/*{ 
+          "title": "",
+          "description": "",
+          "qualities": [{
+            "url": null,
+            "type": "",
+            "quality": "",
+            "adfree": false,
+            "content": ""
+          }] 
+        }*/]
+      };
+
+      await findRedBullMedia(document, jsonMediaList);
+      await findServusTVMedia(document, jsonMediaList);
+      await findMySpassMedia(document, jsonMediaList);
+      await findVimeoMedia(document, jsonMediaList);
+      await findYouTubeMedia(document, jsonMediaList);
+      await findArdMedia(document, jsonMediaList);
         
-        // retrieve media info from active player properties -> this can break if players change
-        if ('getVidInfo' in player) { 
-          //RedBull
-          var videoInfo = player.getVidInfo();
-          var videoTitle = videoInfo.title;
-          var videoSubTitle = videoInfo.subtitle;
-          var videoUrl = getAbsoluteUrl(videoInfo.videoUrl);
-          var videoType = getExtensionFromUrl(videoUrl);
-          var videoQuality = null;
-          jsonMediaList.mediaList.push({
-            "title": videoTitle,
-            "description": videoSubTitle,
-            "qualities": [{
-              "url": videoUrl,
-              "type": videoType,
-              "quality": videoQuality,
-              "adfree": false,
-              "content": ""
-            }]
-          });
-        }
-
-        else if ('getVidMeta' in player) { 
-          //ServusTV
-          var videoInfo = player.getVidMeta();
-          var videoTitle = videoInfo.title;
-          var videoSubTitle = videoInfo.subtitle;
-          var videoUrl = getAbsoluteUrl(videoInfo.videoUrl);
-          var videoType = getExtensionFromUrl(videoUrl);
-          var videoQuality = null;
-          jsonMediaList.mediaList.push({
-            "title": videoTitle,
-            "description": videoSubTitle,
-            "qualities": [{
-              "url": videoUrl,
-              "type": videoType,
-              "quality": videoQuality,
-              "adfree": false,
-              "content": ""
-            }]
-          });
-        }
-
-        else if ('videoMetadata' in player) { 
-          //MySpass
-          var videoInfo = player.videoMetadata;
-          var videoTitle = videoInfo.title;
-          var videoDesciption = videoInfo.description;
-          var videoUrl = getAbsoluteUrl(videoInfo.videoUrl);
-          var videoType = getExtensionFromUrl(videoUrl);
-          var videoQuality = null;
-          jsonMediaList.mediaList.push({
-            "title": videoTitle,
-            "description": videoDesciption,
-            "qualities": [{
-              "url": videoUrl,
-              "type": videoType,
-              "quality": videoQuality,
-              "adfree": false,
-              "content": ""
-            }]
-          });
-        }
-
-        else if (document.URL.includes('vimeo.com')) {
-          if ('clips' in player) {
-            //Vimeo
-            var videoId = player.clip_page_config.clip.id;
-            var videoInfo = player.clips[videoId];
-            var videoTitle = videoInfo.video.title;
-            var videoDescription = "";
-            var entry = {
-              "title": videoTitle,
-              "description": videoDesciption,
-              "qualities": []
-            };
-            // sort streams descending by video resolution (by comparison of 'width' property)
-            var streams = videoInfo.request.files.progressive;
-            streams.sort( (streamA,streamB) => {
-                return streamB.width - streamA.width;
-            });
-            // iterate over video stream infos
-            for (i=0; i<streams.length; i++) {
-              var streamInfo = streams[i];
-              var videoUrl = getAbsoluteUrl(streamInfo.url);
-              var videoType = getExtensionFromUrl(videoUrl);
-              var videoQuality = streamInfo.quality;
-              entry.qualities.push({
-                "url": videoUrl,
-                "type": videoType,
-                "quality": videoQuality,
-                "adfree": false,
-                "content": ""              
-              });
-            }
-            jsonMediaList.mediaList.push(entry);
-          }
-          else if (document.URL.includes('player.vimeo.com')) {
-            //VimeoPlayer
-            var vimeoConfigUrl = document.URL + '/config';
-            var vimeoConfigJson = await loadWebResourceAsync(vimeoConfigUrl);
-            var vimeoConfig = JSON.parse(vimeoConfigJson);
-            var videoTitle = vimeoConfig.video.title;
-            var videoSubTitle = "";
-            if (vimeoConfig.request.files.progressive) {
-              var progressive = vimeoConfig.request.files.progressive;
-              for (var i=0; i<progressive.length; i++) {
-                var videoUrl = getAbsoluteUrl(progressive[i].url);
-                var videoType = getExtensionFromUrl(videoUrl);
-                var videoQuality = progressive[i].height;
-                jsonMediaList.mediaList.push({
-                  "title": videoTitle,
-                  "description": videoSubTitle,
-                  "qualities": [{
-                    "url": videoUrl,
-                    "type": videoType,
-                    "quality": videoQuality,
-                    "adfree": false,
-                    "content": ""
-                  }]
-                });
-              }
-            }
-            else if (vimeoConfig.request.files.hls.cdns.akamai_live) {
-              //var videoUrl = getAbsoluteUrl(vimeoConfig.request.files.hls.cdns.akamai_live.url);
-              var videoUrl = vimeoConfig.request.files.hls.cdns.akamai_live.url;
-              var videoType = getExtensionFromUrl(videoUrl);
-              var videoQuality = null;
-              jsonMediaList.mediaList.push({
-                "title": videoTitle,
-                "description": videoSubTitle,
-                "qualities": [{
-                  "url": videoUrl,
-                  "type": videoType,
-                  "quality": videoQuality,
-                  "adfree": false,
-                  "content": ""
-                }]
-              });
-            }
-          }
-          else if (player.clip_page_config) {
-            var videoTitle = player.clip_page_config.clip.title;
-            var videoSubTitle = player.clip_page_config.clip.description;
-            var vimeoConfigUrl = player.clip_page_config.player.config_url;
-            var vimeoConfigJson = await loadWebResourceAsync(vimeoConfigUrl);
-            var vimeoConfig = JSON.parse(vimeoConfigJson);
-            var videoUrl = vimeoConfig.request.files.hls.cdns.akamai_live.url;
-            var videoType = getExtensionFromUrl(videoUrl);
-            var videoQuality = null;
-              jsonMediaList.mediaList.push({
-                "title": videoTitle,
-                "description": videoSubTitle,
-                "qualities": [{
-                  "url": videoUrl,
-                  "type": videoType,
-                  "quality": videoQuality,
-                  "adfree": false,
-                  "content": ""
-                }]
-              });
+      // POSTPROCESS AND DISPLAY retrieved media information
+      // remove invalid entries
+      for (var i=jsonMediaList.mediaList.length; i>0; i--) {
+        var entry = jsonMediaList.mediaList[i-1];
+        for (var j=entry.qualities.length; j>0; j--) {
+          if (entry.qualities[j-1].url == null) {
+            entry.qualities.pop();
           }
         }
- 
-        else if ( (player.config && player.config.args && player.config.args.video_id) && //document.URL.includes('youtube.') && 
-          (    player.player_response
-            || player.playerResponse
-            || (player.config && player.config.args && player.config.args.player_response)
-            || (player.config && player.config.args && player.config.args.raw_player_response)
-          )){
-          //Youtube
-          var plrResponseJson = player.player_response || player.playerResponse || player.config.args.player_response;
-          var videoPlayerResponse = plrResponseJson ? JSON.parse(plrResponseJson) : null;
-          videoPlayerResponse = videoPlayerResponse || player.config.args.raw_player_response;
-
-          var videoID = player.config.args.video_id;
-
-          var videoTitle=document.title || 'video';
-          videoTitle=videoTitle.replace(/\s*\-\s*YouTube$/i, '').replace(/'/g, '\'').replace(/^\s+|\s+$/g, '').replace(/\.+$/g, '');
-          videoTitle=videoTitle.replace(/[:"\?\*]/g, '').replace(/[\|\\\/]/g, '_'); //Mac, Linux, Windows
-          if (((window.navigator.userAgent || '').toLowerCase()).indexOf('windows') >= 0) {
-            videoTitle=videoTitle.replace(/#/g, '').replace(/&/g, '_'); //Windows
-          } else {
-            videoTitle=videoTitle.replace(/#/g, '%23').replace(/&/g, '%26'); //Mac, Linux
-          }
-          videoTitle=videoTitle.replace(/^\([0-9][0-9][0-9]\) /, '');
-          
-          if (videoPlayerResponse.streamingData && videoPlayerResponse.streamingData.hlsManifestUrl) {
-            // add youtube live media stream info for download
-            var videoSubTitle = "";
-            var videoUrl = getAbsoluteUrl(videoPlayerResponse.streamingData.hlsManifestUrl);
-            var videoType = getExtensionFromUrl(videoUrl);
-            var videoQuality = null;
-            jsonMediaList.mediaList.push({
-              "title": videoTitle,
-              "description": videoSubTitle,
-              "qualities": [{
-                "url": videoUrl,
-                "type": videoType,
-                "quality": videoQuality,
-                "adfree": false,
-                "content": ""
-              }]
-            });
-          }
+        if (entry.qualities.length < 1) {
+          jsonMediaList.mediaList.pop();
         }
-
-        else if ('_pixelConfig' in player && player._pixelConfig.length > 0) { 
-          //Ard Mediathek
-          var videoInfo = player._pixelConfig[0];
-          var videoTitle = videoInfo.clipTitle;
-          var videoDesciption = videoInfo.agfMetaDataSDK.title;
-          var videoUrl = getAbsoluteUrl(videoInfo.agfMetaDataSDK.assetid);
-          var videoType = getExtensionFromUrl(videoUrl);
-          var videoQuality = null;
-          jsonMediaList.mediaList.push({
-            "title": videoTitle,
-            "description": videoDesciption,
-            "qualities": [{
-              "url": videoUrl,
-              "type": videoType,
-              "quality": videoQuality,
-              "adfree": false,
-              "content": ""
-            }]
-          });
-        }
-
-        // POSTPROCESS AND DISPLAY retrieved media information
-        // remove invalid entries
-        for (var i=jsonMediaList.mediaList.length; i>0; i--) {
-          var entry = jsonMediaList.mediaList[i-1];
-          for (var j=entry.qualities.length; j>0; j--) {
-            if (entry.qualities[j-1].url == null) {
-              entry.qualities.pop();
-            }
-          }
-          if (entry.qualities.length < 1) {
-            jsonMediaList.mediaList.pop();
-          }
-        }
-
-        // validate mediaList and retry if necessary
-        if (jsonMediaList.mediaList.length < 1) {
-            // try again later
-            debug("could not retrieve video download url from player, trying again later");
-            setTimeout( function(){ analysePageAndCreateUiAsync(false); }, 500 );
-            return;
-        }
-
-        // resolve m3u8 playlists
-        for (var i=0; i<jsonMediaList.mediaList.length; i++) {
-          var entry = jsonMediaList.mediaList[i];
-          for (var j=0; j<entry.qualities.length; j++) {
-            var quality = entry.qualities[j];
-            if (quality.type && quality.type.toLowerCase().startsWith("m3u8") && quality.quality == null) {
-              //quality.quality = "m3u8-multi";
-              var subQualities = await loadM3U8PlayListQualities(quality.url);
-              subQualities.forEach((subQuality) => {entry.qualities.push(subQuality)});
-            }
-          }
-        }
-        // process m3u8 playlists
-        for (var i=0; i<jsonMediaList.mediaList.length; i++) {
-          var entry = jsonMediaList.mediaList[i];
-          var subQualities = [];
-          for (var j=0; j<entry.qualities.length; j++) {
-            var quality = entry.qualities[j];
-            if (quality.url && quality.type && quality.type.toLowerCase().startsWith("m3u8")) {
-              var subQuality = await createAdFreeVodPlayListAsync(quality.url, quality.quality);
-              if (subQuality) {
-                subQualities.push(subQuality);
-              }
-            }
-          }
-          subQualities.forEach((subQuality) => {entry.qualities.push(subQuality)});
-        }
-
-        // debug output of retieved media information
-        jsonMediaList.mediaList.forEach((entry) => {
-          entry.qualities.forEach((quality) => {
-            debug("Title       : '" + entry.title + "'");
-            debug("Description : '" + entry.description + "'");
-            debug("Url         : '" + quality.url + "'");
-            debug("Type        : '" + quality.type + "'");
-            debug("Quality     : '" + quality.quality + "'");
-            debug("AdFree      : '" + quality.adfree + "'");
-            debug("Content     : '" + (quality.content.length > 0) ? quality.content.substr(0,7) + "...'" : "'");
-            debug("------------------------------");
-          });
-        });
-
-        // inject download ui
-        jsonMediaList.mediaList.forEach((entry) => {
-          //var m3u8PlayLists;
-          entry.qualities.forEach(async (quality) => {
-            createDownloadUiAndAddUrl(showUiOpen, entry.title, entry.description, quality);
-          })
-        });
       }
-      catch ( error )
-      {
-        // log the error
-        console.error("[Media Download] Error retrieving video meta data:", error);
+
+      // validate mediaList and retry if necessary
+      if (jsonMediaList.mediaList.length < 1) {
+          // try again later
+          debug("could not retrieve video download url from player, trying again later");
+          setTimeout( function(){ analysePageAndCreateUiAsync(false); }, 1000);
+          return;
       }
+
+      // resolve m3u8 playlists
+      for (var i=0; i<jsonMediaList.mediaList.length; i++) {
+        var entry = jsonMediaList.mediaList[i];
+        for (var j=0; j<entry.qualities.length; j++) {
+          var quality = entry.qualities[j];
+          if (quality.type && quality.type.toLowerCase().startsWith("m3u8") && quality.quality == null) {
+            //quality.quality = "m3u8-multi";
+            var subQualities = await loadM3U8PlayListQualities(quality.url);
+            subQualities.forEach((subQuality) => {entry.qualities.push(subQuality)});
+          }
+        }
+      }
+      // process m3u8 playlists
+      for (var i=0; i<jsonMediaList.mediaList.length; i++) {
+        var entry = jsonMediaList.mediaList[i];
+        var subQualities = [];
+        for (var j=0; j<entry.qualities.length; j++) {
+          var quality = entry.qualities[j];
+          if (quality.url && quality.type && quality.type.toLowerCase().startsWith("m3u8")) {
+            var subQuality = await createAdFreeVodPlayListAsync(quality.url, quality.quality);
+            if (subQuality) {
+              subQualities.push(subQuality);
+            }
+          }
+        }
+        subQualities.forEach((subQuality) => {entry.qualities.push(subQuality)});
+      }
+
+      // debug output of retieved media information
+      jsonMediaList.mediaList.forEach((entry) => {
+        entry.qualities.forEach((quality) => {
+          debug("Title       : '" + entry.title + "'");
+          debug("Description : '" + entry.description + "'");
+          debug("Url         : '" + quality.url + "'");
+          debug("Type        : '" + quality.type + "'");
+          debug("Quality     : '" + quality.quality + "'");
+          debug("AdFree      : '" + quality.adfree + "'");
+          debug("Content     : '" + (quality.content.length > 0) ? quality.content.substr(0,7) + "...'" : "'");
+          debug("------------------------------");
+        });
+      });
+
+      // inject download ui
+      jsonMediaList.mediaList.forEach((entry) => {
+        //var m3u8PlayLists;
+        entry.qualities.forEach(async (quality) => {
+          createDownloadUiAndAddUrl(showUiOpen, entry.title, entry.description, quality);
+        })
+      });
+    }
+    catch ( error )
+    {
+      // log the error
+      console.error("[Media Download] Error retrieving video meta data:", error);
     }
   }
 
