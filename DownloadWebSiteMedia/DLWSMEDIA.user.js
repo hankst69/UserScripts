@@ -1,11 +1,11 @@
 ﻿// ==UserScript==
 // @name        WebSite Media Download
 // @namespace   savnt
-// @description Adds a download button to the video player pages.
+// @description Adds a download button to video player pages
 // @include     https://www.redbull.com/*
-// @copyright   2019-2020, savnt
+// @copyright   2019-2021, savnt
 // @license     MIT
-// @version     0.2.4
+// @version     0.3.1
 // @grant       none
 // @inject-into page
 // ==/UserScript==
@@ -201,6 +201,33 @@ function CodeToInject(chromeExtensionScriptUrl) {
     return null;
   }
 
+  function convertTitleToValidFilename(videoTitle) {
+    debug("convertTitleToValidFilename()");
+    if (!videoTitle) {
+      return 'video';
+    }
+    // modifications for: Mac, Linux, Windows
+    videoTitle = videoTitle
+      .replace(/'/g, '\'')
+      .replace(/^\s+|\s+$/g, '')
+      .replace(/\.+$/g, '')
+      .replace(/[<>:"?*]/g, '')
+      .replace(/[\|\\\/]/g, '_')
+    if (((window.navigator.userAgent || '').toLowerCase()).indexOf('windows') >= 0) {
+      // modifications for: Windows
+      videoTitle = videoTitle
+        .replace(/#/g, '')
+        .replace(/&/g, '_'); 
+    } else {
+      // modifications for: Mac, Linux
+      videoTitle = videoTitle
+        .replace(/#/g, '%23')
+        .replace(/&/g, '%26');
+    }
+    videoTitle = videoTitle.replace(/^\([0-9][0-9][0-9]\) /, '');
+    return videoTitle;
+  }
+
   async function loadM3U8PlayListQualities(m3u8Url) {
     debug("loadM3U8PlayListQualities()");
     let m3u8PlayList = await loadWebResourceAsync(m3u8Url);
@@ -253,9 +280,6 @@ function CodeToInject(chromeExtensionScriptUrl) {
         }
       }
     });
-    qualities.sort((streamA,streamB) => {
-        return streamB.quality - streamA.quality;
-    });
     return qualities;
   }
 
@@ -300,35 +324,46 @@ function CodeToInject(chromeExtensionScriptUrl) {
     return result;
   }
 
-  function getAdFreeUrlListFromM3U8VodPlayList(m3u8PlayList) {
+  function getAdFreeUrlListFromM3U8VodPlayList(m3u8PlayList, m3u8Url) {
     debug("getAdFreeUrlListFromM3U8VodPlayList()");
     //parse:
+    // #EXT-X-PLAYLIST-TYPE:VOD
+    // #EXT-X-VERSION:7
+    // #EXT-X-MEDIA-SEQUENCE:0
+    // #EXT-X-TARGETDURATION:3
+    // #EXT-X-MAP:URI="../FO-2671U79W9BH15/init.mp4"
+    
+    //parse:
+    // #EXTM3U
+    // #EXT-X-VERSION:6
+    // #EXT-X-TARGETDURATION:3
+    // #EXT-X-MEDIA-SEQUENCE:0
     // #EXT-X-PLAYLIST-TYPE:VOD
     // #EXTINF:3.000,
     // https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/0.ts
     // #EXTINF:3.000,
     // https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/1.ts
-    //
-    //#EXTINF:2.240,
-    //https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/486.ts
-    //#EXT-X-DISCONTINUITY
-    //#EXTINF:3.000,
-    //https://cs5.rbmbtnx.net/v1/GAMS/s/1/ST/8N/Z5/QH/21/11/0.ts
-    //#EXT-X-DISCONTINUITY
-    //#EXTINF:3.000,
-    //https://cs.rbmbtnx.net/v1/GAMS/s/1/YX/HB/1S/YW/5N/11/0.ts
-    //#EXTINF:3.000,
-    //https://cs.rbmbtnx.net/v1/GAMS/s/1/YX/HB/1S/YW/5N/11/1.ts
-    //#EXTINF:3.000,
-    //...
-    //#EXTINF:2.000,
-    //https://cs.rbmbtnx.net/v1/GAMS/s/1/YX/HB/1S/YW/5N/11/15.ts
-    //#EXT-X-DISCONTINUITY
-    //#EXTINF:3.000,
-    //https://cs2.rbmbtnx.net/v1/GAMS/s/1/SV/5P/JV/F1/1W/11/0.ts
-    //#EXT-X-DISCONTINUITY
-    //#EXTINF:0.760,
-    //https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/487.ts
+    // ...
+    // #EXTINF:2.240,
+    // https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/486.ts
+    // #EXT-X-DISCONTINUITY
+    // #EXTINF:3.000,
+    // https://cs5.rbmbtnx.net/v1/GAMS/s/1/ST/8N/Z5/QH/21/11/0.ts
+    // #EXT-X-DISCONTINUITY
+    // #EXTINF:3.000,
+    // https://cs.rbmbtnx.net/v1/GAMS/s/1/YX/HB/1S/YW/5N/11/0.ts
+    // #EXTINF:3.000,
+    // https://cs.rbmbtnx.net/v1/GAMS/s/1/YX/HB/1S/YW/5N/11/1.ts
+    // #EXTINF:3.000,
+    // ...
+    // #EXTINF:2.000,
+    // https://cs.rbmbtnx.net/v1/GAMS/s/1/YX/HB/1S/YW/5N/11/15.ts
+    // #EXT-X-DISCONTINUITY
+    // #EXTINF:3.000,
+    // https://cs2.rbmbtnx.net/v1/GAMS/s/1/SV/5P/JV/F1/1W/11/0.ts
+    // #EXT-X-DISCONTINUITY
+    // #EXTINF:0.760,
+    // https://cs5.rbmbtnx.net/v1/RBTV/s/1/Y6/UD/8H/D1/5N/11/487.ts
     if (m3u8PlayList.toUpperCase().indexOf('#EXT-X-PLAYLIST-TYPE:VOD') < 0) {
       return null;
     }
@@ -338,7 +373,55 @@ function CodeToInject(chromeExtensionScriptUrl) {
     let m3u8Lines = m3u8PlayList.split('#');
     m3u8Lines.forEach((line) => {
       let trimedLine = line.trim();
-      if (trimedLine.toUpperCase().startsWith('EXTINF')) {
+      if (trimedLine.toUpperCase().startsWith('EXT-X-MAP')) {
+        let newTrimedLine = trimedLine;
+        let newUrl = null;
+        let colonPos = trimedLine.indexOf(':');
+        if (colonPos > 0) {
+          newTrimedLine = 'EXT-X-MAP:';
+          let attributeData = trimedLine.substr(colonPos+1);
+          let attributes = attributeData.split(',');
+          let firstAttribute = true;
+          attributes.forEach((attribute) => {
+            let newAttribute = attribute;
+            let attribKvp = attribute.split('=');
+            if (attribKvp.length > 1 && attribKvp[0].toUpperCase() == 'URI' && attribKvp[1]) {
+              newUrl = attribKvp[1].trim();
+              // remove bracing quotes
+              if (newUrl.startsWith('"')) {
+                newUrl = newUrl.substr(1);
+              }
+              if (newUrl.endsWith('"')) {
+                newUrl = newUrl.substr(0,newUrl.length-1);
+              }
+              // complement url if necessary
+              if (!(newUrl.toLowerCase().startsWith('http'))) {
+                let lastSlashPos = m3u8Url.lastIndexOf('/');
+                if (lastSlashPos > 0) {
+                  let baseUrl = m3u8Url.substr(0,lastSlashPos);
+                  let needSlash = !newUrl.startsWith('/');
+                  newUrl = baseUrl + (needSlash ? '/' : '') + newUrl;
+                }
+                newAttribute = 'URI="' + newUrl + '"';
+              }
+              else {
+                newUrl = null;
+              }
+            }
+            if (!firstAttribute) {
+              newAttribute = "," + newAttribute;
+            }
+            firstAttribute = false;
+            newTrimedLine += newAttribute;
+          });
+        }
+        // write modified line
+        newVodPlayList += '#' + newTrimedLine + '\n';
+        if (newUrl) {
+          urlList.push(newUrl);
+        }
+      }
+      else if (trimedLine.toUpperCase().startsWith('EXTINF')) {
         let subLines = trimedLine.split('\n');
         if (subLines.length > 1) {
           // a valid TS segment line
@@ -352,7 +435,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
               url = baseUrl + (needSlash ? '/' : '') + url;
             }
           }
-          if (url.toLowerCase().endsWith('.ts')) {
+          if (url.toLowerCase().endsWith('.ts') || url.toLowerCase().endsWith('.m4s')) {
             let slashPos = url.lastIndexOf('/');
             if (slashPos > 0) {
               let tsFile = url.substr(slashPos+1);
@@ -379,6 +462,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
                     lastValidSegment = segmentNumber;
                   }
                   if (addSegment) {
+                    // write modified line
                     newVodPlayList += '#' + subLines[0] + '\n' + url + '\n';
                     urlList.push(url);
                   }
@@ -389,6 +473,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
         }
       }
       else if (trimedLine.length > 0 && !trimedLine.toUpperCase().startsWith('EXT-X-DISCONTINUITY')) {
+        // write original line (leave out empty lines and 'EXT-X-DISCONTINUITY' lines)
         newVodPlayList += '#' + trimedLine + '\n';
         //urlList.push(url);
       }
@@ -404,7 +489,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
   async function createAdFreeVodPlayListAsync(m3u8Url, quality) {
     debug("createAdFreeVodPlayListAsync()");
     let m3u8PlayList = await loadWebResourceAsync(m3u8Url);
-    let adFreeResult = getAdFreeUrlListFromM3U8VodPlayList(m3u8PlayList);
+    let adFreeResult = getAdFreeUrlListFromM3U8VodPlayList(m3u8PlayList, m3u8Url);
     if (!adFreeResult || !adFreeResult.vodPlayList) {
       return null;
     }
@@ -442,7 +527,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
     if (!m3u8Content) {
       m3u8Content = await loadWebResourceAsync(m3u8Url);
     }
-    //let playListResult = getAdFreeUrlListFromM3U8VodPlayList(m3u8Content);
+    //let playListResult = getAdFreeUrlListFromM3U8VodPlayList(m3u8Content, m3u8Url);
     let playListResult = getUrlListFromM3U8VodPlayList(m3u8Content);
     let urlList = playListResult.urlList;
     // mux.js
@@ -458,14 +543,14 @@ function CodeToInject(chromeExtensionScriptUrl) {
   }
 
   async function findRedBullMedia(document, jsonMediaList) {
-    var player = null;
+    let player = null;
     // RedBull:
     if (!player && document.querySelector('div.rbPlyr-container') && 'rbPlyr_rbPlyrwrapper' in window) {
       player = window.rbPlyr_rbPlyrwrapper;     
     }
     if (!player && document.querySelector('div.rbPlyr-rbupEl')) {
-      var playerId = document.querySelector('div.rbPlyr-rbupEl').id;
-      var playerName = "rbPlyr_" + playerId.replace(/-/g, "");
+      let playerId = document.querySelector('div.rbPlyr-rbupEl').id;
+      let playerName = "rbPlyr_" + playerId.replace(/-/g, "");
       if (playerName in window) {
         player = window[playerName];
       }
@@ -481,13 +566,14 @@ function CodeToInject(chromeExtensionScriptUrl) {
     } 
     if ('getVidMeta' in player) {
       videoInfo = player.getVidMeta();
-    } 
+    }
+    let videoProps = ('getVidProps' in player) ? player.getVidProps() : null;
     if (videoInfo) {
-      var videoTitle = videoInfo.title;
-      var videoDescription = videoInfo.subtitle;
-      var videoUrl = getAbsoluteUrl(videoInfo.videoUrl);
-      var videoType = getExtensionFromUrl(videoUrl);
-      var videoQuality = null;
+      let videoTitle = videoInfo.title || videoProps ? videoProps.title : null;
+      let videoDescription = videoInfo.subtitle;
+      let videoUrl = getAbsoluteUrl(videoInfo.videoUrl);
+      let videoType = getExtensionFromUrl(videoUrl);
+      let videoQuality = null;
       jsonMediaList.mediaList.push({
         "title": videoTitle,
         "description": videoDescription,
@@ -506,7 +592,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
   }
 
   async function findServusTVMedia(document, jsonMediaList) {
-    var player = null;
+    let player = null;
     // ServusTV:
     if (!player && document.querySelector('div.rbPlyr-container') && 'rbPlyr_rbunifiedplayer1' in window) {
       player = window.rbPlyr_rbunifiedplayer1;
@@ -517,12 +603,12 @@ function CodeToInject(chromeExtensionScriptUrl) {
     debug("found ServusTV media page with player object");
     // retrieve media info from active player properties -> this can break if players change
     if ('getVidMeta' in player) { 
-      var videoInfo = player.getVidMeta();
-      var videoTitle = videoInfo.title;
-      var videoDescription = videoInfo.subtitle;
-      var videoUrl = getAbsoluteUrl(videoInfo.videoUrl);
-      var videoType = getExtensionFromUrl(videoUrl);
-      var videoQuality = null;
+      let videoInfo = player.getVidMeta();
+      let videoTitle = videoInfo.title;
+      let videoDescription = videoInfo.subtitle;
+      let videoUrl = getAbsoluteUrl(videoInfo.videoUrl);
+      let videoType = getExtensionFromUrl(videoUrl);
+      let videoQuality = null;
       jsonMediaList.mediaList.push({
         "title": videoTitle,
         "description": videoDescription,
@@ -541,7 +627,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
   } 
 
   async function findMySpassMedia(document, jsonMediaList) {
-    var player = null;
+    let player = null;
     // MySpass:
     if (!player && document.querySelector('div.videoPlayerWrapper') && 'MyspassPlayer' in window) {
       player = window.MyspassPlayer;
@@ -552,12 +638,12 @@ function CodeToInject(chromeExtensionScriptUrl) {
     debug("found MySpass media page with player object");
     // retrieve media info from active player properties -> this can break if players change
     if ('videoMetadata' in player) { 
-      var videoInfo = player.videoMetadata;
-      var videoTitle = videoInfo.title;
-      var videoDescription = videoInfo.description;
-      var videoUrl = getAbsoluteUrl(videoInfo.videoUrl);
-      var videoType = getExtensionFromUrl(videoUrl);
-      var videoQuality = null;
+      let videoInfo = player.videoMetadata;
+      let videoTitle = videoInfo.title;
+      let videoDescription = videoInfo.description;
+      let videoUrl = getAbsoluteUrl(videoInfo.videoUrl);
+      let videoType = getExtensionFromUrl(videoUrl);
+      let videoQuality = null;
       jsonMediaList.mediaList.push({
         "title": videoTitle,
         "description": videoDescription,
@@ -576,8 +662,8 @@ function CodeToInject(chromeExtensionScriptUrl) {
   }
  
   async function findVimeoMedia(document, jsonMediaList) {
-    var player = null;
-    var isVimeoPlayer = false;
+    let player = null;
+    let isVimeoPlayer = false;
     // Vimeo:
     if (!player && document.querySelector('.player video') && 'vimeo' in window) {
       debug("found Vimeo page");
@@ -597,26 +683,26 @@ function CodeToInject(chromeExtensionScriptUrl) {
     if ('clips' in player) {
       debug("found Vimeo media data");
       //Vimeo
-      var videoId = player.clip_page_config.clip.id;
-      var videoInfo = player.clips[videoId];
-      var videoTitle = videoInfo.video.title;
-      var videoDescription = "";
-      var entry = {
+      let videoId = player.clip_page_config.clip.id;
+      let videoInfo = player.clips[videoId];
+      let videoTitle = videoInfo.video.title;
+      let videoDescription = "";
+      let entry = {
         "title": videoTitle,
         "description": videoDescription,
         "qualities": []
       };
       // sort streams descending by video resolution (by comparison of 'width' property)
-      var streams = videoInfo.request.files.progressive;
+      let streams = videoInfo.request.files.progressive;
       streams.sort( (streamA,streamB) => {
           return streamB.width - streamA.width;
       });
       // iterate over video stream infos
       for (i=0; i<streams.length; i++) {
-        var streamInfo = streams[i];
-        var videoUrl = getAbsoluteUrl(streamInfo.url);
-        var videoType = getExtensionFromUrl(videoUrl);
-        var videoQuality = streamInfo.quality;
+        let streamInfo = streams[i];
+        let videoUrl = getAbsoluteUrl(streamInfo.url);
+        let videoType = getExtensionFromUrl(videoUrl);
+        let videoQuality = streamInfo.quality;
         entry.qualities.push({
           "url": videoUrl,
           "type": videoType,
@@ -629,14 +715,14 @@ function CodeToInject(chromeExtensionScriptUrl) {
     }
     else if (player.clip_page_config) {
       debug("found Vimeo live data");
-      var videoTitle = player.clip_page_config.clip.title;
-      var videoDescription = player.clip_page_config.clip.description;
-      var vimeoConfigUrl = player.clip_page_config.player.config_url;
-      var vimeoConfigJson = await loadWebResourceAsync(vimeoConfigUrl);
-      var vimeoConfig = JSON.parse(vimeoConfigJson);
-      var videoUrl = vimeoConfig.request.files.hls.cdns.akamai_live.url;
-      var videoType = getExtensionFromUrl(videoUrl);
-      var videoQuality = null;
+      let videoTitle = player.clip_page_config.clip.title;
+      let videoDescription = player.clip_page_config.clip.description;
+      let vimeoConfigUrl = player.clip_page_config.player.config_url;
+      let vimeoConfigJson = await loadWebResourceAsync(vimeoConfigUrl);
+      let vimeoConfig = JSON.parse(vimeoConfigJson);
+      let videoUrl = vimeoConfig.request.files.hls.cdns.akamai_live.url;
+      let videoType = getExtensionFromUrl(videoUrl);
+      let videoQuality = null;
         jsonMediaList.mediaList.push({
           "title": videoTitle,
           "description": videoDescription,
@@ -651,18 +737,18 @@ function CodeToInject(chromeExtensionScriptUrl) {
     }
     else if (document.URL.includes('player.vimeo.com')) {
       //VimeoPlayer
-      var vimeoConfigUrl = document.URL + '/config'; //https://player.vimeo.com/video/497651456/config
-      var vimeoConfigJson = await loadWebResourceAsync(vimeoConfigUrl);
-      var vimeoConfig = JSON.parse(vimeoConfigJson);
-      var videoTitle = vimeoConfig.video.title;
-      var videoDescription = "";
+      let vimeoConfigUrl = document.URL + '/config'; //https://player.vimeo.com/video/497651456/config
+      let vimeoConfigJson = await loadWebResourceAsync(vimeoConfigUrl);
+      let vimeoConfig = JSON.parse(vimeoConfigJson);
+      let videoTitle = vimeoConfig.video.title;
+      let videoDescription = "";
       if (vimeoConfig.request.files.progressive) {
         debug("found VimeoPlayer media data");
-        var progressive = vimeoConfig.request.files.progressive;
-        for (var i=0; i<progressive.length; i++) {
-          var videoUrl = getAbsoluteUrl(progressive[i].url);
-          var videoType = getExtensionFromUrl(videoUrl);
-          var videoQuality = progressive[i].height;
+        let progressive = vimeoConfig.request.files.progressive;
+        for (let i=0; i<progressive.length; i++) {
+          let videoUrl = getAbsoluteUrl(progressive[i].url);
+          let videoType = getExtensionFromUrl(videoUrl);
+          let videoQuality = progressive[i].height;
           jsonMediaList.mediaList.push({
             "title": videoTitle,
             "description": videoDescription,
@@ -678,10 +764,10 @@ function CodeToInject(chromeExtensionScriptUrl) {
       }
       else if (vimeoConfig.request.files.hls.cdns.akamai_live) {
         debug("found VimeoPlayer dash data");
-        //var videoUrl = getAbsoluteUrl(vimeoConfig.request.files.hls.cdns.akamai_live.url);
-        var videoUrl = vimeoConfig.request.files.hls.cdns.akamai_live.url;
-        var videoType = getExtensionFromUrl(videoUrl);
-        var videoQuality = null;
+        //let videoUrl = getAbsoluteUrl(vimeoConfig.request.files.hls.cdns.akamai_live.url);
+        let videoUrl = vimeoConfig.request.files.hls.cdns.akamai_live.url;
+        let videoType = getExtensionFromUrl(videoUrl);
+        let videoQuality = null;
         jsonMediaList.mediaList.push({
           "title": videoTitle,
           "description": videoDescription,
@@ -701,7 +787,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
   }
  
   async function findYouTubeMedia(document, jsonMediaList) {
-    var player = null;
+    let player = null;
     // YouTube:        
     if (!player && document.querySelector('#ytd-player') && 'ytplayer' in window) {
       player = window.ytplayer;
@@ -720,13 +806,13 @@ function CodeToInject(chromeExtensionScriptUrl) {
         || player.config.args.player_response
         || player.config.args.raw_player_response)) {
 
-      var plrResponseJson = player.player_response || player.playerResponse || player.config.args.player_response;
-      var videoPlayerResponse = plrResponseJson ? JSON.parse(plrResponseJson) : null;
+      let plrResponseJson = player.player_response || player.playerResponse || player.config.args.player_response;
+      let videoPlayerResponse = plrResponseJson ? JSON.parse(plrResponseJson) : null;
       videoPlayerResponse = videoPlayerResponse || player.config.args.raw_player_response;
 
-      var videoID = player.config.args.video_id;
+      let videoID = player.config.args.video_id;
 
-      var videoTitle=document.title || 'video';
+      let videoTitle=document.title || 'video';
       videoTitle=videoTitle.replace(/\s*\-\s*YouTube$/i, '').replace(/'/g, '\'').replace(/^\s+|\s+$/g, '').replace(/\.+$/g, '');
       videoTitle=videoTitle.replace(/[:"\?\*]/g, '').replace(/[\|\\\/]/g, '_'); //Mac, Linux, Windows
       if (((window.navigator.userAgent || '').toLowerCase()).indexOf('windows') >= 0) {
@@ -738,10 +824,10 @@ function CodeToInject(chromeExtensionScriptUrl) {
       
       if (videoPlayerResponse.streamingData && videoPlayerResponse.streamingData.hlsManifestUrl) {
         // add youtube live media stream info for download
-        var videoDescription = "";
-        var videoUrl = getAbsoluteUrl(videoPlayerResponse.streamingData.hlsManifestUrl);
-        var videoType = getExtensionFromUrl(videoUrl);
-        var videoQuality = null;
+        let videoDescription = "";
+        let videoUrl = getAbsoluteUrl(videoPlayerResponse.streamingData.hlsManifestUrl);
+        let videoType = getExtensionFromUrl(videoUrl);
+        let videoQuality = null;
         jsonMediaList.mediaList.push({
           "title": videoTitle,
           "description": videoDescription,
@@ -761,7 +847,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
   }
  
   async function findArdMedia(document, jsonMediaList) {
-    var player = null;
+    let player = null;
     // ARD:
     if (!player && this && '_state' in this && 'playerConfig' in this._state) {
       player = this._state.playerConfig;        //ard mediathek (_state exported by webpack:///./src/common/components/widgets/player/PlayerModel.js
@@ -772,12 +858,12 @@ function CodeToInject(chromeExtensionScriptUrl) {
     debug("found ARD media page with player object");
     // retrieve media info from active player properties -> this can break if players change
     if ('_pixelConfig' in player && player._pixelConfig.length > 0) { 
-      var videoInfo = player._pixelConfig[0];
-      var videoTitle = videoInfo.clipTitle;
-      var videoDescription = videoInfo.agfMetaDataSDK.title;
-      var videoUrl = getAbsoluteUrl(videoInfo.agfMetaDataSDK.assetid);
-      var videoType = getExtensionFromUrl(videoUrl);
-      var videoQuality = null;
+      let videoInfo = player._pixelConfig[0];
+      let videoTitle = videoInfo.clipTitle;
+      let videoDescription = videoInfo.agfMetaDataSDK.title;
+      let videoUrl = getAbsoluteUrl(videoInfo.agfMetaDataSDK.assetid);
+      let videoType = getExtensionFromUrl(videoUrl);
+      let videoQuality = null;
       jsonMediaList.mediaList.push({
         "title": videoTitle,
         "description": videoDescription,
@@ -809,7 +895,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
     // try to get video metadata
     try 
     {
-      var jsonMediaList = {
+      let jsonMediaList = {
         "mediaList": [/*{ 
           "title": "",
           "description": "",
@@ -832,9 +918,9 @@ function CodeToInject(chromeExtensionScriptUrl) {
         
       // POSTPROCESS AND DISPLAY retrieved media information
       // remove invalid entries
-      for (var i=jsonMediaList.mediaList.length; i>0; i--) {
-        var entry = jsonMediaList.mediaList[i-1];
-        for (var j=entry.qualities.length; j>0; j--) {
+      for (let i=jsonMediaList.mediaList.length; i>0; i--) {
+        let entry = jsonMediaList.mediaList[i-1];
+        for (let j=entry.qualities.length; j>0; j--) {
           if (entry.qualities[j-1].url == null) {
             entry.qualities.pop();
           }
@@ -852,34 +938,55 @@ function CodeToInject(chromeExtensionScriptUrl) {
           return;
       }
 
-      // resolve m3u8 playlists
-      for (var i=0; i<jsonMediaList.mediaList.length; i++) {
-        var entry = jsonMediaList.mediaList[i];
-        for (var j=0; j<entry.qualities.length; j++) {
-          var quality = entry.qualities[j];
+      // resolve m3u8 playlists 
+      // we need to use Array index operator in order to have a reference to mediaEntry since we are about to modify it
+      // therefore we need to use a classical for loop instead of Array.forEach (which would deliver a copy of the mediaEntry)
+      for (let i=0; i<jsonMediaList.mediaList.length; i++) {
+        let mediaEntry = jsonMediaList.mediaList[i];
+        // we need to run backwards over qualities since we add new entries
+        for (let j=mediaEntry.qualities.length; j>0; j--) {
+          let quality = mediaEntry.qualities[j-1];
           if (quality.type && quality.type.toLowerCase().startsWith("m3u8") && quality.quality == null) {
             //quality.quality = "m3u8-multi";
-            var subQualities = await loadM3U8PlayListQualities(quality.url);
-            subQualities.forEach((subQuality) => {entry.qualities.push(subQuality)});
+            let subQualities = await loadM3U8PlayListQualities(quality.url);
+            // add the created downloadable quality playlists to mediaEntry for showing up in ui
+            //subQualities.sort((streamA,streamB) => { return streamB.quality - streamA.quality; });
+            subQualities.forEach((subQuality) => { mediaEntry.qualities.push(subQuality) });
           }
         }
       }
-      // process m3u8 playlists
-      for (var i=0; i<jsonMediaList.mediaList.length; i++) {
-        var entry = jsonMediaList.mediaList[i];
-        var subQualities = [];
-        for (var j=0; j<entry.qualities.length; j++) {
-          var quality = entry.qualities[j];
+
+      // postprocess m3u8 quality playlists (this adds modified copies of original quality playlists)
+      for (let i=0; i<jsonMediaList.mediaList.length; i++) {
+        let mediaEntry = jsonMediaList.mediaList[i];
+        let subQualities = [];
+        for (let j=0; j<mediaEntry.qualities.length; j++) {
+          let quality = mediaEntry.qualities[j];
           if (quality.url && quality.type && quality.type.toLowerCase().startsWith("m3u8")) {
-            var subQuality = await createAdFreeVodPlayListAsync(quality.url, quality.quality);
+            let subQuality = await createAdFreeVodPlayListAsync(quality.url, quality.quality);
             if (subQuality) {
               subQualities.push(subQuality);
             }
           }
         }
-        subQualities.forEach((subQuality) => {entry.qualities.push(subQuality)});
+        // add the created downloadable quality playlists to mediaEntry for showing up in ui
+        //subQualities.sort((streamA,streamB) => { return streamB.quality - streamA.quality; });
+        subQualities.forEach((subQuality) => { mediaEntry.qualities.push(subQuality) });
+      }
+      
+      // sort available qualities
+      for (let i=0; i<jsonMediaList.mediaList.length; i++) {
+        let mediaEntry = jsonMediaList.mediaList[i];
+        mediaEntry.qualities.sort((streamA,streamB) => { return streamB.quality - streamA.quality; });
       }
 
+      // process title infos
+      let defaultTitle = document.title || 'video';
+      for (let i=0; i<jsonMediaList.mediaList.length; i++) {
+        let mediaEntry = jsonMediaList.mediaList[i];
+        mediaEntry.title = mediaEntry.title || defaultTitle;
+      }
+ 
       // debug output of retieved media information
       jsonMediaList.mediaList.forEach((entry) => {
         entry.qualities.forEach((quality) => {
@@ -896,7 +1003,6 @@ function CodeToInject(chromeExtensionScriptUrl) {
 
       // inject download ui
       jsonMediaList.mediaList.forEach((entry) => {
-        //var m3u8PlayLists;
         entry.qualities.forEach(async (quality) => {
           createDownloadUiAndAddUrl(showUiOpen, entry.title, entry.description, quality);
         })
@@ -927,12 +1033,12 @@ function CodeToInject(chromeExtensionScriptUrl) {
     var adfree = downloadInfo.adfree;
 
     // make valid filename from title and url
-    var fileName = fileTitle.replace( /[<>:"\/\\|?*,]/g, '' );
+    var fileName = convertTitleToValidFilename(fileTitle);
     if (quality) {
       var qualiName = quality + (adfree ? '-AdFree' : '');
       fileName = fileName + " (" + qualiName + ")";
     }
-    var mediaFileName = fileName  + '.' + mediaType
+    var mediaFileName = fileName + '.' + mediaType
 
     var el = document.getElementById("i2d-popup");
     var elspan = document.getElementById("i2d-popup-x");
