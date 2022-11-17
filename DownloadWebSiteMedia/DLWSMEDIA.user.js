@@ -1,20 +1,25 @@
-﻿// ==UserScript==
+// ==UserScript==
 // @name        WebSite Media Download
 // @namespace   savnt
 // @description Adds a download button to video player pages
 // @include     https://www.redbull.com/*
 // @copyright   2019-2021, savnt
 // @license     MIT
-// @version     0.3.3
+// @version     0.3.4
 // @grant       none
 // @inject-into page
 // ==/UserScript==
 
-function CodeToInject(chromeExtensionScriptUrl) {
-  'use strict';
+(function content() {
 
+function CodeToInject(chromeExtensionScriptUrl) {
+  //'use strict';
+
+  //-------------------------------------------------------------------
+  // mux.js add on
+  
   var muxjsVersion = 'mux.js'; //'mux-min.js';
-  var muxjsUrl = chromeExtensionScriptUrl + muxjsVersion;
+  var muxjsUrl = chromeExtensionScriptUrl ? chromeExtensionScriptUrl + muxjsVersion : null;
   //var muxJs = null;
 
   var transmuxer = null
@@ -101,8 +106,59 @@ function CodeToInject(chromeExtensionScriptUrl) {
     }
   }
 
+  //-------------------------------------------------------------------
+  // main script
+  
   function debug(message) {
     console.log("[Media Download] " + message);
+    // simulate console on I(Pad)OS Safari browsers
+    if(navigator.userAgent.indexOf("Safari") != -1)
+    {
+      let DEBUG_ID = "DLWSMEDIA_DEBUG";
+      let div = document.getElementById(DEBUG_ID);
+      if (!div) {
+        div = document.createElement("div");
+        div.id = DEBUG_ID;
+        //div.style.position = "fixed";
+        div.style.top = "20%";
+        div.style.left = "10%";
+        div.style.height = "50%";
+        div.style.width = "80%";
+        /* div.style.backgroundColor = "black";
+        div.style.zIndex = 2147483647;
+        div.style.opacity = 0;
+        div.style["-webkit-transition"] = "opacity 250ms";
+        */
+        document.body.appendChild(div);
+      }
+      let lines = message.split('\n');
+      lines.forEach((line)=>{
+        ////let pad = '';
+        ////while (line.length && line.startsWith(' ')) {
+        ////  pad = pad + '&nbsp;'
+        ////  line = line.substr(1);
+        ////}
+        ////line = pad + line;
+        //div.appendChild(document.createTextNode(line));
+        //div.appendChild(document.createElement('br'));
+        let pre = document.createElement('pre');
+        pre.innerHTML = line;
+        div.appendChild(pre);   
+      });
+    }
+  }
+  
+  function debugJson(context, json) {
+    if (json) {
+      debug(context + JSON.stringify(json, null, 2)); 
+    }
+    else {
+      debug(context + 'null');
+    }
+  }
+  
+  function debugJsonString(context, jsonStr) {
+    debugJson(context, JSON.parse(jsonStr));
   }
   
   function injectScript(url, cb, variable=null) {
@@ -365,7 +421,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
     let m3u8Text = response.data;
     debug("m3u8UrlIn: " + m3u8UrlIn);
     debug("m3u8Url: " + m3u8Url);
-    debug("m3u8Text: " + m3u8Text);
+    //debug("m3u8Text: " + m3u8Text);
     //parse:
     // #EXT-X-STREAM-INF:BANDWIDTH=7556940,AVERAGE-BANDWIDTH=5745432,RESOLUTION=1920x1080,CODECS="avc1.640028,mp4a.40.2"
     // https://dms.redbull.tv/dms/media/AP-1XCY6DVFN1W11/1920x1080@7556940/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJjYXRlZ29yeSI6InBlcnNvbmFsX2NvbXB1dGVyIiwib3NfZmFtaWx5IjoiaHR0cCIsIm9zX3ZlcnNpb24iOiIiLCJ1aWQiOiIwMmRjMzc1Mi01NjA4LTQ3YWMtOGY3Mi1hNmUwZDE5ZTI3MWYiLCJsYXRpdHVkZSI6MC4wLCJsb25ndGl0dWRlIjowLjAsImNvdW50cnlfaXNvIjoiZGUiLCJhZGRyZXNzIjoiMjAwMzplYTo5NzI4OjIwMDA6YjQ2MDpkZGZhOjJiODg6M2QwMCIsInVzZXItYWdlbnQiOiJNb3ppbGxhLzUuMCAoV2luZG93cyBOVCAxMC4wOyBXaW42NDsgeDY0KSBBcHBsZVdlYktpdC81MzcuMzYgKEtIVE1MLCBsaWtlIEdlY2tvKSBDaHJvbWUvNzQuMC4zNzI5LjE1NyBTYWZhcmkvNTM3LjM2IiwiZGV2aWNlX3R5cGUiOiIiLCJkZXZpY2VfaWQiOiIiLCJpYXQiOjE1NTgwNDQ3NTJ9.sTG_v7V_mGR2DMsvjVC10fOmvpfJR3T4h78Y5VaFa-w=/playlist.m3u8
@@ -652,7 +708,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
     let m3u8Text = response.data;
     debug("m3u8UrlIn: " + m3u8UrlIn);
     debug("m3u8Url: " + m3u8Url);
-    debug("m3u8Text: " + m3u8Text);
+    //debug("m3u8Text: " + m3u8Text);
     let adFreeResult = getAdFreeUrlListFromM3U8VodPlayList(m3u8Text, m3u8Url);
     if (!adFreeResult || !adFreeResult.vodPlayList) {
       return null;
@@ -852,7 +908,8 @@ function CodeToInject(chromeExtensionScriptUrl) {
     }
     debug("found Vimeo media page with player object");
     // retrieve media info from active player properties -> this can break if players change
-    if ('clips' in player) {
+    //debug(JSON.stringify(player.clip_page_config));
+    if (player.clip_page_config && 'clips' in player) {
       debug("found Vimeo media data");
       //Vimeo
       let videoId = player.clip_page_config.clip.id;
@@ -884,32 +941,10 @@ function CodeToInject(chromeExtensionScriptUrl) {
         });
       }
       jsonMediaList.mediaList.push(entry);
-    }
-    else if (player.clip_page_config) {
-      debug("found Vimeo live data");
-      let videoTitle = player.clip_page_config.clip.title;
-      let videoDescription = player.clip_page_config.clip.description;
-      let vimeoConfigUrl = player.clip_page_config.player.config_url;
-      let response = await loadWebResourceAsync(vimeoConfigUrl);
-      let vimeoConfigJson = response.data;
-      let vimeoConfig = JSON.parse(vimeoConfigJson);
-      let videoUrl = vimeoConfig.request.files.hls.cdns.akamai_live.url;
-      let videoType = getExtensionFromUrl(videoUrl);
-      let videoQuality = null;
-        jsonMediaList.mediaList.push({
-          "title": videoTitle,
-          "description": videoDescription,
-          "qualities": [{
-            "url": videoUrl,
-            "type": videoType,
-            "quality": videoQuality,
-            "adfree": false,
-            "content": ""
-          }]
-        });
-    }
+    }    
     else if (document.URL.includes('player.vimeo.com')) {
       //VimeoPlayer
+      debug("found VimeoPlayer");
       let vimeoConfigUrl = document.URL + '/config'; //https://player.vimeo.com/video/497651456/config
       let response = await loadWebResourceAsync(vimeoConfigUrl);
       let vimeoConfigJson = response.data;
@@ -937,7 +972,7 @@ function CodeToInject(chromeExtensionScriptUrl) {
         }
       }
       else if (vimeoConfig.request.files.hls.cdns.akamai_live) {
-        debug("found Vimeo live stream");
+        debug("found VimeoPlayer live stream");
         //let videoUrl = getAbsoluteUrl(vimeoConfig.request.files.hls.cdns.akamai_live.url);
         let videoUrl = vimeoConfig.request.files.hls.cdns.akamai_live.url;
         let videoType = getExtensionFromUrl(videoUrl);
@@ -954,6 +989,49 @@ function CodeToInject(chromeExtensionScriptUrl) {
           }]
         });
       }
+    }
+    else if (player.clip_page_config) {
+      debug("found standard Vimeo data");
+      let mediaEntry = {
+        "title": player.clip_page_config.clip.title,
+        "description": player.clip_page_config.clip.description,
+        "qualities": []
+      };
+      let vimeoConfigUrl = player.clip_page_config.player.config_url;
+      //debug("vimeoConfigUrl: " + vimeoConfigUrl);
+      let response = await loadWebResourceAsync(vimeoConfigUrl);
+      let vimeoConfigJson = response.data;
+      let vimeoConfig = JSON.parse(vimeoConfigJson);
+      //debugJson("vimeoConfig:\n", vimeoConfig);
+      //debugJson("vimeoConfig.request.files.dash[]:\n", vimeoConfig.request.files.dash);
+      //debugJson("vimeoConfig.request.files.hls[]:\n", vimeoConfig.request.files.hls);
+      //debugJson("vimeoConfig.request.files.progressive[]:\n", vimeoConfig.request.files.progressive);
+      if (vimeoConfig && vimeoConfig.request && vimeoConfig.request.files && vimeoConfig.request.files.progressive) {
+        debug("found Vimeo progressive formats");
+        vimeoConfig.request.files.progressive.forEach((format)=>{
+          mediaEntry.qualities.push({
+            "url": format.url,
+            "type": getExtensionFromMimeType(format.mime),
+            "quality": format.quality,
+            "adfree": false,
+            "content": ""
+          });
+        });
+      }
+      if (vimeoConfig && vimeoConfig.request && vimeoConfig.request.files && vimeoConfig.request.files.hls) {
+        debug("found Vimeo hls formats");
+      }
+      if (vimeoConfig && vimeoConfig.request && vimeoConfig.request.files && vimeoConfig.request.files.hls && vimeoConfig.request.files.hls.cdns && vimeoConfig.request.files.hls.cdns.akamai_live) {
+        debug("found Vimeo live stream");
+        mediaEntry.qualities.push({
+          "url": vimeoConfig.request.files.hls.cdns.akamai_live.url,
+          "type": getExtensionFromUrl(vimeoConfig.request.files.hls.cdns.akamai_live.url),
+          "quality": null,
+          "adfree": false,
+          "content": ""
+        });
+      }
+      jsonMediaList.mediaList.push(mediaEntry);
     }
     else {
       debug("could not extract Vimeo media"); 
@@ -1078,7 +1156,20 @@ function CodeToInject(chromeExtensionScriptUrl) {
 
   // << end of site specific functions
   //-------------------------------------------------------------------------------------------------------
-
+  
+  function QualityToNumber(quality) {
+    if (!quality) {
+      return 0;
+    }
+    if (quality.endsWith('p')) {
+      quality = quality.substr(0, quality.length-1);
+    }
+    if (quality.lastIndexOf('x') >= 0) {
+      quality = quality.substr(quality.lastIndexOf('x')+1);
+    }
+    return parseInt(quality); 
+  }
+  
   async function analysePageAndCreateUiAsync(showUiOpen) {
     debug("analysePageAndCreateUiAsync()");
 
@@ -1175,7 +1266,11 @@ function CodeToInject(chromeExtensionScriptUrl) {
       // sort available qualities
       for (let i=0; i<jsonMediaList.mediaList.length; i++) {
         let mediaEntry = jsonMediaList.mediaList[i];
-        mediaEntry.qualities.sort((streamA,streamB) => { return streamB.quality - streamA.quality; });
+        mediaEntry.qualities.sort((streamA,streamB) => {
+          debug('qa: '+ QualityToNumber(streamA.quality));
+          debug('qb: '+ QualityToNumber(streamB.quality));
+          return QualityToNumber(streamB.quality) - QualityToNumber(streamA.quality);
+        });
       }
 
       // process title infos
@@ -1353,34 +1448,53 @@ function CodeToInject(chromeExtensionScriptUrl) {
 
   // add SaveAs feature
   // @source http://purl.eligrey.com/github/FileSaver.js/blob/master/FileSaver.js 
-window.saveAs=function(view){"use strict";if(typeof navigator!=="undefined"&&/MSIE [1-9]\./.test(navigator.userAgent)){return}var doc=view.document,get_URL=function(){return view.URL||view.webkitURL||view},save_link=doc.createElementNS("http://www.w3.org/1999/xhtml","a"),can_use_save_link="download"in save_link,click=function(node){var event=new MouseEvent("click");node.dispatchEvent(event)},is_safari=/Version\/[\d\.]+.*Safari/.test(navigator.userAgent),webkit_req_fs=view.webkitRequestFileSystem,req_fs=view.requestFileSystem||webkit_req_fs||view.mozRequestFileSystem,throw_outside=function(ex){(view.setImmediate||view.setTimeout)(function(){throw ex},0)},force_saveable_type="application/octet-stream",fs_min_size=0,arbitrary_revoke_timeout=500,revoke=function(file){var revoker=function(){if(typeof file==="string"){get_URL().revokeObjectURL(file)}else{file.remove()}};if(view.chrome){revoker()}else{setTimeout(revoker,arbitrary_revoke_timeout)}},dispatch=function(filesaver,event_types,event){event_types=[].concat(event_types);var i=event_types.length;while(i--){var listener=filesaver["on"+event_types[i]];if(typeof listener==="function"){try{listener.call(filesaver,event||filesaver)}catch(ex){throw_outside(ex)}}}},auto_bom=function(blob){if(/^\s*(?:text\/\S*|application\/xml|\S*\/\S*\+xml)\s*;.*charset\s*=\s*utf-8/i.test(blob.type)){return new Blob(["\ufeff",blob],{type:blob.type})}return blob},FileSaver=function(blob,name,no_auto_bom){if(!no_auto_bom){blob=auto_bom(blob)}var filesaver=this,type=blob.type,blob_changed=false,object_url,target_view,dispatch_all=function(){dispatch(filesaver,"writestart progress write writeend".split(" "))},fs_error=function(){if(target_view&&is_safari&&typeof FileReader!=="undefined"){var reader=new FileReader;reader.onloadend=function(){var base64Data=reader.result;target_view.location.href="data:attachment/file"+base64Data.slice(base64Data.search(/[,;]/));filesaver.readyState=filesaver.DONE;dispatch_all()};reader.readAsDataURL(blob);filesaver.readyState=filesaver.INIT;return}if(blob_changed||!object_url){object_url=get_URL().createObjectURL(blob)}if(target_view){target_view.location.href=object_url}else{var new_tab=view.open(object_url,"_blank");if(new_tab==undefined&&is_safari){view.location.href=object_url}}filesaver.readyState=filesaver.DONE;dispatch_all();revoke(object_url)},abortable=function(func){return function(){if(filesaver.readyState!==filesaver.DONE){return func.apply(this,arguments)}}},create_if_not_found={create:true,exclusive:false},slice;filesaver.readyState=filesaver.INIT;if(!name){name="download"}if(can_use_save_link){object_url=get_URL().createObjectURL(blob);setTimeout(function(){save_link.href=object_url;save_link.download=name;click(save_link);dispatch_all();revoke(object_url);filesaver.readyState=filesaver.DONE});return}if(view.chrome&&type&&type!==force_saveable_type){slice=blob.slice||blob.webkitSlice;blob=slice.call(blob,0,blob.size,force_saveable_type);blob_changed=true}if(webkit_req_fs&&name!=="download"){name+=".download"}if(type===force_saveable_type||webkit_req_fs){target_view=view}if(!req_fs){fs_error();return}fs_min_size+=blob.size;req_fs(view.TEMPORARY,fs_min_size,abortable(function(fs){fs.root.getDirectory("saved",create_if_not_found,abortable(function(dir){var save=function(){dir.getFile(name,create_if_not_found,abortable(function(file){file.createWriter(abortable(function(writer){writer.onwriteend=function(event){target_view.location.href=file.toURL();filesaver.readyState=filesaver.DONE;dispatch(filesaver,"writeend",event);revoke(file)};writer.onerror=function(){var error=writer.error;if(error.code!==error.ABORT_ERR){fs_error()}};"writestart progress write abort".split(" ").forEach(function(event){writer["on"+event]=filesaver["on"+event]});writer.write(blob);filesaver.abort=function(){writer.abort();filesaver.readyState=filesaver.DONE};filesaver.readyState=filesaver.WRITING}),fs_error)}),fs_error)};dir.getFile(name,{create:false},abortable(function(file){file.remove();save()}),abortable(function(ex){if(ex.code===ex.NOT_FOUND_ERR){save()}else{fs_error()}}))}),fs_error)}),fs_error)},FS_proto=FileSaver.prototype,saveAs=function(blob,name,no_auto_bom){return new FileSaver(blob,name,no_auto_bom)};if(typeof navigator!=="undefined"&&navigator.msSaveOrOpenBlob){return function(blob,name,no_auto_bom){if(!no_auto_bom){blob=auto_bom(blob)}return navigator.msSaveOrOpenBlob(blob,name||"download")}}FS_proto.abort=function(){var filesaver=this;filesaver.readyState=filesaver.DONE;dispatch(filesaver,"abort")};FS_proto.readyState=FS_proto.INIT=0;FS_proto.WRITING=1;FS_proto.DONE=2;FS_proto.error=FS_proto.onwritestart=FS_proto.onprogress=FS_proto.onwrite=FS_proto.onabort=FS_proto.onerror=FS_proto.onwriteend=null;return saveAs}(typeof self!=="undefined"&&self||typeof window!=="undefined"&&window||this.content);if(typeof module!=="undefined"&&module.exports){module.exports.saveAs=saveAs}else if(typeof define!=="undefined"&&define!==null&&define.amd!=null){define([],function(){return saveAs})}
-
+  //...
  
-  // load mux.js script and start analysing page defered
-  injectScript(muxjsUrl, ()=>{
-    debug("analysePageOnMuxJsLoad()");
-    //muxJs = window['muxjs'];
-    analysePageAndCreateUiAsync();
-  });
- 
-  // start analysing page immediately
-  //analysePageAndCreateUiAsync();
+  debug('userAgent: ' + navigator.userAgent);
+  debug('docUrl: '+ document.URL)
+  // detect Apple OS Safari browser: https://stackoverflow.com/questions/9847580/how-to-detect-safari-chrome-ie-firefox-and-opera-browser
+  //let isSafari = /constructor/i.test(window.HTMLElement) || (function (p) { return p.toString() === "[object SafariRemoteNotification]"; })(!window['safari'] || (typeof safari !== 'undefined' && window['safari'].pushNotification));
+  //debug('isSafari: ' + isSafari);  
+  
+  // start page analysis:
+  if (muxjsUrl) {
+    // load mux.js script and start analysing page defered  
+    injectScript(muxjsUrl, ()=>{
+      debug("analysePage - OnMuxJsLoad()");
+      //muxJs = window['muxjs'];
+      analysePageAndCreateUiAsync();
+    });
+  }
+  else {
+    // start analysing page immediately
+    debug("analysePage - OnMainStart()");
+    analysePageAndCreateUiAsync();      
+  }
 }
 
-(function(){
-  console.log("[Media Download] MAINSTART on page: " + window.location.href );
 
-  if (window.location.href == 'https://player.vimeo.com/static/proxy.html') {
-    return;
+  console.log("[Media Download] MAINSTART on page: " + window.location.href);
+  // define the id for this script
+  // this is reqired for detecting/tagging the injected script code 
+  // this name pattern is also used by the IOS Safari ProcessWebPage applet (based on Scriptable app/engine)
+  let ThisScriptId = 'UserScript_' + 'DLWSMEDIA.user.js';
+
+  // we bypass injection if we run under ProcessWebPage (no sandboxing)
+  if (document.getElementById(ThisScriptId)) {
+     console.log("[Media Download] starting");   
+     //we run in page (ProcessWebPage) > no further injection required
+     CodeToInject('');
+     return;
   }
- 
+  
   function injectCode() {
     console.log("[Media Download] injectCode");
     // inject script into page in order to run in page context
-    var chromeExtensionScriptUrl = (chrome && chrome.runtime) ? chrome.runtime.getURL('') : '';
+    var chromeExtensionScriptUrl = (chrome && chrome.runtime) ? chrome.runtime.getURL('') : null;
     var setupScriptCode = CodeToInject.toString();
     var script = document.createElement('script');
     script.type = 'text/javascript';
+    script.id = ThisScriptId;
     //script.textContent = '(' + setupScriptCode + ')("' + chromeExtensionScriptUrl.toString() + '");';
     script.textContent = setupScriptCode + ' CodeToInject("' + chromeExtensionScriptUrl.toString() + '");';
     document.head.appendChild(script);
@@ -1392,4 +1506,5 @@ window.saveAs=function(view){"use strict";if(typeof navigator!=="undefined"&&/MS
   //};
   //window.onload = injectCode();
   injectCode();
-})();
+
+})(); //(function content() {
