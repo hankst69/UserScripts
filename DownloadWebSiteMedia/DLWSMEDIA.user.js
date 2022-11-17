@@ -5,7 +5,7 @@
 // @include     https://www.redbull.com/*
 // @copyright   2019-2021, savnt
 // @license     MIT
-// @version     0.3.4
+// @version     0.4.0
 // @grant       none
 // @inject-into page
 // ==/UserScript==
