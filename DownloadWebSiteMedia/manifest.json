@@ -1,30 +1,33 @@
 ﻿{
-    "manifest_version": 2,
+  //https://developer.chrome.com/docs/extensions/mv3/intro/mv3-migration/
+  "manifest_version": 2,
 
-    "converted_from_user_script": true,
-    "name":        "Download WebSite Media",
-    "description": "Adds a button that lets you download media files from platforms: RedBull, ServusTv, MySpass, Vimeo",
-    "version":     "0.5.5",
-    "icons": { "64": "./DLWSMEDIA.png" },
-    "content_scripts": [
-        {
-            "js": [ "./DLWSMEDIA.user.js" ],
-            "matches": [
-              "https://*.redbull.com/*",
-              "https://*.servus.com/*",
-              "https://*.servustv.com/*",
-              "https://*.myspass.de/*",
-              "https://vimeo.com/*",
-              "https://player.vimeo.com/video*",
-              "https://*.googlevideo.com/*",
-              "https://*.youtube.com/*",
-              "https://*.dailymotion.com/*",
-              "https://www.ardmediathek.de/*",
-              "https://www.airmeet.com/*",
-              "https://mediathekviewweb.de/*"
-            ],
-            "run_at": "document_end"
-        }
-    ],
-    "web_accessible_resources": [ "*.js" ]
+  "converted_from_user_script": true,
+  "name":        "Download WebSite Media",
+  "description": "Adds a button that lets you download media files from platforms: RedBull, ServusTv, MySpass, Vimeo, YouTube, Dailymotion, MTV, Airmeet",
+  "version":     "0.5.6",
+  "icons": { "64": "./DLWSMEDIA.png" },
+  "content_scripts": [
+    {
+      "js": [ "./DLWSMEDIA.user.js" ],
+      "matches": [
+        "https://*.redbull.com/*",
+        "https://*.servus.com/*",
+        "https://*.servustv.com/*",
+        "https://*.myspass.de/*",
+        "https://vimeo.com/*",
+        "https://player.vimeo.com/video*",
+        "https://*.googlevideo.com/*",
+        "https://*.youtube.com/*",
+        "https://*.dailymotion.com/*",
+        "https://www.ardmediathek.de/*",
+        "https://www.airmeet.com/*",
+        "https://mediathekviewweb.de/*",
+        "https://www.mtv.de/*"
+      ],
+      "run_at": "document_end"
+    }
+  ],
+  //"permissions": [ "tabs", "webRequest", "webRequestBlocking", "storage" ],
+  "web_accessible_resources": [ "*.js" ]
 }

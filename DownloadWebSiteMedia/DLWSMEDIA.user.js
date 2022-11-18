@@ -4,7 +4,7 @@
 // @description Adds a download button to video player pages
 // @copyright   2019-2022, savnt
 // @license     MIT
-// @version     0.5.5
+// @version     0.5.6
 // @grant       none
 // @inject-into page
 // ==/UserScript==
@@ -2021,9 +2021,9 @@
     }
   }
 
-  async function findMediathekviewPlayerMedia(document, resultContainer) {
+  async function findMediathekViewPlayerMedia(document, resultContainer) {
     // https://srf-vod-amd.akamaized.net/ch/hls/film/2022/10/film_20221011_153158_15680421_v_webcast_h264_,q40,q10,q20,q30,q50,q60,.mp4.csmil/index-f6-v1-a1.m3u8
-    if (document.location.host.startsWith('mediathekviewweb.de') && document.querySelector('div#videocontent>div')) {
+    if (document.location.host.endsWith('mediathekviewweb.de') && document.querySelector('div#videocontent>div')) {
       debug("found MediathekviewWeb page with video object");
       let videoUrl = document.querySelector('div#videocontent>div>video>source').src;
       // retrieve media info from active player properties -> this can break if players change
@@ -2050,6 +2050,46 @@
     }
   }
 
+  async function findMtvMedia(document, resultContainer) {
+    //https://www.mtv.de/musikvideos/z7vyzk/mariposa-traicionera
+    //<script type="application/ld+json">{"@context":"https://schema.org","@type":"VideoObject","@id":"6f3df3b0-7ba7-4302-ac6b-3c16eac09dc9","name":"Mana • Mariposa traicionera","duration":"PT0H4M31S","thumbnailUrl":"https://images.paramount.tech/uri/mgid:arc:imageassetref:mtv.de:ee867056-6eb8-11e8-881b-70df2f866ace?quality=0.7&gen=ntrn&legacyStatusCode=true","url":"https://www.mtv.de/musikvideos/z7vyzk/mana-mariposa-traicionera","contentUrl":"https://www.mtv.de/musikvideos/z7vyzk/mana-mariposa-traicionera","uploadDate":"2020-06-08T12:16:17.000Z"}</script>
+    //-> video-id = "@id" = "6f3df3b0-7ba7-4302-ac6b-3c16eac09dc9"
+    //-> https://media-utils.mtvnservices.com/services/MediaGenerator/mgid:arc:musicvideo:mtv.intl:<video-id>?arcStage=live&accountOverride=intl.mtvi.com&billingSection=intl&ep=82ac4273&format=json&acceptMethods=hls&tveprovider=null
+    //-> json data
+    //-> package.video.item[0].rendition[0].src = https://dlvrsvc.mtvnservices.com/api/gen/gsp.mtviestor/_!/intlod/MTVInternational/wmg_int/mxf150/900660/0/,stream_768x576_1931255_2852696635,stream_576x432_998196_2849351006,stream_640x480_1461544_2867250770,stream_320x240_287457_128339406,stream_480x360_504697_242131656/master.m3u8?account=intl.mtvi.com&cdn=ns1&tk=st=1667480145~exp=1667566545~acl=/api/gen/gsp.mtviestor/_*/intlod/MTVInternational/wmg_int/mxf150/900660/0/*~hmac=af810628aef8fa6b7a4b39ecc571eb23f3cc5eff62cb8f3adc0c6977d98282c7
+    //-> this is a master.m3u8
+    if (document.location.host.endsWith('.mtv.de') && document.location.pathname.startsWith('/musikvideos/')) {
+      let mtvVideoConfigs = document.querySelectorAll('script[type="application/ld+json"]');
+      for (const config of mtvVideoConfigs) {
+        let json = JSON.parse(config.innerHTML);
+        if (json["@type"] == "VideoObject" && json["@id"]) {
+          debug("found MTV media page with m3u8 video info");
+          let videoId = json["@id"];
+          let videoConfigUrl = 'https://media-utils.mtvnservices.com/services/MediaGenerator/mgid:arc:musicvideo:mtv.intl:' + videoId + '?arcStage=live&accountOverride=intl.mtvi.com&billingSection=intl&ep=82ac4273&format=json&acceptMethods=hls&tveprovider=null';
+          let httpRequest = new HttpRequest();
+          let response = await httpRequest.downloadAsync(videoConfigUrl);
+          let videoConfigJson = response.data;
+          let videoConfig = JSON.parse(videoConfigJson);
+          let videoUrl = videoConfig.package.video.item[0].rendition[0].src;
+          let videoType = 'm3u8';//getExtensionFromUrl(videoUrl);
+          let videoTitle = json.name;
+          let videoDescription = ''; //videoTitle;
+          let videoQuality = null;
+          resultContainer.mediaList.push({
+            "title": videoTitle,
+            "description": videoDescription,
+            "qualities": [{
+              "url": videoUrl,
+              "type": videoType,
+              "quality": videoQuality
+              }]
+          });
+        }
+      }
+      return;
+    }
+    debug("could not extract MTV media");
+  }
 
   // << end of site specific functions
   //-------------------------------------------------------------------------------------------------------
@@ -2099,7 +2139,8 @@
       await findYouTubeMedia(document, resultContainer);
       await findDailymotionMedia(document, resultContainer);
       await findArdMedia(document, resultContainer);
-      await findMediathekviewPlayerMedia(document, resultContainer);
+      await findMediathekViewPlayerMedia(document, resultContainer);
+      await findMtvMedia(document, resultContainer);
       await findAirmeetMedia(document, resultContainer);
         
       // POSTPROCESS AND DISPLAY retrieved media information
