@@ -4,7 +4,7 @@
 // @description Adds a download button to video player pages
 // @copyright   2019-2022, savnt
 // @license     MIT
-// @version     0.5.6
+// @version     0.5.7
 // @grant       none
 // @inject-into page
 // ==/UserScript==
@@ -283,6 +283,26 @@
       }
     }
 
+    async downloadHeaderAsyncSafe(url) {
+      try {
+        let response = await this.downloadHeaderAsync(url);
+        return response;
+      }
+      catch (error) {
+         return null;
+      }
+    }
+
+    async downloadAsyncSafe(url) {
+      try {
+        let response = await this.downloadAsync(url);
+        return response;
+      }
+      catch (error) {
+         return null;
+      }
+    }
+
     async downloadAsync(url) {
       let promise = new Promise((resolve, reject) => {
         let method = 'GET';
@@ -354,17 +374,6 @@
         xhr.send();
       });
       return promise;
-    }
-
-    async downloadHeader(url) {
-      try {
-        let response = await this.downloadHeaderAsync(url);
-        return response;
-      }
- 
-      catch (error) {
-         return null;
-      }
     }
 
     // it might be necessary to enable CORS (in chrome by patching request/response headers)
@@ -967,9 +976,14 @@
     cleanedData.segments = [];
     for (const seg of m3u8Data.segments) {    
       let httpRequest = new HttpRequest();
-      let response = await httpRequest.downloadHeader(seg.uri);
+      let response = await httpRequest.downloadHeaderAsyncSafe(seg.uri);
       if (response && response.status == 200) {
         cleanedData.segments.push(seg);
+      } else {
+        let response = await httpRequest.downloadAsyncSafe(seg.uri);
+        if (response && response.status == 200) {
+          cleanedData.segments.push(seg);
+        }
       }
     }
     return cleanedData;
