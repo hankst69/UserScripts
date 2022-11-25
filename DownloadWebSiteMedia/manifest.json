@@ -4,8 +4,8 @@
 
   "converted_from_user_script": true,
   "name":        "Download WebSite Media",
-  "description": "Adds a button that lets you download media files from platforms: RedBull, ServusTv, MySpass, Vimeo, YouTube, Dailymotion, MTV, Airmeet",
-  "version":     "0.5.7",
+  "description": "Adds a button that lets you download media files from platforms: RedBull, ServusTv, MySpass, Vimeo, YouTube, Dailymotion, MTV, TED, Airmeet",
+  "version":     "0.5.8",
   "icons": { "64": "./DLWSMEDIA.png" },
   "content_scripts": [
     {
@@ -20,10 +20,11 @@
         "https://*.googlevideo.com/*",
         "https://*.youtube.com/*",
         "https://*.dailymotion.com/*",
-        "https://www.ardmediathek.de/*",
-        "https://www.airmeet.com/*",
+        "https://*.ardmediathek.de/*",
+        "https://*.airmeet.com/*",
         "https://mediathekviewweb.de/*",
-        "https://www.mtv.de/*"
+        "https://*.mtv.de/*",
+        "https://*.ted.com/*"
       ],
       "run_at": "document_end"
     }
