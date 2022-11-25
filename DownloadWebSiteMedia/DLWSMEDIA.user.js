@@ -4,7 +4,7 @@
 // @description Adds a download button to video player pages
 // @copyright   2019-2022, savnt
 // @license     MIT
-// @version     0.5.7
+// @version     0.5.8
 // @grant       none
 // @inject-into page
 // ==/UserScript==
@@ -2105,6 +2105,63 @@
     debug("could not extract MTV media");
   }
 
+  async function findTedMedia(document, resultContainer) {
+    //https://www.ted.com/talks/charles_fleischer_all_things_are_moleeds?language=de
+    //<video playsinline="playsinline" class="absolute top-0 left-0 h-full w-full bg-black" id="ted-player-56" 
+    //  crossorigin="anonymous" src="blob:https://www.ted.com/b7837149-f5da-40a3-a05a-fba0a6a64742" 
+    //  title="Charles Fleischer: Charles Fleischer insistiert: Alle Dinge sind Moleeds">
+    //  <track kind="subtitles" label="Arabic" src="https://pubads.g.doubleclick.net/ondemand/hls/content/2503702/vid/consus-pm902-im2346/GRQ/streams/0f4fd44b-98a8-44c2-b50a-5bb05949925a/vtt/f6c40366-d054-4c9e-87ad-ff57a3fae5bb.vtt" srclang="ar">
+    //</video>
+
+    //-> video-id = "@id" = "6f3df3b0-7ba7-4302-ac6b-3c16eac09dc9"
+    //-> https://media-utils.mtvnservices.com/services/MediaGenerator/mgid:arc:musicvideo:mtv.intl:<video-id>?arcStage=live&accountOverride=intl.mtvi.com&billingSection=intl&ep=82ac4273&format=json&acceptMethods=hls&tveprovider=null
+    //-> json data
+    //-> package.video.item[0].rendition[0].src = https://dlvrsvc.mtvnservices.com/api/gen/gsp.mtviestor/_!/intlod/MTVInternational/wmg_int/mxf150/900660/0/,stream_768x576_1931255_2852696635,stream_576x432_998196_2849351006,stream_640x480_1461544_2867250770,stream_320x240_287457_128339406,stream_480x360_504697_242131656/master.m3u8?account=intl.mtvi.com&cdn=ns1&tk=st=1667480145~exp=1667566545~acl=/api/gen/gsp.mtviestor/_*/intlod/MTVInternational/wmg_int/mxf150/900660/0/*~hmac=af810628aef8fa6b7a4b39ecc571eb23f3cc5eff62cb8f3adc0c6977d98282c7
+    //-> this is a master.m3u8
+    if (document.location.host.endsWith('.ted.com') && document.location.pathname.startsWith('/talks/')) {
+      let tedMasterVideoTracks = document.querySelectorAll('div>video>track');
+      let masterUrl;
+      for (const track of tedMasterVideoTracks) {
+        if (!track || !track.src || track.src === "") {
+          continue;
+        }
+        if (masterUrl == null && track.src.toLowerCase().endsWith('.vtt')) {
+          let idx = track.src.toLowerCase().lastIndexOf('/vtt/');
+          if (idx > 0) {
+            masterUrl = track.src.substr(0, idx) + '/master.m3u8';
+            let httpRequest = new HttpRequest();
+            let response = await httpRequest.downloadAsyncSafe(masterUrl);
+            if (response && response.status == 200 && response.data) {
+              break;
+            }
+            masterUrl = null;
+          }
+        }
+      }
+      if (masterUrl) {
+        debug("found TED media page with m3u8 video info");
+        let videoUrl = masterUrl;
+        let videoElement = document.querySelector('div>video');
+        let videoTitle = videoElement.tile;
+        let videoDescription = ''; //videoTitle;
+        let videoType = 'm3u8';//getExtensionFromUrl(videoUrl);
+        let videoQuality = null;
+        resultContainer.mediaList.push({
+          "title": videoTitle,
+          "description": videoDescription,
+          "qualities": [{
+            "url": videoUrl,
+            "type": videoType,
+            "quality": videoQuality
+          }]
+        });
+      }
+      return;
+    }
+    debug("could not extract TED media");
+  }
+
+
   // << end of site specific functions
   //-------------------------------------------------------------------------------------------------------
  
@@ -2155,6 +2212,7 @@
       await findArdMedia(document, resultContainer);
       await findMediathekViewPlayerMedia(document, resultContainer);
       await findMtvMedia(document, resultContainer);
+      await findTedMedia(document, resultContainer);
       await findAirmeetMedia(document, resultContainer);
         
       // POSTPROCESS AND DISPLAY retrieved media information
