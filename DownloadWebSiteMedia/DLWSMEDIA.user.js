@@ -4,7 +4,7 @@
 // @description Adds a download button to video player pages
 // @copyright   2019-2022, savnt
 // @license     MIT
-// @version     0.5.8
+// @version     0.5.9
 // @grant       none
 // @inject-into page
 // ==/UserScript==
@@ -1624,6 +1624,48 @@
     }
   }
 
+  async function findBergweltenMedia(document, resultContainer) {
+    // Bergwelten:
+    //https://www.bergwelten.com/a/shangri-la-das-verborgene-kletterparadies
+    //<rbup-video-bergwelten id="rbx-player-container" asset-id="AA-1GSG6RGJS2114" cornerbug="bergwelten" autoplay="false"></rbup-video-bergwelten>
+    //-> asset-id="AA-1GSG6RGJS2114"
+    //-> https://api-player.redbull.com/bergwelten?videoId=AA-1GSG6RGJS2114
+    //-> https://cs.liiift.io/v1/STV/pd/E4/8B/9F/8E/FO-2BXH2PMM61111/master.m3u8
+    let rbPlayerCfg = document.querySelector('rbup-video-bergwelten');
+    if (!rbPlayerCfg) {
+      debug("could not extract Bergwelten player config");
+      return;
+    }
+    let videoId = rbPlayerCfg.getAttribute('asset-id');
+    if (!videoId) {
+      debug("could not extract Bergwelten media info");
+      return;
+    }
+    let videoConfigUrl = 'https://api-player.redbull.com/bergwelten?videoId=' + videoId;
+    let httpRequest = new HttpRequest();
+    let response = await httpRequest.downloadAsync(videoConfigUrl);
+    let videoConfigJson = response.data;
+    let videoConfig = JSON.parse(videoConfigJson);
+    if (videoConfig) {
+      debug("found ServusTV media page with m3u8 video info");
+      let videoTitle = document.querySelector('meta[property="og:title"]').content || videoConfig.title || document.querySelector('title').innerText;
+      let videoDescription = document.querySelector('meta[property="og:description"]').content || document.querySelector('meta[name="description"]').content;
+      let videoUrl = getAbsoluteUrl(videoConfig.videoUrl);
+      let videoType = getExtensionFromUrl(videoUrl);
+      let videoQuality = null;
+      resultContainer.mediaList.push({
+        "title": videoTitle,
+        "description": videoDescription,
+        "qualities": [{
+          "url": videoUrl,
+          "type": videoType,
+          "quality": videoQuality
+        }]
+      });
+    }
+    return;
+  }
+
   async function findServusTVMedia(document, resultContainer) {
     // ServusTV:
     //<rbup-video-stv id="H5fbebce4-62e5-40c4-a365-8c21596238ef" video-title="Anna Gasser – Der Funke in mir" enable-data-zoom="ACTIVE" cookie-consent="true" asset-id="AA-294F1JR1W2111" autoplay="false" ads-enabled="ACTIVE" cornerbug="stv-on" details="visible" poster="https://backend.servustv.com/tachyon/sites/12/2022/02/FO-299MK1MM61511-stv_cover_landscape-scaled.jpg?resize=1250,702&amp;crop_strategy=smart"><span class="sr-only">no STV WebComponent</span></rbup-video-stv>
@@ -1635,7 +1677,7 @@
       debug("could not extract ServusTV player config"); 
       return;
     }
-    let videoId = rbPlayerCfg["asset-id"];
+    let videoId = rbPlayerCfg.getAttribute('asset-id');
     if (!videoId) {
       debug("could not extract ServusTV media info"); 
       return;
@@ -2205,6 +2247,7 @@
       // update mediaList
       await findRedBullMedia(document, resultContainer);
       await findServusTVMedia(document, resultContainer);
+      await findBergweltenMedia(document, resultContainer);
       await findMySpassMedia(document, resultContainer);
       await findVimeoMedia(document, resultContainer);
       await findYouTubeMedia(document, resultContainer);

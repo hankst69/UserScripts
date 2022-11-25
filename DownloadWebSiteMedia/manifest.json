@@ -5,7 +5,7 @@
   "converted_from_user_script": true,
   "name":        "Download WebSite Media",
   "description": "Adds a button that lets you download media files from platforms: RedBull, ServusTv, MySpass, Vimeo, YouTube, Dailymotion, MTV, TED, Airmeet",
-  "version":     "0.5.8",
+  "version":     "0.5.9",
   "icons": { "64": "./DLWSMEDIA.png" },
   "content_scripts": [
     {
@@ -14,6 +14,7 @@
         "https://*.redbull.com/*",
         "https://*.servus.com/*",
         "https://*.servustv.com/*",
+        "https://*.bergwelten.com/*",
         "https://*.myspass.de/*",
         "https://vimeo.com/*",
         "https://player.vimeo.com/video*",
