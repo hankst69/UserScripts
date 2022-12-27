@@ -4,7 +4,7 @@
 // @description Adds a download button to video player pages
 // @copyright   2019-2022, savnt
 // @license     MIT
-// @version     0.5.9
+// @version     0.5.10
 // @grant       none
 // @inject-into page
 // ==/UserScript==
@@ -1800,12 +1800,11 @@
       player = window.VimeoPlayer;
     }        
     // redirect to VimeoPlayer in case of vimeo page and no videos found
-    if (!player && 'vimeo' in window) {
+    if (!player && 'vimeo' in window && !document.URL.includes('player.vimeo.com/video/')) {
       debug("found Vimeo page without player - trying to redirect to VimeoPlayer");
       if (window.vimeo && window.vimeo.clip_page_config && window.vimeo.clip_page_config.clip && window.vimeo.clip_page_config.clip.id) {
         let vimeoVideoId = window.vimeo.clip_page_config.clip.id;
         vimeoPlaybackUrl = 'https://player.vimeo.com/video/' + vimeoVideoId;
-        vimeoConfigUrl = 'https://player.vimeo.com/video/' + vimeoVideoId + '/config';
         // add redirection linkt to downloadui
         
         let redirectEntry = {
@@ -1822,6 +1821,9 @@
         resultContainer.mediaList.push(redirectEntry);
         //return;
       }
+    }
+    if (!player && document.URL.startsWith('https://player.vimeo.com/video/')) {
+      vimeoConfigUrl = document.URL + '/config';
     }
     if (!player && !vimeoConfigUrl) {
       return;     
