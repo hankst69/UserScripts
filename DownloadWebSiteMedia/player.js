@@ -1,11 +1,10 @@
-﻿var ffmpegVersion = 'ffmpeg_asm.js';
-var hlsVersion = 'hls.0.12.4-han.js'; //'hls.0.12.4-han.min.js'; //'hls.0.12.4.min.js';
+﻿var hlsVersion = 'hls.1.1.5.min.js'; 
+//var hlsVersion = 'hls.0.12.4-han.js';
 var dlwsmediaVersion = 'DLWSMEDIA.user.js';
-
-var nativeResolution = false; //true == play in native resolution size <--> false == play zoomed in PlayerSize/WindowSize
+var debug = false; //true == show HLS playback debug infos
+var native = false; //true == play in native resolution size <--> false == play zoomed in PlayerSize/WindowSize
 
 var hls;
-var debug = false;
 var recoverDecodingErrorDate,recoverSwapAudioCodecDate;
 var pendingTimedMetadata = [];
 
@@ -49,7 +48,7 @@ function timeUpdateCallback() {
 
 function playM3u8(url){
   var video = document.getElementById('video');
-  if(nativeResolution){
+  if(native){
     video.classList.add("native_mode");
     video.classList.remove("zoomed_mode");
   } else {
@@ -84,10 +83,25 @@ function playM3u8(url){
     video.play();
   });
   hls.on(Hls.Events.FRAG_PARSING_METADATA, handleTimedMetadata);
-  document.title = url;
-  //>>> save addon
-  //saveAddOnBindToPlayer(url,hls);
+  document.title = url
 }
+
+//chrome.storage.local.get({
+//  hlsjs: currentVersion,
+//  debug: false,
+//  native: false
+//}, function(settings) {
+//  debug = settings.debug;
+//  native = settings.native;
+//  var s = document.createElement('script');
+//  var version = currentVersion
+//  if (supportedVersions.includes(settings.hlsjs)) {
+//    version = settings.hlsjs
+//  }
+//  s.src = chrome.runtime.getURL('hlsjs/hls.'+version+'.min.js');
+//  s.onload = function() { playM3u8(window.location.href.split("#")[1]); };
+//  (document.head || document.documentElement).appendChild(s);
+//});
 
 $(window).bind('hashchange', function() {
   playM3u8(window.location.href.split("#")[1]);
@@ -113,8 +127,6 @@ function injectScript(url, cb, variable=null) {
 
 injectScript(hlsVersion, ()=> {
   injectScript(dlwsmediaVersion, ()=> {
-  //injectScript(ffmpegVersion, ()=> {
     playM3u8(window.location.href.split("#")[1]); 
-  //});
   });
 });

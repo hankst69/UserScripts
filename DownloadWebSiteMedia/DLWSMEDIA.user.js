@@ -4,7 +4,7 @@
 // @description Adds a download button to video player pages
 // @copyright   2019-2023, savnt
 // @license     MIT
-// @version     0.5.11
+// @version     0.5.12
 // @grant       none
 // @inject-into page
 // ==/UserScript==
@@ -1516,13 +1516,19 @@
   // >> site specific functions:
 
   async function findHlsPlayerExtensions(document, resultContainer) {
-    if (document.URL.indexOf('master.m3u8') > 0) {
+    // M3U8 HLS PLayback:
+    let url = document.URL.toLowerCase();
+    if (url.endsWith('.m3u8') || url.indexOf('.m3u8?') > 0) {
       //let idx = document.URL.indexOf('#');
       let idx = document.URL.indexOf('http');
+      let isHttp = true;
+      if (idx < 0) {
+        idx = document.URL.indexOf('file:');
+        isHttp = false;
+      }
       if (idx >= 0) {
         let masterUrl = document.URL.substr(idx);
-        // assuming live content
-        let isLive = true;
+        // assuming live content when .m3u8 coming from http
         resultContainer.mediaList.push({
           "title": 'HLS live playback',
           "description": '',
@@ -1530,7 +1536,7 @@
             "url": masterUrl,
             "type": getExtensionFromUrl(masterUrl),
             "quality": null,
-            "islive": isLive
+            "islive": isHttp
           }]
         });
       }

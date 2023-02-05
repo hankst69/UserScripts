@@ -5,20 +5,20 @@
   "converted_from_user_script": true,
   "name": "Download WebSite Media",
   "description": "Adds a button that lets you download media files from platforms: RedBull, ServusTv, MySpass, Vimeo, YouTube, Dailymotion, MTV, TED, Airmeet",
-  "version": "0.5.11",
+  "version": "0.5.12",
   "icons": { "64": "./DLWSMEDIA.png" },
   "content_scripts": [
     {
       "js": [ "./DLWSMEDIA.user.js" ],
       "matches": [
-        "https://*.myspass.de/*",
         "*://*/*"
+        //, "*://*/*.m3u8*", "file:///*.m3u8*"
       ],
-      "run_at": "document_end"
+        "run_at": "document_end"
     }
   ],
   //"permissions": [ "tabs", "*://*/*.m3u8*", "webRequest", "webRequestBlocking", "storage" ],
-  "web_accessible_resources": [ "*.js" ],
+  "web_accessible_resources": [ "*.js", "*.html", "*.m3u8" ],
 
   "permissions": [ "tabs", "<all_urls>", "webRequest", "webRequestBlocking", "storage" ],
   "background": {
