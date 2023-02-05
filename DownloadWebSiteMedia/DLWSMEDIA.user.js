@@ -2,9 +2,9 @@
 // @name        WebSite Media Download
 // @namespace   savnt
 // @description Adds a download button to video player pages
-// @copyright   2019-2022, savnt
+// @copyright   2019-2023, savnt
 // @license     MIT
-// @version     0.5.10
+// @version     0.5.11
 // @grant       none
 // @inject-into page
 // ==/UserScript==
@@ -1515,6 +1515,28 @@
   //-------------------------------------------------------------------------------------------------------
   // >> site specific functions:
 
+  async function findHlsPlayerExtensions(document, resultContainer) {
+    if (document.URL.indexOf('master.m3u8') > 0) {
+      //let idx = document.URL.indexOf('#');
+      let idx = document.URL.indexOf('http');
+      if (idx >= 0) {
+        let masterUrl = document.URL.substr(idx);
+        // assuming live content
+        let isLive = true;
+        resultContainer.mediaList.push({
+          "title": 'HLS live playback',
+          "description": '',
+          "qualities": [{
+            "url": masterUrl,
+            "type": getExtensionFromUrl(masterUrl),
+            "quality": null,
+            "islive": isLive
+          }]
+        });
+      }
+    }
+  }
+
   async function findAirmeetMedia(document, resultContainer) {
     // Airmeet:
     if (document.location.host.startsWith('www.airmeet.com') && document.querySelector('video')) {
@@ -2259,7 +2281,8 @@
       await findMtvMedia(document, resultContainer);
       await findTedMedia(document, resultContainer);
       await findAirmeetMedia(document, resultContainer);
-        
+      await findHlsPlayerExtensions(document, resultContainer);
+
       // POSTPROCESS AND DISPLAY retrieved media information
       // remove invalid entries
       for (let i=resultContainer.mediaList.length; i>0; i--) {
