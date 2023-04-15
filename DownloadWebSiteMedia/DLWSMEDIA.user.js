@@ -4,7 +4,7 @@
 // @description Adds a download button to video player pages
 // @copyright   2019-2023, savnt
 // @license     MIT
-// @version     0.5.12
+// @version     0.5.13
 // @grant       none
 // @inject-into page
 // ==/UserScript==
@@ -16,116 +16,35 @@
     //'use strict';
 
     //-------------------------------------------------------------------
-    // mux.js add on
-
-    var muxjsVersion = 'mux.js'; //'mux-min.js';
-    var muxjsUrl = chromeExtensionScriptUrl ? chromeExtensionScriptUrl + muxjsVersion : null;
-    //var muxJs = null;
-
-    var transmuxer = null
-    var remuxedSegments = [];
-    var remuxedInitSegment = null;
-    var remuxedBytesLength = 0;
-    var createInitSegment = false;
-    var bytes = null;
-    var muxedData = null;
-
-    function transmuxSegmentsToCombinedMp4(nextSegmentData, resetTransmuxer, progress) {
-      debug("transmuxSegmentsToCombinedMp4()");
-
-      // define mux output type (move to function arguments?)
-      //var combined = false; var outputType = 'video'; //'audio';
-      let combined = true;
-      let outputType = 'combined';
-
-      if (resetTransmuxer || !transmuxer) {
-        remuxedSegments = [];
-        remuxedInitSegment = null;
-        remuxedBytesLength = 0;
-        muxedData = null;
-        createInitSegment = true;
-
-        if (!('muxjs' in window) && !(window['muxjsloading'])) {
-          window['muxjsloading'] = true;
-          debug("muxjs not available -> reinjecting 'muxjs' script and defering transmuxSegmentsToCombinedMp4() call");
-          injectScript(muxjsUrl, () => {
-            debug("execute defered transmuxSegmentsToCombinedMp4() call");
-            window['muxjsloading'] = false;
-            transmuxSegmentsToCombinedMp4(nextSegmentData, resetTransmuxer);
-          });
-          return;
-        }
-
-        if (combined) {
-          outputType = 'combined';
-          transmuxer = new muxjs.mp4.Transmuxer();
-        } else {
-          transmuxer = new muxjs.mp4.Transmuxer({ remux: false });
-        }
-
-        transmuxer.on('data', function (event) {
-          if (event.type === outputType) {
-            remuxedSegments.push(event);
-            remuxedBytesLength += event.data.byteLength;
-            remuxedInitSegment = event.initSegment;
-          }
-        });
-
-        transmuxer.on('done', function () {
-          var offset = 0;
-          if (createInitSegment) {
-            bytes = new Uint8Array(remuxedInitSegment.byteLength + remuxedBytesLength)
-            bytes.set(remuxedInitSegment, offset);
-            offset += remuxedInitSegment.byteLength;
-            createInitSegment = false;
-          } else {
-            bytes = new Uint8Array(remuxedBytesLength);
-          }
-
-          let muxedSegments = remuxedSegments.length;
-          for (let j = 0, i = offset; j < remuxedSegments.length; j++) {
-            bytes.set(remuxedSegments[j].data, i);
-            i += remuxedSegments[j].byteLength;
-          }
-          muxedData = bytes;
-          remuxedSegments = [];
-          remuxedBytesLength = 0;
-          if (progress) progress(muxedSegments);
-        });
-      }
-
-      //transmuxer.push(new Uint8Array(nextSegmentData));
-      transmuxer.push(nextSegmentData);
-      //transmuxer.flush();
-    }
-
-    function transmuxSegmentsToCombinedMp4Blob() {
-      debug("transmuxSegmentsToCombinedMp4Blob()");
-      transmuxer.flush();
-      if (muxedData) {
-        var videoBlob = new Blob([muxedData], { type: 'application/octet-binary' });
-        //alert("videoBlob created");
-        //window.saveAs(videoBlob, videoFileName);
-        // add download anchor to the document:
-        //...
-        return videoBlob;
-      }
-    }
-
-    function stringToUint8Array(str) {
-      //let buf = new ArrayBuffer(str.length*2); // 2 bytes for each char
-      //let srcBufView = new Uint16Array(buf);
-      //let tgtBufView = new Uint8Array(buf);
-      //for (let i=0, strLen=str.length; i < strLen; i++) {
-      //  srcBufView[i] = str.charCodeAt(i);
-      //}
-      //return tgtBufView;
-      let ui8buf = new Uint8Array(str.length);
-      for (let i = 0, strLen = str.length; i < strLen; i++) {
-        ui8buf[i] = str.charCodeAt(i);
-      }
-      return ui8buf;
-    }
+    // some remains from former mux.js integration (replace by hls.js?)
+    //var muxjsVersion = 'mux.js'; //'mux-min.js';
+    //var muxjsUrl = chromeExtensionScriptUrl ? chromeExtensionScriptUrl + muxjsVersion : null;
+    //function transmuxSegmentsToCombinedMp4Blob() {
+    //  debug("transmuxSegmentsToCombinedMp4Blob()");
+    //  transmuxer.flush();
+    //  if (muxedData) {
+    //    var videoBlob = new Blob([muxedData], { type: 'application/octet-binary' });
+    //    //alert("videoBlob created");
+    //    //window.saveAs(videoBlob, videoFileName);
+    //    // add download anchor to the document:
+    //    //...
+    //    return videoBlob;
+    //  }
+    //}
+    //function stringToUint8Array(str) {
+    //  //let buf = new ArrayBuffer(str.length*2); // 2 bytes for each char
+    //  //let srcBufView = new Uint16Array(buf);
+    //  //let tgtBufView = new Uint8Array(buf);
+    //  //for (let i=0, strLen=str.length; i < strLen; i++) {
+    //  //  srcBufView[i] = str.charCodeAt(i);
+    //  //}
+    //  //return tgtBufView;
+    //  let ui8buf = new Uint8Array(str.length);
+    //  for (let i = 0, strLen = str.length; i < strLen; i++) {
+    //    ui8buf[i] = str.charCodeAt(i);
+    //  }
+    //  return ui8buf;
+    //}
 
     //-------------------------------------------------------------------
     // main script
@@ -1484,6 +1403,10 @@
   async function saveM3U8VideoAsMP4Async(m3u8Url, m3u8Content, resolve, reject, cancel) {
     debug("saveM3U8VideoAsMP4Async()");
     debug("m3u8Url: " + m3u8Url);
+    if (reject) {
+      reject("saveM3U8VideoAsMP4Async() not implemented");
+    }
+    return null;
     //debug("m3u8Content: " + m3u8Content);
     // 1) load playlist data
     let m3u8Data = m3u8Content ? new M3U8Data(m3u8Content) : await M3U8Data.loadAsync(m3u8Url);
@@ -1497,6 +1420,7 @@
       let response = await httpRequest.downloadAsync(tsSegmentUrl);
       let tsSegmentString = response.data;
       let tsSegment = stringToUint8Array(tsSegmentString);
+      //todo: implement transmuxSegmentsToCombinedMp4 again via hls.js or via mux.js
       transmuxSegmentsToCombinedMp4(tsSegment, (segmentId == 0));
       // 5) check for user cancelation
       if (cancel && cancel()) {
@@ -2730,15 +2654,16 @@
   //debug('isSafari: ' + isSafari);  
   
   // start page analysis:
-  if (muxjsUrl) {
-    // load mux.js script and start analysing page defered  
-    injectScript(muxjsUrl, ()=>{
-      debug("analysePage - OnMuxJsLoad()");
-      //muxJs = window['muxjs'];
-      analysePageAndCreateUiAsync();
-    });
-  }
-  else {
+  //if (muxjsUrl) {
+  //  // load mux.js script and start analysing page defered  
+  //  injectScript(muxjsUrl, ()=>{
+  //    debug("analysePage - OnMuxJsLoad()");
+  //    //muxJs = window['muxjs'];
+  //    analysePageAndCreateUiAsync();
+  //  });
+  //}
+  //else
+  {
     // start analysing page immediately
     debug("analysePage - OnMainStart()");
     analysePageAndCreateUiAsync();      

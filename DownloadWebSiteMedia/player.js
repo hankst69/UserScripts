@@ -103,7 +103,9 @@ function playM3u8(url){
 //  (document.head || document.documentElement).appendChild(s);
 //});
 
-$(window).bind('hashchange', function() {
+// we replaced this single jQuery usage by native JavaScript and HTML-DOM
+//$(window).bind('hashchange', function() {...
+window.addEventListener('hashchange', function () {
   playM3u8(window.location.href.split("#")[1]);
 });
 
