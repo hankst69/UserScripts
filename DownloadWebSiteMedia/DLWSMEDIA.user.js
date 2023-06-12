@@ -4,7 +4,7 @@
 // @description Adds a download button to video player pages
 // @copyright   2019-2023, savnt
 // @license     MIT
-// @version     0.5.13
+// @version     0.5.14
 // @grant       none
 // @inject-into page
 // ==/UserScript==
@@ -1459,7 +1459,7 @@
           "qualities": [{
             "url": masterUrl,
             "type": getExtensionFromUrl(masterUrl),
-            "quality": null,
+            "quality": "unknown",
             "islive": isHttp
           }]
         });
