@@ -4,7 +4,7 @@
 // @description Adds a download button to video player pages
 // @copyright   2019-2023, savnt
 // @license     MIT
-// @version     0.5.14
+// @version     0.5.15
 // @grant       none
 // @inject-into page
 // ==/UserScript==
@@ -2031,6 +2031,18 @@
     }
   }
 
+  async function findRtlPlusMedia(document, resultContainer) {
+    // https://plus.rtl.de/video-tv/filme/hot-fuzz-zwei-abgewichste-profis-1000103623
+    if (document.location.host.endsWith('.rtl.de') && document.location.pathname.startsWith('/video-tv/')) {
+      debug("found RTL+ video page");
+    }
+    // https://cdn.gateway.now-plus-prod.aws-cbc.cloud/graphql?operationName=WatchPlayerConfigV3
+    if (document.location.host.endsWith('.now-plus-prod.aws-cbc.cloud') && document.location.pathname.startsWith('graphql?')) {
+      debug("found RTL+ now-plus-prod.aws-cbc.cloud page");
+    }
+
+  }
+
   async function findMediathekViewPlayerMedia(document, resultContainer) {
     // https://srf-vod-amd.akamaized.net/ch/hls/film/2022/10/film_20221011_153158_15680421_v_webcast_h264_,q40,q10,q20,q30,q50,q60,.mp4.csmil/index-f6-v1-a1.m3u8
     if (document.location.host.endsWith('mediathekviewweb.de') && document.querySelector('div#videocontent>div')) {
@@ -2207,6 +2219,7 @@
       await findYouTubeMedia(document, resultContainer);
       await findDailymotionMedia(document, resultContainer);
       await findArdMedia(document, resultContainer);
+      await findRtlPlusMedia(document, resultContainer);
       await findMediathekViewPlayerMedia(document, resultContainer);
       await findMtvMedia(document, resultContainer);
       await findTedMedia(document, resultContainer);
@@ -2232,7 +2245,7 @@
         // try again later
         retryCount = (!retryCount || retryCount < 1) ? 1 : ++retryCount;
         let sleepTime = 500 * retryCount * retryCount * retryCount / 2;
-        debug("could not retrieve video download url from player, trying again later in retry " + retryCount + ' after sleeping ' + sleepTime + 'ms');
+        debug("could not retrieve video download url from\n location '" + document.location + "'\n host '" + document.location.host + "'\n pathname '" + document.location.pathname +"' \n trying again later in retry " + retryCount + ' after sleeping ' + sleepTime + 'ms');
         setTimeout(function () { analysePageAndCreateUiAsync(showUiOpen, showAllFormats, retryCount); }, sleepTime);
         return;
       }
