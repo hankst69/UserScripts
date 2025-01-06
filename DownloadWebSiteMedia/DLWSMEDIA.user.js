@@ -2033,14 +2033,29 @@
 
   async function findRtlPlusMedia(document, resultContainer) {
     // https://plus.rtl.de/video-tv/filme/hot-fuzz-zwei-abgewichste-profis-1000103623
+    // https://vodnowusoawsdash-cf.tvnow.de/pgrn/streaming/watch/1000103623/14-4000-1-1-1.ism/rtlplus.mpd
     if (document.location.host.endsWith('.rtl.de') && document.location.pathname.startsWith('/video-tv/')) {
       debug("found RTL+ video page");
+      // <div _ngcontent-serverapp-c760864024="" id="player" data-foundation-player-class="" class="bitmovinplayer-container aspect-16x9" data-foundation-player=""><video _ngcontent-serverapp-c760864024="" disableremoteplayback="" id="bitmovinplayer-video-player" webkit-playsinline="" playsinline="" src="blob:https://plus.rtl.de/74a5cffc-c2f2-48f9-a222-f9e786e4de8d"></video><div class="bitmovinplayer-poster" style="display: none; background-image: url(&quot;https://images.plus.rtl.de/watch/1000103623/plain_landscape/qz-q2-vv-k1/hot-fuzz-zwei-abgewichste-profis-rtlzwei&quot;);"></div><watch-controls media-type="vod" size="sm" content-type="content"></watch-controls></div>
+      let player = document.querySelector('div#player>video#bitmovinplayer-video-player');
+      if (player) {
+        let blobsrc = player.src
+        debug("blobsrc = " + blobsrc);
+      }
+    }
+    // toto: hook XmlHttpRequest and track for 'rtlplus.mpd' then reload that url as 'rtlplus.m3u8'
+    // see https://stackoverflow.com/questions/55041883/javascript-track-any-xmlhttprequest
+    if (document.location.pathname.endsWith('rtlplus.mpd')) {
+      debug("found RTL+ video MPD");
+      debug("open: " + document.location.replace('.mpd', '.m3u8'))
     }
     // https://cdn.gateway.now-plus-prod.aws-cbc.cloud/graphql?operationName=WatchPlayerConfigV3
-    if (document.location.host.endsWith('.now-plus-prod.aws-cbc.cloud') && document.location.pathname.startsWith('graphql?')) {
+    else if (document.location.host.endsWith('.now-plus-prod.aws-cbc.cloud') && document.location.pathname.startsWith('graphql?')) {
       debug("found RTL+ now-plus-prod.aws-cbc.cloud page");
     }
-
+    else {
+      debug("could not extract RTL+ media");
+    }
   }
 
   async function findMediathekViewPlayerMedia(document, resultContainer) {
@@ -2245,6 +2260,7 @@
         // try again later
         retryCount = (!retryCount || retryCount < 1) ? 1 : ++retryCount;
         let sleepTime = 500 * retryCount * retryCount * retryCount / 2;
+        //sleepTime = 5000;
         debug("could not retrieve video download url from\n location '" + document.location + "'\n host '" + document.location.host + "'\n pathname '" + document.location.pathname +"' \n trying again later in retry " + retryCount + ' after sleeping ' + sleepTime + 'ms');
         setTimeout(function () { analysePageAndCreateUiAsync(showUiOpen, showAllFormats, retryCount); }, sleepTime);
         return;
