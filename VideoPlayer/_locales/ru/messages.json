@@ -1,0 +1,14 @@
+{
+   "chrome_extension_settings": {
+      "message": "Настройки расширения Chrome"
+   },
+   "extension_description": {
+      "message": "Собственный видеоплеер для видео или прямых трансляций в формате DASH (mpd), HLS (m3u8) и список M3U с поддержкой EPG."
+   },
+   "extension_name": {
+      "message": "VideoPlayer MPD/M3U8/M3U/EPG"
+   },
+   "extension_off": {
+      "message": "Нажмите для активации"
+   }
+}

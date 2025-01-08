@@ -1,0 +1,8 @@
+{
+   "extension_description": {
+      "message": "Nativer Video-Player für Videos oder Livestreams im DASH (mpd), HLS (m3u8) Format und M3U Liste mit EPG Unterstützung."
+   },
+   "extension_name": {
+      "message": "VideoPlayer MPD/M3U8/M3U/EPG"
+   }
+}

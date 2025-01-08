@@ -1,0 +1,8 @@
+{
+   "extension_description": {
+      "message": "Lecteur vidéo natif pour vidéos ou directs en DASH (mpd), format HLS (m3u8) et liste M3U avec support EPG."
+   },
+   "extension_name": {
+      "message": "Lecteur MPD/M3U8/M3U/EPG"
+   }
+}

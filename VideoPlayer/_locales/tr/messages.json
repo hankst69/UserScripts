@@ -1,0 +1,333 @@
+{
+   "chrome_extension_settings": {
+      "message": "Chrome uzantı ayarları"
+   },
+   "converter_button_add_header": {
+      "message": "Başka başlık ekle"
+   },
+   "converter_button_clear_input": {
+      "message": "Girişi temizle"
+   },
+   "converter_button_remove_header": {
+      "message": "Başlığı kaldır"
+   },
+   "converter_button_reset_all": {
+      "message": "Tüm girişleri sıfırla"
+   },
+   "converter_channelinfo": {
+      "message": "Kanal Bilgisi"
+   },
+   "converter_drm": {
+      "message": "DRM"
+   },
+   "converter_drm_tooltip_clearkey_1": {
+      "message": "Desteklenen Formatlar:"
+   },
+   "converter_drm_tooltip_clearkey_2": {
+      "message": "Birden fazla anahtar da desteklenir:"
+   },
+   "converter_drm_tooltip_clearkey_3": {
+      "message": "Üstteki formatlardan herhangi birini döndüren URL:"
+   },
+   "converter_drm_tooltip_clearkey_4": {
+      "message": "URL tarafından geçerli bir biçim döndürülmezse, aynı URL'ye EME spesifikasyon istek biçimindeki anahtar kimlik verileriyle bir POST yapılır."
+   },
+   "converter_drm_tooltip_widevine_cert": {
+      "message": "Sağlayıcı tarafından desteklenmediğinden bazen Widevine sertifikası\u003Cbr>için ayrı bir URL sağlamanız gerekir."
+   },
+   "converter_header": {
+      "message": "Başlıklar"
+   },
+   "converter_label_channel_group": {
+      "message": "Kanal Grubu"
+   },
+   "converter_label_channel_logo": {
+      "message": "Kanal Logosu URL"
+   },
+   "converter_label_channel_name": {
+      "message": "Kanal Adı"
+   },
+   "converter_label_channel_tvg_id": {
+      "message": "EPG TVG ID"
+   },
+   "converter_label_channel_type": {
+      "message": "Kanal Tipi"
+   },
+   "converter_label_channel_url": {
+      "message": "Kanal URL"
+   },
+   "converter_label_drm_clearkey": {
+      "message": "Clearkey verileri"
+   },
+   "converter_label_drm_widevine": {
+      "message": "Widevine URL"
+   },
+   "converter_label_drm_widevine_cert": {
+      "message": "Widevine Sertifika URL"
+   },
+   "converter_label_header_name": {
+      "message": "İsim"
+   },
+   "converter_label_header_value": {
+      "message": "Değer"
+   },
+   "converter_placeholder_channel_group": {
+      "message": "Duyurular"
+   },
+   "converter_placeholder_channel_name": {
+      "message": "Kanal 1"
+   },
+   "converter_placeholder_channel_tvg_id": {
+      "message": "Channel1.us"
+   },
+   "converter_result": {
+      "message": "Sonuç"
+   },
+   "converter_result_button_copy": {
+      "message": "Panoya kopyala!"
+   },
+   "converter_result_button_open": {
+      "message": "Bağlantıyı yeni bir sekmede açın!"
+   },
+   "converter_result_clearkey_base": {
+      "message": "Clearkey BASE64"
+   },
+   "converter_result_clearkey_hex": {
+      "message": "Clearkey HEX"
+   },
+   "converter_result_direct_link": {
+      "message": "Doğrudan bağlantı"
+   },
+   "converter_result_m3u": {
+      "message": "M3U Kanalı"
+   },
+   "converter_title": {
+      "message": "Clearkey Dönüştürücü ve Bağlantı Oluşturucu"
+   },
+   "extension_description": {
+      "message": "DASH (mpd), HLS (m3u8) formatında ve EPG destekli M3U listesinde videolar veya canlı yayınlar için yerel video oynatıcı."
+   },
+   "extension_name": {
+      "message": "VideoPlayer MPD/M3U8/M3U/EPG"
+   },
+   "extension_off": {
+      "message": "(Aktif etmek için tıklayın)"
+   },
+   "extension_on": {
+      "message": "(Devre dışı bırakmak için tıklayın)"
+   },
+   "iptv_channels": {
+      "message": "Kanallar"
+   },
+   "iptv_deep_search_channels": {
+      "message": "Aramaya program başlıklarını dahil edin"
+   },
+   "iptv_epg_duration": {
+      "message": "Süre"
+   },
+   "iptv_epg_error": {
+      "message": "Hata"
+   },
+   "iptv_epg_loaded": {
+      "message": "Yüklendi"
+   },
+   "iptv_epg_loaded_data": {
+      "description": "Do not translate _NUM_CHANNELS_ and _NUM_PROGRAMS_ variable names.",
+      "message": "_NUM_CHANNELS_ kanal ve _NUM_PROGRAMS_ program"
+   },
+   "iptv_epg_loading": {
+      "message": "Yükleniyor"
+   },
+   "iptv_epg_loading_title": {
+      "message": "EPG'ler yükleniyor"
+   },
+   "iptv_epg_no_data": {
+      "message": "Bilgi yok"
+   },
+   "iptv_epg_schedule": {
+      "message": "Zamanlama"
+   },
+   "iptv_search_channels": {
+      "message": "Kanalları Ara"
+   },
+   "player_compressor_turn_off": {
+      "message": "Sıkıştırıcıyı kapayın"
+   },
+   "player_compressor_turn_on": {
+      "message": "Sıkıştırıcıyı açın"
+   },
+   "player_drop_local_playlists": {
+      "message": "Veya yüklemek için bir veya daha fazla M3U çalma listesini buraya bırakın"
+   },
+   "player_error_no_file_access": {
+      "message": "\u003Cspan>file:///\u003C/span> oynatma listelerini doğrudan yüklemek için \u003Cbr>\u003Cspan>Dosya URL'lerine erişime izin ver\u003C/span> seçeneğini açmanız gerekir"
+   },
+   "player_invalid_playlist": {
+      "message": "Geçersiz Oynatma Listesi"
+   },
+   "player_open_local_playlists": {
+      "message": "Yerel oynatma listelerini aç"
+   },
+   "settings_changelog_button": {
+      "message": "Değişiklik günlüğü"
+   },
+   "settings_changelog_title": {
+      "message": "Nelerin değiştirildiğini veya eklendiğini öğrenmek için uzantının değişiklik günlüğüne bakın."
+   },
+   "settings_clearkey_button": {
+      "message": "Clearkey Dönüştürücü"
+   },
+   "settings_clearkey_title": {
+      "message": "Clearkey formatlarını dönüştürmek ve uzantıyla birlikte kullanılacak medya url'leri ve m3u listeleri oluşturmak için yardımcı program."
+   },
+   "settings_discord_button": {
+      "message": "Discord'da iletişime geçin"
+   },
+   "settings_discord_title": {
+      "message": "Discord'da bir sorunu bildirin veya özel destek talebinde bulunun."
+   },
+   "settings_edit_button": {
+      "message": "M3U listesini düzenle"
+   },
+   "settings_edit_title": {
+      "message": "Kendi kendine barındırılan M3U çalma listesini düzenleyin."
+   },
+   "settings_github_button": {
+      "message": "GitHub'da iletişim kurun"
+   },
+   "settings_github_title": {
+      "message": "GitHub'da bir sorunu bildirin veya yardım isteyin."
+   },
+   "settings_help_button": {
+      "message": "Nasıl kullanılır"
+   },
+   "settings_help_title": {
+      "message": "Uzantının nasıl kullanılacağı ve yapılandırılacağı hakkında sorularınız varsa Wiki'yi okuyabilirsiniz."
+   },
+   "settings_license_clearkey": {
+      "message": "Özel ClearKeys listesini kullan"
+   },
+   "settings_license_clearkey_error_key": {
+      "description": "Do not translate ${key} variable.",
+      "message": "KeyID ${key} geçersiz bir anahtara sahip."
+   },
+   "settings_license_clearkey_error_keyid": {
+      "message": "Geçersiz KeyID: "
+   },
+   "settings_license_clearkey_error_value": {
+      "message": "Geçersiz Anahtar: "
+   },
+   "settings_license_clearkey_title": {
+      "message": "Özel ClearKey'lerin listesini zorlayın."
+   },
+   "settings_license_title": {
+      "message": "Lisanslama seçenekleri"
+   },
+   "settings_license_widevine": {
+      "message": "Özel Widevine Sunucularını Kullanın"
+   },
+   "settings_license_widevine_error_line": {
+      "message": "Geçersiz satır: "
+   },
+   "settings_license_widevine_error_regex": {
+      "message": "Geçersiz RegEx: "
+   },
+   "settings_license_widevine_error_url": {
+      "message": "Geçersiz URL: "
+   },
+   "settings_license_widevine_title": {
+      "message": "Özel bir Widevine lisans sunucusunu zorunlu kılın."
+   },
+   "settings_options_active": {
+      "message": "Otomatik oynatılan video bağlantıları"
+   },
+   "settings_options_active_title": {
+      "message": "Tıklandığında, video oynatıcıda .mpd, .m3u8\nveya m3u bağlantılarını otomatik olarak açın"
+   },
+   "settings_options_compressor_enabled": {
+      "message": "Ses Kazanımını ve Sıkıştırıcıyı varsayılan olarak etkinleştirin"
+   },
+   "settings_options_compressor_enabled_title": {
+      "message": "Ses Kazanımı ve Sıkıştırıcı, kanalların sesini normalleştirmeye ve orijinalinden daha fazla ses düzeyine erişmeye yardımcı olur."
+   },
+   "settings_options_defaultaudio": {
+      "message": "Varsayılan ses dili"
+   },
+   "settings_options_defaultaudio_title": {
+      "message": "Ses parçalarının varsayılan dili.\n\nYalnızca uygun şekilde yapılandırılmış ses dillerine sahip videolarda çalışır."
+   },
+   "settings_options_epg_enabled": {
+      "message": "Varsayılan olarak IPTV Oynatıcıda EPG ayrıştırıcıyı etkinleştirin"
+   },
+   "settings_options_epg_enabled_title": {
+      "message": "IPTV Oynatıcıda EPG ayrıştırıcısını varsayılan olarak etkinleştirin. Performans kazanmak için veya kullanmıyorsanız devre dışı bırakabilirsiniz."
+   },
+   "settings_options_lowlatency": {
+      "message": "Düşük gecikmeli akışları tespit edin"
+   },
+   "settings_options_lowlatency_title": {
+      "message": "Otomatik düşük gecikmeli akış algılamayı etkinleştirin.\n\nTamponlama sorunları varsa devre dışı bırakılabilir."
+   },
+   "settings_options_title": {
+      "message": "Oynatıcı Seçenekleri"
+   },
+   "settings_paypal_title": {
+      "message": "PayPal ile bağış yapın"
+   },
+   "settings_play_button": {
+      "message": "M3U listesini oynat"
+   },
+   "settings_play_local_button": {
+      "message": "Yerel M3U listelerini oynatın"
+   },
+   "settings_play_local_title": {
+      "message": "M3U çalma listelerini doğrudan yerel sürücüden oynatın."
+   },
+   "settings_play_title": {
+      "message": "Kendi kendine barındırılan M3U çalma listesini oynatın."
+   },
+   "settings_review_button": {
+      "message": "Uzantı derecesi"
+   },
+   "settings_review_title": {
+      "message": "Uzantıyı faydalı buluyorsanız lütfen yorum yazın."
+   },
+   "settings_save_button": {
+      "description": "Save button under custom ClearKey and Widevine textareas.",
+      "message": "Kaydet"
+   },
+   "settings_saved": {
+      "description": "Message to be displayed when the custom setting is saved.",
+      "message": "Kaydedildi"
+   },
+   "settings_translate_button": {
+      "message": "Çeviriye yardım edin"
+   },
+   "settings_translate_title": {
+      "message": "Uzantının kendi dilinize çevrilmesine yardımcı olun."
+   },
+   "welcome_autoplay": {
+      "message": "Otomatik oynatılan medya bağlantıları"
+   },
+   "welcome_autoplay_subtext": {
+      "message": "Uzantı, yerleşik oynatıcıda .mpd, .m3u8 veya .m3u ile biten tüm bağlantıları otomatik olarak oynatacaktır."
+   },
+   "welcome_message": {
+      "message": "Uzantıyı yüklediğiniz için teşekkürler!"
+   },
+   "welcome_pin_1": {
+      "message": "Uzantıyı sabitlemek için Chrome'un sağ üst köşesindeki yap-boz menüsünü kullanın"
+   },
+   "welcome_pin_2": {
+      "message": "İşiniz bittiğinde, uzantı simgesine tek tıklamayla uzantı ayarlarına erişebilirsiniz"
+   },
+   "welcome_pin_title": {
+      "message": "Ayarlara kolay erişim için uzantıyı sabitlemeyi unutmayın"
+   },
+   "welcome_start_using": {
+      "message": "Uzantıyı kullanmaya başlayın"
+   },
+   "welcome_useful_links": {
+      "message": "Kullanışlı bağlantılar"
+   }
+}
