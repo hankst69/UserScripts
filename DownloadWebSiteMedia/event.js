@@ -15,8 +15,11 @@ chrome.runtime.onMessage.addListener(
 
 chrome.webRequest.onBeforeRequest.addListener(
   function (info) {
-    if (enabled && info.url.split("?")[0].split("#")[0].endsWith(".m3u8")) {
-      var playerUrl = chrome.runtime.getURL('player.html') + "#" + info.url
+	let isForPlayer = enabled && (
+		info.url.split("?")[0].split("#")[0].endsWith(".m3u8")
+		|| info.url.split("?")[0].split("#")[0].endsWith(".mpd"))
+    if (enabled && isForPlayer) {
+      var playerUrl = chrome.runtime.getURL('player.html') + "#" + info.url.replace(".mpd",".m3u8")
       if (navigator.userAgent.toLowerCase().indexOf('firefox') > -1) {
         chrome.tabs.update(info.tabId, { url: playerUrl });
         return { cancel: true }
@@ -26,7 +29,7 @@ chrome.webRequest.onBeforeRequest.addListener(
     }
   },
   //{ urls: ["*://*/*.m3u8*"], types: ["main_frame"] },
-  { urls: ["*://*/*.m3u8*", "file:///*.m3u8*"], types: ["main_frame"] },
+  { urls: ["*://*/*.m3u8*", "file:///*.m3u8*", "*://*/*.mpd*", "file:///*.mpd*"], types: ["main_frame"] },
   ["blocking"]
 );
 

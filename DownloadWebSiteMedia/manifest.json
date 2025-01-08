@@ -12,13 +12,13 @@
       "js": [ "./DLWSMEDIA.user.js" ],
       "matches": [
         "*://*/*"
-        //, "*://*/*.m3u8*", "file:///*.m3u8*"
+        //, "*://*/*.m3u8*", "file:///*.m3u8*", 
       ],
         "run_at": "document_end"
     }
   ],
   //"permissions": [ "tabs", "*://*/*.m3u8*", "webRequest", "webRequestBlocking", "storage" ],
-  "web_accessible_resources": [ "*.js", "*.html", "*.m3u8" ],
+  "web_accessible_resources": [ "*.js", "*.html", "*.m3u8", "*.mpd" ],
 
   "permissions": [ "tabs", "<all_urls>", "webRequest", "webRequestBlocking", "storage" ],
   "background": {
