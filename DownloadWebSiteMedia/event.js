@@ -15,9 +15,11 @@ chrome.runtime.onMessage.addListener(
 
 chrome.webRequest.onBeforeRequest.addListener(
   function (info) {
-	let isForPlayer = enabled && (
-		info.url.split("?")[0].split("#")[0].endsWith(".m3u8")
-		|| info.url.split("?")[0].split("#")[0].endsWith(".mpd"))
+    let isForPlayer = enabled && (
+      false
+		//|| info.url.split("?")[0].split("#")[0].endsWith(".m3u8")
+    //|| info.url.split("?")[0].split("#")[0].endsWith(".mpd")
+    )
     if (enabled && isForPlayer) {
       var playerUrl = chrome.runtime.getURL('player.html') + "#" + info.url.replace(".mpd",".m3u8")
       if (navigator.userAgent.toLowerCase().indexOf('firefox') > -1) {

@@ -15,36 +15,26 @@
   function CodeToInject(chromeExtensionScriptUrl) {
     //'use strict';
 
-    //-------------------------------------------------------------------
-    // some remains from former mux.js integration (replace by hls.js?)
-    //var muxjsVersion = 'mux.js'; //'mux-min.js';
-    //var muxjsUrl = chromeExtensionScriptUrl ? chromeExtensionScriptUrl + muxjsVersion : null;
-    //function transmuxSegmentsToCombinedMp4Blob() {
-    //  debug("transmuxSegmentsToCombinedMp4Blob()");
-    //  transmuxer.flush();
-    //  if (muxedData) {
-    //    var videoBlob = new Blob([muxedData], { type: 'application/octet-binary' });
-    //    //alert("videoBlob created");
-    //    //window.saveAs(videoBlob, videoFileName);
-    //    // add download anchor to the document:
-    //    //...
-    //    return videoBlob;
-    //  }
-    //}
-    //function stringToUint8Array(str) {
-    //  //let buf = new ArrayBuffer(str.length*2); // 2 bytes for each char
-    //  //let srcBufView = new Uint16Array(buf);
-    //  //let tgtBufView = new Uint8Array(buf);
-    //  //for (let i=0, strLen=str.length; i < strLen; i++) {
-    //  //  srcBufView[i] = str.charCodeAt(i);
-    //  //}
-    //  //return tgtBufView;
-    //  let ui8buf = new Uint8Array(str.length);
-    //  for (let i = 0, strLen = str.length; i < strLen; i++) {
-    //    ui8buf[i] = str.charCodeAt(i);
-    //  }
-    //  return ui8buf;
-    //}
+    var originalXMLHttpRequest = XMLHttpRequest;
+    var rtlPlusmpdUrl = "";
+
+    function setupXhrHook() {
+      debug("setupXhrHook()");
+      //Overwrite the original object with your own in which you create an instance of the original object, add an event listner to it and return that.
+      XMLHttpRequest = function () {
+        var xhr = new originalXMLHttpRequest();
+        xhr.onload = function () {
+          let xrUrl = xhr.responseURL
+          let url = xrUrl.toLowerCase();
+          //debug("xhr request: '" + url + "'");
+          if (url.indexOf(".mpd") > 0 && url.indexOf("rtlplus") > 0) {
+            debug("found RTLPLUS url: '" + xrUrl + "'");
+            rtlPlusmpdUrl = xrUrl;
+          }
+        };
+        return xhr;
+      };
+    }
 
     //-------------------------------------------------------------------
     // main script
@@ -2043,15 +2033,23 @@
         debug("blobsrc = " + blobsrc);
       }
     }
-    // toto: hook XmlHttpRequest and track for 'rtlplus.mpd' then reload that url as 'rtlplus.m3u8'
-    // see https://stackoverflow.com/questions/55041883/javascript-track-any-xmlhttprequest
-    if (document.location.pathname.endsWith('rtlplus.mpd')) {
+    if (rtlPlusmpdUrl && rtlPlusmpdUrl.length > 0 && rtlPlusmpdUrl.endsWith('rtlplus.mpd')) {
       debug("found RTL+ video MPD");
-      debug("open: " + document.location.replace('.mpd', '.m3u8'))
-    }
-    // https://cdn.gateway.now-plus-prod.aws-cbc.cloud/graphql?operationName=WatchPlayerConfigV3
-    else if (document.location.host.endsWith('.now-plus-prod.aws-cbc.cloud') && document.location.pathname.startsWith('graphql?')) {
-      debug("found RTL+ now-plus-prod.aws-cbc.cloud page");
+      m3u8Url = rtlPlusmpdUrl.replace('.mpd', '.m3u8')
+      videoUrl = getAbsoluteUrl(m3u8Url);
+      let videoTitle = "RTLPlus video";
+      let videoDescription = videoTitle;
+      let videoType = getExtensionFromUrl(videoUrl);
+      let videoQuality = null;
+      resultContainer.mediaList.push({
+        "title": videoTitle,
+        "description": videoDescription,
+        "qualities": [{
+          "url": videoUrl,
+          "type": videoType,
+          "quality": videoQuality
+        }]
+      });
     }
     else {
       debug("could not extract RTL+ media");
@@ -2681,22 +2679,14 @@
   // detect Apple OS Safari browser: https://stackoverflow.com/questions/9847580/how-to-detect-safari-chrome-ie-firefox-and-opera-browser
   //let isSafari = /constructor/i.test(window.HTMLElement) || (function (p) { return p.toString() === "[object SafariRemoteNotification]"; })(!window['safari'] || (typeof safari !== 'undefined' && window['safari'].pushNotification));
   //debug('isSafari: ' + isSafari);  
-  
-  // start page analysis:
-  //if (muxjsUrl) {
-  //  // load mux.js script and start analysing page defered  
-  //  injectScript(muxjsUrl, ()=>{
-  //    debug("analysePage - OnMuxJsLoad()");
-  //    //muxJs = window['muxjs'];
-  //    analysePageAndCreateUiAsync();
-  //  });
-  //}
-  //else
-  {
-    // start analysing page immediately
-    debug("analysePage - OnMainStart()");
-    analysePageAndCreateUiAsync();      
-  }
+
+  // capture all xhr requests
+  // https://stackoverflow.com/questions/55041883/javascript-track-any-xmlhttprequest
+  setupXhrHook()
+
+  // start analysing page
+  debug("analysePage - OnMainStart()");
+  analysePageAndCreateUiAsync();      
 }
 
 
