@@ -1390,7 +1390,22 @@
     return saveBlob;
   }
 
-  async function saveM3U8VideoAsMP4Async(m3u8Url, m3u8Content, resolve, reject, cancel) {
+  function stringToUint8Array(str) {
+    //let buf = new ArrayBuffer(str.length*2); // 2 bytes for each char
+    //let srcBufView = new Uint16Array(buf);
+    //let tgtBufView = new Uint8Array(buf);
+    //for (let i=0, strLen=str.length; i < strLen; i++) {
+    //  srcBufView[i] = str.charCodeAt(i);
+    //}
+    //return tgtBufView;
+    let ui8buf = new Uint8Array(str.length);
+    for (let i = 0, strLen = str.length; i < strLen; i++) {
+      ui8buf[i] = str.charCodeAt(i);
+    }
+    return ui8buf;
+  }
+
+    async function saveM3U8VideoAsMP4Async(m3u8Url, m3u8Content, resolve, reject, cancel) {
     debug("saveM3U8VideoAsMP4Async()");
     debug("m3u8Url: " + m3u8Url);
     if (reject) {
@@ -1411,7 +1426,7 @@
       let tsSegmentString = response.data;
       let tsSegment = stringToUint8Array(tsSegmentString);
       //todo: implement transmuxSegmentsToCombinedMp4 again via hls.js or via mux.js
-      transmuxSegmentsToCombinedMp4(tsSegment, (segmentId == 0));
+      //transmuxSegmentsToCombinedMp4(tsSegment, (segmentId == 0));
       // 5) check for user cancelation
       if (cancel && cancel()) {
         break;
@@ -1419,7 +1434,45 @@
       segmentId++;
     }
     // create a blob and return
-    let saveBlob = transmuxSegmentsToCombinedMp4Blob(segmentId);
+    let saveBlob = null //let saveBlob = transmuxSegmentsToCombinedMp4Blob(segmentId);
+    if (resolve) {
+      resolve(saveBlob);
+    }
+    return saveBlob;
+  }
+
+  async function saveM3U8VideoSegmentsAsBlob(m3u8Url, m3u8Content, resolve, reject, cancel) {
+    debug("saveM3U8VideoSegmentsAsBlob()");
+    debug("m3u8Url: " + m3u8Url);
+    //if (reject) {
+    //  reject("saveM3U8VideoSegmentsAsBlob() not implemented");
+    //}
+    //return null;
+    //
+    //debug("m3u8Content: " + m3u8Content);
+    // 1) load playlist data
+    let m3u8Data = m3u8Content ? new M3U8Data(m3u8Content) : await M3U8Data.loadAsync(m3u8Url);
+    let httpRequest = new HttpRequest();
+    // mux.js
+    let allSegmentsString = null;
+    let segmentId = 0;
+    for (const tsSegmentUrl of m3u8Data.segmentUris) {
+      debug(tsSegmentUrl);
+      // todo: make more save aganinst failures
+      let response = await httpRequest.downloadAsync(tsSegmentUrl);
+      let tsSegmentString = response.data;
+      //let tsSegment = stringToUint8Array(tsSegmentString);
+      allSegmentsString = allSegmentsString ? allSegmentsString + tsSegmentString : tsSegmentString;   
+      // 5) check for user cancelation
+      if (cancel && cancel()) {
+        break;
+      }
+      segmentId++;
+    }
+    // create a blob and return
+    let tsSegmentsData = stringToUint8Array(allSegmentsString);
+    var saveBlob = new Blob([tsSegmentsData], { type: 'application/octet-binary' });
+    //let saveBlob = new Blob([allSegmentsString], { type: "text/html;charset=UTF-8" });
     if (resolve) {
       resolve(saveBlob);
     }
@@ -2604,7 +2657,7 @@
           spanSave.style.cursor = 'progress';
           spanSave.onclick = () => { alert('\nconfirm to stop the running download of stream into mp4\n\n(use appearing download link to download the result)'); isCanceled = true; };
           spanSave.style.color = "rgb(80, 80, 80)";
-          saveM3U8VideoAsMP4Async(downloadInfo.url, downloadInfo.content,
+          saveM3U8VideoSegmentsAsBlob(downloadInfo.url, downloadInfo.content,
             (saveBlob) => {
               //alert("saveBlob created");
               //window.saveAs(videoBlob, videoFileName);
