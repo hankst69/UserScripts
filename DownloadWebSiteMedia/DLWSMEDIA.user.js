@@ -2118,7 +2118,8 @@
       if (videoUrl && videoUrl.length > 0) {
         videoUrl = getAbsoluteUrl(videoUrl);
         let anchor = document.querySelector('td>a[href="' + videoUrl + '"]');
-        let videoTitle = anchor.parentNode.parentNode.querySelector('td:nth-child(3)').innerText;
+          anchor = anchor || document.querySelector('table#mediathek>tbody>tr.odd>td~td~td');
+        let videoTitle = anchor ? anchor.parentNode.parentNode.querySelector('td:nth-child(3)').innerText : "unknown";
         let videoDescription = videoTitle;
         let videoType = getExtensionFromUrl(videoUrl);
         let videoQuality = null;
@@ -2381,7 +2382,13 @@
     {
       // log the error
       console.error("[Media Download] Error retrieving video meta data:", error);
-    }
+
+      // try again later
+      retryCount = (!retryCount || retryCount < 1) ? 1 : ++retryCount;
+      let sleepTime = 500 * retryCount * retryCount * retryCount / 2;
+      debug("could not retrieve video download url from player, trying again later in retry " + retryCount + ' after sleeping ' + sleepTime + 'ms');
+      setTimeout(function () { analysePageAndCreateUiAsync(showUiOpen, showAllFormats, retryCount); }, sleepTime);
+	}
   }
 
   function createDownloadUi(showUiOpen, showAllFormats) {
