@@ -2,9 +2,9 @@
 // @name        WebSite Media Download
 // @namespace   savnt
 // @description Adds a download button to video player pages
-// @copyright   2019-2023, savnt
+// @copyright   2019-2025, savnt
 // @license     MIT
-// @version     0.5.15
+// @version     0.5.16
 // @grant       none
 // @inject-into page
 // ==/UserScript==
@@ -458,6 +458,8 @@
     //  "segment" : null
     //};
     //m3u8Segment {
+    //  "index": 0,
+    //  "type"; null,
     //  "name": null,
     //  "number": 0,
     //  "time": null,
@@ -563,12 +565,14 @@
     tagAsSegment(tag) {
       if (tag && tag.name && tag.name == 'EXTINF' && tag.uri && tag.values.length > 0) {
         let name = tag.uri;
+        let type = "dat";
         let slashPos = name.lastIndexOf('/');
         if (slashPos > 0) {
           name = name.substr(slashPos + 1);
         }
         let dotPos = name.lastIndexOf('.');
         if (dotPos > 0) {
+          type = name.substr(dotPos + 1);
           name = name.substr(0, dotPos);
         }
         let number = 0;
@@ -597,6 +601,8 @@
           number = parseInt(name.substr(firstDigitPos, lastDigitPos - firstDigitPos + 1));
         }
         return {
+          "index": 0,
+          "type": type,
           "name": name,
           "number": number,
           "time": tag.values[0],
@@ -699,12 +705,15 @@
       let m3u8Data = new M3U8Data();
       m3u8DataString = m3u8DataString.trim();
       let m3u8TagStrings = m3u8DataString.split('#EXT');
+      let segmentIdx = 0;
       m3u8TagStrings.forEach((tagString) => {
         let tag = this.parseTag('EXT'+tagString);
         if (tag && tag.name) {
           // we parsed a valid tag -> we try to convert it into an segment
           let segment = this.tagAsSegment(tag);
           if (segment) {
+            segment.index = segmentIdx;
+            segmentIdx++;
             m3u8Data.segments.push(segment);
             tag.segment = segment;
           }
@@ -1441,42 +1450,44 @@
     return saveBlob;
   }
 
-  async function saveM3U8VideoSegmentsAsBlob(m3u8Url, m3u8Content, resolve, reject, cancel) {
-    debug("saveM3U8VideoSegmentsAsBlob()");
+  async function saveM3U8SegmentsAsBlobs(m3u8Url, m3u8Content, resolve, reject, cancel) {
+    debug("saveM3U8SegmentsAsBlobs()");
     debug("m3u8Url: " + m3u8Url);
-    //if (reject) {
-    //  reject("saveM3U8VideoSegmentsAsBlob() not implemented");
-    //}
-    //return null;
-    //
-    //debug("m3u8Content: " + m3u8Content);
-    // 1) load playlist data
+    // load playlist data
     let m3u8Data = m3u8Content ? new M3U8Data(m3u8Content) : await M3U8Data.loadAsync(m3u8Url);
     let httpRequest = new HttpRequest();
-    // mux.js
-    let allSegmentsString = null;
-    let segmentId = 0;
-    for (const tsSegmentUrl of m3u8Data.segmentUris) {
-      debug(tsSegmentUrl);
-      // todo: make more save aganinst failures
-      let response = await httpRequest.downloadAsync(tsSegmentUrl);
-      let tsSegmentString = response.data;
-      //let tsSegment = stringToUint8Array(tsSegmentString);
-      allSegmentsString = allSegmentsString ? allSegmentsString + tsSegmentString : tsSegmentString;   
-      // 5) check for user cancelation
+    let downloadResult = [];
+    // download all segments
+    for (const segment of m3u8Data.segments) {
+      let segmentUrl = segment.uri;
+      debug(segmentUrl);
+      // todo: make this more resilent aganinst load failures...
+      let response = await httpRequest.downloadAsync(segmentUrl);
+      if (response && response.status == 200 && response.data) {
+        downloadResult.push({
+          "url": segmentUrl,
+          "name": segment.name,
+          "type": segment.type,
+          "number": segment.index + 1,
+          "time": segment.time,
+          "data": response.data
+        });
+      }
+      // check for user cancelation
       if (cancel && cancel()) {
         break;
       }
-      segmentId++;
     }
-    // create a blob and return
-    let tsSegmentsData = stringToUint8Array(allSegmentsString);
-    var saveBlob = new Blob([tsSegmentsData], { type: 'application/octet-binary' });
-    //let saveBlob = new Blob([allSegmentsString], { type: "text/html;charset=UTF-8" });
+    if (downloadResult.length < m3u8Data.segments.length) {
+      if (reject) {
+        reject("saveM3U8SegmentsAsBlobs() donwloading of segments failed (only " + segmentsData.length + " of " + m3u8Data.segmentUris.length + " were loaded)");
+      }
+      return null;
+    }
     if (resolve) {
-      resolve(saveBlob);
+      resolve(downloadResult);
     }
-    return saveBlob;
+    return downloadResult;
   }
 
   //-------------------------------------------------------------------------------------------------------
@@ -2651,46 +2662,58 @@
         };
       }
       else {
-        let videoFileName = fileName + ".mp4";
+        let videoFileName = fileName;
         let spanSave = document.createElement("span");
         //spanSave.id = "i2d-popup-save_" + fileName;
         spanSave.style = "color: rgb(153, 0, 0); float: right; display: inline; text-decoration: underline; padding-right: 10px;";
-        spanSave.innerHTML = '[save mp4]';
+        spanSave.innerHTML = '[save segments]';
         spanSave.style.cursor = 'pointer';
         spanGroup.appendChild(spanSave);
         spanSave.onclick = () => {
           let isCanceled = false;
-          spanSave.innerHTML = '[save mp4...]';
+          spanSave.innerHTML = '[download segments...]';
           spanSave.style.cursor = 'progress';
-          spanSave.onclick = () => { alert('\nconfirm to stop the running download of stream into mp4\n\n(use appearing download link to download the result)'); isCanceled = true; };
+          spanSave.onclick = () => {
+            alert('\nconfirm to stop the running download of stream segments');
+            isCanceled = true;
+          };
           spanSave.style.color = "rgb(80, 80, 80)";
-          saveM3U8VideoSegmentsAsBlob(downloadInfo.url, downloadInfo.content,
-            (saveBlob) => {
-              //alert("saveBlob created");
-              //window.saveAs(videoBlob, videoFileName);
-              spanSave.innerHTML = '[save mp4 done]';
+          saveM3U8SegmentsAsBlobs(downloadInfo.url, downloadInfo.content,
+            (downloadResults) => {
+              //https://stackoverflow.com/questions/18451856/how-can-i-let-a-user-download-multiple-files-when-a-button-is-clicked
+              //alert("downloadResults created");
+              spanSave.innerHTML = '[download segments done]';
               spanSave.style.cursor = 'help';
-              spanSave.onclick = () => { alert('\ndownload of stream into mp4 completed\n\n(use download link to download the result)'); };
-              // add download anchor to the document:
-              let saveUrl = window.URL.createObjectURL(saveBlob);
-              let anc = document.createElement("a");
-              anc.href = saveUrl;
-              anc.target = '_blank';
-              anc.download = videoFileName;
-              anc.title = 'Download: "' + videoFileName + '"';
-              anc.innerHTML = videoFileName;
-              anc.style = "padding-left: 5px; padding-right: 5px;";
-              anc.style.cursor = "pointer";
-              anc.style.color = "blue";
-              anc.style.textDecoration = "underline";
-              anc.onclick = () => { };
-              spanSave.parentElement.appendChild(anc);
-              //spanSave.insertAdjacentElement('afterend', anc);
+              spanSave.onclick = () => {
+                alert('\ndownloaded data will now be saved');
+                //window.segmentDownloadData = downloadResults;
+                let interval = setInterval(saveAllSegments, 300, downloadResults);
+                function saveAllSegments(downloadResults) {
+                  let downloadData = downloadResults.pop();
+
+                  let saveFileName = videoFileName + "_" + downloadData.number + "_" + downloadData.name + "." + downloadData.type;
+                  let saveData = downloadData.data;
+                  //let saveData = stringToUint8Array(downloadData.data);
+                  //let saveBlob = new Blob([saveData], { type: 'application/octet-binary' });
+                  let saveBlob = new Blob([saveData], { type: "text/html;charset=UTF-8" });
+                  let saveUrl = window.URL.createObjectURL(saveBlob);
+
+                  let anc = document.createElement("a");
+                  anc.href = saveUrl;
+                  anc.target = '_blank';
+                  anc.download = saveFileName;
+                  anc.click();
+
+                  if (downloadData.length == 0) {
+                    clearInterval(interval);
+                  }
+                }
+              };
             },
             (error) => {
-              spanSave.innerHTML = '[save mp4 failed]';
+              spanSave.innerHTML = '[save segments failed]';
               spanSave.style.cursor = 'help';//'not-allowed';
-              spanSave.onclick = () => { alert('\ndownload of stream into full mp4 blob failed with error ' + error); };
+              spanSave.onclick = () => { alert('\ndownload of stream segments failed with error ' + error); };
             },
             () => { return isCanceled; }
           );
