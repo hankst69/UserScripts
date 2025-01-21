@@ -15,20 +15,23 @@
   function CodeToInject(chromeExtensionScriptUrl) {
     //'use strict';
 
+    var id3jsVersion = 'id3.js'; //'id3-min.js';
+    var id3jsUrl = chromeExtensionScriptUrl ? chromeExtensionScriptUrl + id3jsVersion : null;
+
     var originalXMLHttpRequest = XMLHttpRequest;
     var rtlPlusmpdUrl = "";
 
     function setupXhrHook() {
-      debug("setupXhrHook()");
+      debug("setupXhrHook()")
       //Overwrite the original object with your own in which you create an instance of the original object, add an event listner to it and return that.
       XMLHttpRequest = function () {
         var xhr = new originalXMLHttpRequest();
         xhr.onload = function () {
-          let xrUrl = xhr.responseURL
+          let xrUrl = xhr.responseURL;
           let url = xrUrl.toLowerCase();
-          //debug("xhr request: '" + url + "'");
+          //debug("xhr request: '" + url + "'")
           if (url.indexOf(".mpd") > 0 && url.indexOf("rtlplus") > 0) {
-            debug("found RTLPLUS url: '" + xrUrl + "'");
+            debug("found RTLPLUS url: '" + xrUrl + "'")
             rtlPlusmpdUrl = xrUrl;
           }
         };
@@ -67,10 +70,10 @@
 
     function debugJson(context, json) {
       if (json) {
-        debug(context + JSON.stringify(json, null, 2));
+        debug(context + JSON.stringify(json, null, 2))
       }
       else {
-        debug(context + 'null');
+        debug(context + 'null')
       }
     }
 
@@ -79,12 +82,12 @@
     }
 
     function injectScript(url, cb, variable = null) {
-      debug("injectScript()");
+      debug("injectScript()")
       if (variable && (variable in window) && window[variable]) {
-        debug("script already loaded -> invoking callback");
+        debug("script already loaded -> invoking callback")
         cb();
       } else {
-        debug("injecting script with url:'" + url + "'");
+        debug("injecting script with url:'" + url + "'")
         let script = document.createElement("script");
         script.src = url;
         script.type = 'text/javascript';
@@ -148,7 +151,7 @@
     }
 
     function convertTitleToValidFilename(videoTitle) {
-      debug("convertTitleToValidFilename()");
+      debug("convertTitleToValidFilename()")
       if (!videoTitle) {
         return 'video';
       }
@@ -889,7 +892,7 @@
   // --------------------------------------------------------------------
 
   async function cleanM3u8FromBadSegments(m3u8Data) {
-    debug("cleanM3u8FromBadSegments()");
+    debug("cleanM3u8FromBadSegments()")
     let cleanedData = new M3U8Data(m3u8Data);
     cleanedData.segments = [];
     for (const seg of m3u8Data.segments) {    
@@ -908,13 +911,13 @@
   }
 
   async function loadM3U8PlayListQualities(m3u8Url, isLive) {
-    debug("loadM3U8PlayListQualities()");
+    debug("loadM3U8PlayListQualities()")
 
     // 1) analyse master playlist and detect stream qualities
     let streamQualities = [];
     let m3u8MasterData = null;
     {
-      debug("loadM3U8MasterPlayListAsync()");
+      debug("loadM3U8MasterPlayListAsync()")
       let m3u8Data = await M3U8Data.loadAsync(m3u8Url);
       for (const tag of m3u8Data.tags) {
         if (tag.is('EXT-X-STREAM-INF')) {
@@ -1009,7 +1012,7 @@
     // 2) load data of master playlist and stream playlists and create downloadable blobs
     let loadedStreamQualities = [];
     {
-      debug("loadM3U8StreamQualitiesAsync()");
+      debug("loadM3U8StreamQualitiesAsync()")
       if (m3u8MasterData) {
         // create a downloadable blob
         let saveBlob = new Blob([m3u8MasterData.toString()], { type: "text/html;charset=UTF-8" });
@@ -1027,7 +1030,7 @@
         // live stream playlist are 'dynamic' -> it makes no sense to load the current data and provide as blob
         for (let i = 0; i < streamQualities.length; i++) {
           let streamQuality = streamQualities[i];
-          debug("loadM3U8StreamQualityAsync()");
+          debug("loadM3U8StreamQualityAsync()")
           if (!streamQuality.type.startsWith('m3u8')) {
             //return null;
             continue;
@@ -1079,9 +1082,9 @@
     // 3) process the loaded streams (e.g. remove advertisement segments)
     let processedStreamQualities = [];
     {
-      debug("processM3U8StreamQualities()");
+      debug("processM3U8StreamQualities()")
       loadedStreamQualities.forEach((loadedStreamQuality) => {
-        debug("processM3U8StreamQuality()");
+        debug("processM3U8StreamQuality()")
         let m3u8Data = loadedStreamQuality.content;
         if (!m3u8Data) {
           debug("m3u8Data is null")
@@ -1168,7 +1171,7 @@
     // 4) mux pure audio and video pplaylists into muxed playlists
     let muxedStreamQualities = [];
     {
-      debug("muxM3U8StreamQualitiesAsync()");
+      debug("muxM3U8StreamQualitiesAsync()")
       let audioStreamQuality = null;
       loadedStreamQualities.forEach((loadedStreamQuality) => {
         if (loadedStreamQuality && loadedStreamQuality.isaudio && loadedStreamQuality.content && loadedStreamQuality.content.segments.length > 0) {
@@ -1190,7 +1193,7 @@
           if (!loadedStreamQuality || loadedStreamQuality.isaudio || !loadedStreamQuality.content || loadedStreamQuality.content.segments.length < 1) {
             return;
           }
-          debug("muxing audio and video stream");
+          debug("muxing audio and video stream")
           let muxedPlaylist = '';
           let m3u8VideoData = loadedStreamQuality.content;
           let videoSegmentIdx = 0;
@@ -1293,7 +1296,7 @@
 
   function sortQualities(qualities) {
     function qualityToNumber(quality) {
-      //debug("qualityToNumber()");
+      //debug("qualityToNumber()")
       if (!quality) {
         return 0;
       }
@@ -1316,9 +1319,9 @@
       }
       return parseInt(quality);
     }
-    debug("sortQualities()");
+    debug("sortQualities()")
     if (qualities == undefined || qualities == null) {
-      debug("qualities is null");
+      debug("qualities is null")
       return;
     }
     qualities.sort((streamA, streamB) => { return qualityToNumber(streamB.quality) - qualityToNumber(streamA.quality); });
@@ -1326,12 +1329,12 @@
   }
      
   async function saveM3U8LivePlayListAsync(m3u8Url, resolve, reject, cancel) {
-    debug("saveM3U8LivePlayListAsync()");
-    debug("m3u8Url: " + m3u8Url);
+    debug("saveM3U8LivePlayListAsync()")
+    debug("m3u8Url: " + m3u8Url)
     // 1) load initial playlist data (will only contain few segments)
     let m3u8Data = await M3U8Data.loadAsync(m3u8Url);
     if (m3u8Data.segments.length < 1) {
-      debug("could not find any VOD segments -> early exit");
+      debug("could not find any VOD segments -> early exit")
       if (reject) reject("could not find any VOD segments -> early exit");
       return null;
     }
@@ -1346,7 +1349,7 @@
       repeatCount++;
       let newM3u8Data = await M3U8Data.loadAsync(m3u8Url);
       if (newM3u8Data.segments.length < 1) {
-        debug("loading playlist data failed (live stream ended?)");
+        debug("loading playlist data failed (live stream ended?)")
         repeatLoading = false;
         continue;
       }
@@ -1365,7 +1368,7 @@
         }
       });
       if (addedSegments > 0) {
-        debug('added ' + addedSegments + ' new segment(s) to the playlist');
+        debug('added ' + addedSegments + ' new segment(s) to the playlist')
       }
       // check for final static state (not a live playlist after all?)
       if (repeatCount > 10 && newM3u8Data.segments.length == m3u8Data.segments.length && m3u8Data.segments.length == initialSegmentsCount) {
@@ -1390,7 +1393,7 @@
         continue;
       }
     }
-    debug("loading of async playlist ended");
+    debug("loading of async playlist ended")
     // 4) convert the m3u8Data into a m3u8 playlist string and create a downloadable blob out of it
     let saveBlob = new Blob([m3u8Data.toString()], { type: "text/html;charset=UTF-8" });
     if (resolve) {
@@ -1415,13 +1418,13 @@
   }
 
     async function saveM3U8VideoAsMP4Async(m3u8Url, m3u8Content, resolve, reject, cancel) {
-    debug("saveM3U8VideoAsMP4Async()");
-    debug("m3u8Url: " + m3u8Url);
+    debug("saveM3U8VideoAsMP4Async()")
+    debug("m3u8Url: " + m3u8Url)
     if (reject) {
       reject("saveM3U8VideoAsMP4Async() not implemented");
     }
     return null;
-    //debug("m3u8Content: " + m3u8Content);
+    //debug("m3u8Content: " + m3u8Content)
     // 1) load playlist data
     let m3u8Data = m3u8Content ? new M3U8Data(m3u8Content) : await M3U8Data.loadAsync(m3u8Url);
     let httpRequest = new HttpRequest();
@@ -1429,7 +1432,7 @@
     muxedData = null;
     let segmentId = 0;
     for (const tsSegmentUrl of m3u8Data.segmentUris) {
-      debug(tsSegmentUrl);
+      debug(tsSegmentUrl)
       // todo: make more save aganinst failures
       let response = await httpRequest.downloadAsync(tsSegmentUrl);
       let tsSegmentString = response.data;
@@ -1450,9 +1453,9 @@
     return saveBlob;
   }
 
-  async function saveM3U8SegmentsAsBlobs(m3u8Url, m3u8Content, resolve, reject, cancel) {
-    debug("saveM3U8SegmentsAsBlobs()");
-    debug("m3u8Url: " + m3u8Url);
+  async function saveM3U8SegmentsAsync(m3u8Url, m3u8Content, resolve, reject, cancel) {
+      debug("saveM3U8SegmentsAsync()")
+    debug("m3u8Url: " + m3u8Url)
     // load playlist data
     let m3u8Data = m3u8Content ? new M3U8Data(m3u8Content) : await M3U8Data.loadAsync(m3u8Url);
     let httpRequest = new HttpRequest();
@@ -1460,7 +1463,7 @@
     // download all segments
     for (const segment of m3u8Data.segments) {
       let segmentUrl = segment.uri;
-      debug(segmentUrl);
+      debug(segmentUrl)
       // todo: make this more resilent aganinst load failures...
       let response = await httpRequest.downloadAsync(segmentUrl);
       if (response && response.status == 200 && response.data) {
@@ -1480,7 +1483,7 @@
     }
     if (downloadResult.length < m3u8Data.segments.length) {
       if (reject) {
-        reject("saveM3U8SegmentsAsBlobs() donwloading of segments failed (only " + segmentsData.length + " of " + m3u8Data.segmentUris.length + " were loaded)");
+          reject("saveM3U8SegmentsAsync() donwloading of segments failed (only " + segmentsData.length + " of " + m3u8Data.segmentUris.length + " were loaded)");
       }
       return null;
     }
@@ -1524,7 +1527,7 @@
   async function findAirmeetMedia(document, resultContainer) {
     // Airmeet:
     if (document.location.host.startsWith('www.airmeet.com') && document.querySelector('video')) {
-      debug("found Airmeet media page with video object");
+      debug("found Airmeet media page with video object")
       let videoUrl = document.querySelector('video').src;
       // retrieve media info from active player properties -> this can break if players change
       if (videoUrl && videoUrl.length > 0) {
@@ -1544,7 +1547,7 @@
         });
       }
       else {
-        debug("could not extract Airmeet media");
+        debug("could not extract Airmeet media")
       }
     }
   }
@@ -1581,7 +1584,7 @@
       let videoConfigJson = response.data;
       let videoConfig = JSON.parse(videoConfigJson);
       if (videoConfig) {
-        debug("found RedBull media page with m3u8 video info");
+        debug("found RedBull media page with m3u8 video info")
         let videoTitle = document.querySelector('meta[property="og:title"]').content || videoConfig.title || document.querySelector('title').innerText;
         let videoDescription = document.querySelector('meta[property="og:description"]').content || document.querySelector('meta[name="description"]').content;
         let videoUrl = getAbsoluteUrl(videoConfig.videoUrl);
@@ -1599,7 +1602,7 @@
       }
       return;
     }
-    debug("found RedBull media page with player object");
+    debug("found RedBull media page with player object")
     // retrieve media info from active player properties -> this can break if players change
     let videoInfo = null;
     if ('getVidInfo' in player) {
@@ -1626,7 +1629,7 @@
       });
     } 
     else {
-      debug("could not extract RedBull media"); 
+      debug("could not extract RedBull media");
     }
   }
 
@@ -1639,12 +1642,12 @@
     //-> https://cs.liiift.io/v1/STV/pd/E4/8B/9F/8E/FO-2BXH2PMM61111/master.m3u8
     let rbPlayerCfg = document.querySelector('rbup-video-bergwelten');
     if (!rbPlayerCfg) {
-      debug("could not extract Bergwelten player config");
+      debug("could not extract Bergwelten player config")
       return;
     }
     let videoId = rbPlayerCfg.getAttribute('asset-id');
     if (!videoId) {
-      debug("could not extract Bergwelten media info");
+      debug("could not extract Bergwelten media info")
       return;
     }
     let videoConfigUrl = 'https://api-player.redbull.com/bergwelten?videoId=' + videoId;
@@ -1653,7 +1656,7 @@
     let videoConfigJson = response.data;
     let videoConfig = JSON.parse(videoConfigJson);
     if (videoConfig) {
-      debug("found ServusTV media page with m3u8 video info");
+      debug("found ServusTV media page with m3u8 video info")
       let videoTitle = document.querySelector('meta[property="og:title"]').content || videoConfig.title || document.querySelector('title').innerText;
       let videoDescription = document.querySelector('meta[property="og:description"]').content || document.querySelector('meta[name="description"]').content;
       let videoUrl = getAbsoluteUrl(videoConfig.videoUrl);
@@ -1680,12 +1683,12 @@
     //-> https://dms.redbull.tv/v5/destination/stv/AA-294F1JR1W2111/personal_computer/http/de/de_DE/playlist.m3u8
     let rbPlayerCfg = document.querySelector('rbup-video-stv');
     if (!rbPlayerCfg) {
-      debug("could not extract ServusTV player config"); 
+      debug("could not extract ServusTV player config")
       return;
     }
     let videoId = rbPlayerCfg.getAttribute('asset-id');
     if (!videoId) {
-      debug("could not extract ServusTV media info"); 
+      debug("could not extract ServusTV media info")
       return;
     }
     let videoConfigUrl = 'https://api-player.redbull.com/stv/servus-tv?timeZone=Europe/Berlin&videoId=' + videoId;
@@ -1694,7 +1697,7 @@
     let videoConfigJson = response.data;
     let videoConfig = JSON.parse(videoConfigJson);
     if (videoConfig) {
-      debug("found ServusTV media page with m3u8 video info");
+      debug("found ServusTV media page with m3u8 video info")
       let videoTitle = document.querySelector('meta[property="og:title"]').content || videoConfig.title || document.querySelector('title').innerText;
       let videoDescription = document.querySelector('meta[property="og:description"]').content || document.querySelector('meta[name="description"]').content;
       let videoUrl = getAbsoluteUrl(videoConfig.videoUrl);
@@ -1718,7 +1721,7 @@
     if (!documentUrl.includes('dailymotion.com/video/')) {
       return;
     }
-    debug("found Dailymotion media page");
+    debug("found Dailymotion media page")
     // retrieve media info from active player properties -> this can break if players change
     let videoId = documentUrl.substr(documentUrl.indexOf('dailymotion.com/video/')+'dailymotion.com/video/'.length);
     let videoConfigUrl = 'https://www.dailymotion.com/player/metadata/video/' + videoId;
@@ -1728,8 +1731,8 @@
     let videoConfig = JSON.parse(videoConfigJson);
  
     if (videoConfig) {
-      debug("found Dailymotion video config");
-      //debugJson("videoConfig:\n", videoConfig);
+      debug("found Dailymotion video config")
+      //debugJson("videoConfig:\n", videoConfig)
       let videoTitle = videoConfig.title;
       let videoDescription = videoConfig.tags.join(', ');
       let mediaEntry = {
@@ -1738,7 +1741,7 @@
         "qualities": []
       };
       if (videoConfig && videoConfig.qualities && videoConfig.qualities.auto && videoConfig.qualities.auto.length > 0) {
-        debug("found Dailymotion qualities");
+        debug("found Dailymotion qualities")
         // add media download info
         videoConfig.qualities.auto.forEach((format)=>{
           mediaEntry.qualities.push({
@@ -1755,7 +1758,7 @@
       }
     }
     else {
-      debug("could not extract Dailymotion media"); 
+      debug("could not extract Dailymotion media")
     }
   }
 
@@ -1768,7 +1771,7 @@
     if (!player) {
       return;     
     }
-    debug("found MySpass media page with player object");
+    debug("found MySpass media page with player object")
     // retrieve media info from active player properties -> this can break if players change
     if ('videoMetadata' in player) { 
       let videoInfo = player.videoMetadata;
@@ -1788,7 +1791,7 @@
       });
     }
     else {
-      debug("could not extract MySpass media"); 
+      debug("could not extract MySpass media")
     }
   }
  
@@ -1797,17 +1800,17 @@
     let vimeoConfigUrl = null;
     // Vimeo:
     if (!player && document.querySelector('.player video') && 'vimeo' in window) {
-      debug("found Vimeo page");
+      debug("found Vimeo page")
       player = window.vimeo;
     }
     // VimeoPlayer:
     if (!player && document.querySelector('.player video') && 'VimeoPlayer' in window) {
-      debug("found VimeoPlayer page");
+      debug("found VimeoPlayer page")
       player = window.VimeoPlayer;
     }        
     // redirect to VimeoPlayer in case of vimeo page and no videos found
     if (!player && 'vimeo' in window && !document.URL.includes('player.vimeo.com/video/')) {
-      debug("found Vimeo page without player - trying to redirect to VimeoPlayer");
+      debug("found Vimeo page without player - trying to redirect to VimeoPlayer")
       if (window.vimeo && window.vimeo.clip_page_config && window.vimeo.clip_page_config.clip && window.vimeo.clip_page_config.clip.id) {
         let vimeoVideoId = window.vimeo.clip_page_config.clip.id;
         vimeoPlaybackUrl = 'https://player.vimeo.com/video/' + vimeoVideoId;
@@ -1834,12 +1837,12 @@
     if (!player && !vimeoConfigUrl) {
       return;     
     }
-    debug("found Vimeo media page with player object or valid vimeoConfigUrl");
+    debug("found Vimeo media page with player object or valid vimeoConfigUrl")
     // retrieve media info from active player properties -> this can break if players change
-    //debugJson(player.clip_page_config);
+    //debugJson(player.clip_page_config)
     let vimeoConfig = null;
     if (player && player.clip_page_config && player.clips && player.clip_page_config.clip) {
-      debug("found Vimeo clips data (direct access to vimeoConfig)");
+      debug("found Vimeo clips data (direct access to vimeoConfig)")
       vimeoConfig = player.clips[player.clip_page_config.clip.id];
     }
     if (!vimeoConfig && !vimeoConfigUrl) {
@@ -1855,16 +1858,16 @@
       }
     }
     if (vimeoConfigUrl) {
-      debug("found Vimeo ConfigUrl");
-      //debug("vimeoConfigUrl: " + vimeoConfigUrl);
+      debug("found Vimeo ConfigUrl")
+      //debug("vimeoConfigUrl: " + vimeoConfigUrl)
       let httpRequest = new HttpRequest();
       let response = await httpRequest.downloadAsync(vimeoConfigUrl);
       let vimeoConfigJson = response.data;
       vimeoConfig = JSON.parse(vimeoConfigJson);
     }
     if (vimeoConfig) {
-      debug("found Vimeo Config");
-      //debugJson("vimeoConfig:\n", vimeoConfig);
+      debug("found Vimeo Config")
+      //debugJson("vimeoConfig:\n", vimeoConfig)
       let videoTitle = vimeoConfig.video.title;
       let videoDescription = "";
       //if (player && player.clip_page_config && player.clip_page_config.clip && player.clip_page_config.clip.title) {
@@ -1878,9 +1881,9 @@
         "description": videoDescription,
         "qualities": []
       };
-      //debugJson("vimeoConfig.request.files.progressive[]:\n", vimeoConfig.request.files.progressive);
+      //debugJson("vimeoConfig.request.files.progressive[]:\n", vimeoConfig.request.files.progressive)
       if (vimeoConfig && vimeoConfig.request && vimeoConfig.request.files && vimeoConfig.request.files.progressive) {
-        debug("found Vimeo progressive formats");
+        debug("found Vimeo progressive formats")
         //if (mediaEntry.qualities.length < 1)
         {
           // add media download info
@@ -1893,17 +1896,17 @@
           });
         }
       }
-      //debugJson("vimeoConfig.request.files.hls[]:\n", vimeoConfig.request.files.hls);
+      //debugJson("vimeoConfig.request.files.hls[]:\n", vimeoConfig.request.files.hls)
       if (vimeoConfig && vimeoConfig.request && vimeoConfig.request.files && vimeoConfig.request.files.hls) {
-        debug("found Vimeo hls formats");
+        debug("found Vimeo hls formats")
         //if (mediaEntry.qualities.length < 1)
         {
           // todo: add media download info
         }
       }
-      //debugJson("vimeoConfig.request.files.dash[]:\n", vimeoConfig.request.files.dash);
+      //debugJson("vimeoConfig.request.files.dash[]:\n", vimeoConfig.request.files.dash)
       if (vimeoConfig && vimeoConfig.request && vimeoConfig.request.files && vimeoConfig.request.files.dash) {
-        debug("found Vimeo dash formats");
+        debug("found Vimeo dash formats")
         //if (mediaEntry.qualities.length < 1)
         {
           // todo: add media download info
@@ -1915,7 +1918,7 @@
         let isLive = vimeoConfig.video && vimeoConfig.video.live_event && vimeoConfig.video.live_event.status && !(vimeoConfig.video.live_event.status.toLowerCase() == "ended"); /*&& vimeoConfig.video.live_event.status == "started"*/;
         if (m3u8MasterSrc)
         {
-          debug("found Vimeo live stream");
+          debug("found Vimeo live stream")
           // todo: add media download info
           mediaEntry.qualities.push({
             "url": m3u8MasterSrc.url,
@@ -1932,7 +1935,7 @@
       }
     }
     else {
-      debug("could not extract Vimeo media"); 
+      debug("could not extract Vimeo media")
     }
   }
 
@@ -1944,35 +1947,35 @@
     }
     let player = null;
     if (!player && 'ytplayer' in window) {
-      debug('window.ytplayer');
+      debug('window.ytplayer')
       player = window.ytplayer;
     }
     if (!player || !player.config && 'yt' in window) {
-      debug('window.yt.player');
+      debug('window.yt.player')
       player = window.yt ? window.yt.player : null;
     }
     //if (!player || !player.config && 'getPlayer' in window) {
-    //  debug('window.getPlayer()');
+    //  debug('window.getPlayer()')
     //  player = window.getPlayer();
     //}
     //if (!player && 'yt' in window) {
-    //  debug('window.yt');
+    //  debug('window.yt')
     //  player = window.yt;
     //}
     //if (player && !player.config && 'getWebPlayerContextConfig' in window) {
-    //  debug('window.getWebPlayerContextConfig()'); 
+    //  debug('window.getWebPlayerContextConfig()')
     //  player.config = window.getWebPlayerContextConfig();
     //}
     if (!player) {
       return;     
     }
-    debug("found YouTube media page with player object");  
-    debug('player: '+player);
-    //for (var prop in window){debug(prop);}
+    debug("found YouTube media page with player object")
+    debug('player: '+player)
+    //for (var prop in window){debug(prop)}
     let ytcfg = player.config || window.ytcfg;// || window.ytInitialPlayerConfig || window.ytglobal;
-    debugJson('ytcfg:\n', ytcfg);
-    //debugJson('ytInitialPlayerConfig:\n', window.ytInitialPlayerConfig);
-    //debugJson('ytglobal:\n', window.ytglobal);
+    debugJson('ytcfg:\n', ytcfg)
+    //debugJson('ytInitialPlayerConfig:\n', window.ytInitialPlayerConfig)
+    //debugJson('ytglobal:\n', window.ytglobal)
     // retrieve media info from active player properties -> this can break if players change
     if ((ytcfg && ytcfg.args && ytcfg.args.video_id) &&
         (  player.player_response
@@ -2005,7 +2008,7 @@
       };
       
       if (videoPlayerResponse.streamingData && videoPlayerResponse.streamingData.hlsManifestUrl) {
-        debug("found YouTube live stream");
+        debug("found YouTube live stream")
         let videoUrl = getAbsoluteUrl(videoPlayerResponse.streamingData.hlsManifestUrl);
         let videoType = getExtensionFromUrl(videoUrl);
         let videoQuality = null;
@@ -2027,7 +2030,7 @@
             kvps.forEach((kvp) => {
               parts = kvp.split('=');
               if (parts.length > 1) {
-                debug("signature: " + parts[0] + " = " + parts[1]);
+                debug("signature: " + parts[0] + " = " + parts[1])
                 if (parts[0].toLowerCase() == 'url') {
                   videoUrl = decodeURIComponent(parts[1]);
                 }
@@ -2048,7 +2051,7 @@
       }
     }
     else {
-      debug("could not extract YouTube media"); 
+      debug("could not extract YouTube media")
     }
   }
  
@@ -2061,7 +2064,7 @@
     if (!player) {
       return;     
     }
-    debug("found ARD media page with player object");
+    debug("found ARD media page with player object")
     // retrieve media info from active player properties -> this can break if players change
     if ('_pixelConfig' in player && player._pixelConfig.length > 0) { 
       let videoInfo = player._pixelConfig[0];
@@ -2081,7 +2084,7 @@
       });
     }
     else {
-      debug("could not extract ARD media"); 
+      debug("could not extract ARD media")
     }
   }
 
@@ -2089,16 +2092,16 @@
     // https://plus.rtl.de/video-tv/filme/hot-fuzz-zwei-abgewichste-profis-1000103623
     // https://vodnowusoawsdash-cf.tvnow.de/pgrn/streaming/watch/1000103623/14-4000-1-1-1.ism/rtlplus.mpd
     if (document.location.host.endsWith('.rtl.de') && document.location.pathname.startsWith('/video-tv/')) {
-      debug("found RTL+ video page");
+      debug("found RTL+ video page")
       // <div _ngcontent-serverapp-c760864024="" id="player" data-foundation-player-class="" class="bitmovinplayer-container aspect-16x9" data-foundation-player=""><video _ngcontent-serverapp-c760864024="" disableremoteplayback="" id="bitmovinplayer-video-player" webkit-playsinline="" playsinline="" src="blob:https://plus.rtl.de/74a5cffc-c2f2-48f9-a222-f9e786e4de8d"></video><div class="bitmovinplayer-poster" style="display: none; background-image: url(&quot;https://images.plus.rtl.de/watch/1000103623/plain_landscape/qz-q2-vv-k1/hot-fuzz-zwei-abgewichste-profis-rtlzwei&quot;);"></div><watch-controls media-type="vod" size="sm" content-type="content"></watch-controls></div>
       let player = document.querySelector('div#player>video#bitmovinplayer-video-player');
       if (player) {
         let blobsrc = player.src
-        debug("blobsrc = " + blobsrc);
+        debug("blobsrc = " + blobsrc)
       }
     }
     if (rtlPlusmpdUrl && rtlPlusmpdUrl.length > 0 && rtlPlusmpdUrl.endsWith('rtlplus.mpd')) {
-      debug("found RTL+ video MPD");
+      debug("found RTL+ video MPD")
       m3u8Url = rtlPlusmpdUrl.replace('.mpd', '.m3u8')
       videoUrl = getAbsoluteUrl(m3u8Url);
       let videoTitle = "RTLPlus video";
@@ -2116,14 +2119,14 @@
       });
     }
     else {
-      debug("could not extract RTL+ media");
+      debug("could not extract RTL+ media")
     }
   }
 
   async function findMediathekViewPlayerMedia(document, resultContainer) {
     // https://srf-vod-amd.akamaized.net/ch/hls/film/2022/10/film_20221011_153158_15680421_v_webcast_h264_,q40,q10,q20,q30,q50,q60,.mp4.csmil/index-f6-v1-a1.m3u8
     if (document.location.host.endsWith('mediathekviewweb.de') && document.querySelector('div#videocontent>div')) {
-      debug("found MediathekviewWeb page with video object");
+      debug("found MediathekviewWeb page with video object")
       let videoUrl = document.querySelector('div#videocontent>div>video>source').src;
       // retrieve media info from active player properties -> this can break if players change
       if (videoUrl && videoUrl.length > 0) {
@@ -2145,7 +2148,7 @@
         });
       }
       else {
-        debug("could not extract Mediathekview media");
+        debug("could not extract Mediathekview media")
       }
     }
   }
@@ -2163,7 +2166,7 @@
       for (const config of mtvVideoConfigs) {
         let json = JSON.parse(config.innerHTML);
         if (json["@type"] == "VideoObject" && json["@id"]) {
-          debug("found MTV media page with m3u8 video info");
+          debug("found MTV media page with m3u8 video info")
           let videoId = json["@id"];
           let videoConfigUrl = 'https://media-utils.mtvnservices.com/services/MediaGenerator/mgid:arc:musicvideo:mtv.intl:' + videoId + '?arcStage=live&accountOverride=intl.mtvi.com&billingSection=intl&ep=82ac4273&format=json&acceptMethods=hls&tveprovider=null';
           let httpRequest = new HttpRequest();
@@ -2188,7 +2191,7 @@
       }
       return;
     }
-    debug("could not extract MTV media");
+    debug("could not extract MTV media")
   }
 
   async function findTedMedia(document, resultContainer) {
@@ -2225,7 +2228,7 @@
         }
       }
       if (masterUrl) {
-        debug("found TED media page with m3u8 video info");
+        debug("found TED media page with m3u8 video info")
         let videoUrl = masterUrl;
         let videoElement = document.querySelector('div>video');
         let videoTitle = videoElement.tile;
@@ -2244,7 +2247,7 @@
       }
       return;
     }
-    debug("could not extract TED media");
+    debug("could not extract TED media")
   }
 
 
@@ -2252,7 +2255,7 @@
   //-------------------------------------------------------------------------------------------------------
  
   async function analysePageAndCreateUiAsync(showUiOpen, showAllFormats, retryCount) {
-    debug("analysePageAndCreateUiAsync()");
+    debug("analysePageAndCreateUiAsync()")
     // when this function is used without arguments, then they are of type undefined
     // here showUiOpen and ahowAllFormats are of expected type boolean -> therefore undefined arguments default to false values witch is already what we need
     // -> no additional code required for default value handling
@@ -2324,7 +2327,7 @@
         retryCount = (!retryCount || retryCount < 1) ? 1 : ++retryCount;
         let sleepTime = 500 * retryCount * retryCount * retryCount / 2;
         //sleepTime = 5000;
-        debug("could not retrieve video download url from\n location '" + document.location + "'\n host '" + document.location.host + "'\n pathname '" + document.location.pathname +"' \n trying again later in retry " + retryCount + ' after sleeping ' + sleepTime + 'ms');
+        debug("could not retrieve video download url from\n location '" + document.location + "'\n host '" + document.location.host + "'\n pathname '" + document.location.pathname +"' \n trying again later in retry " + retryCount + ' after sleeping ' + sleepTime + 'ms')
         setTimeout(function () { analysePageAndCreateUiAsync(showUiOpen, showAllFormats, retryCount); }, sleepTime);
         return;
       }
@@ -2333,7 +2336,7 @@
       let canvas = createDownloadUi(showUiOpen, showAllFormats);
 
       // sort available qualities
-      for (let i = 0; i < resultContainer.mediaList.length; i++) {
+      for (let i=0; i < resultContainer.mediaList.length; i++) {
         sortQualities(resultContainer.mediaList[i].qualities);
       }
 
@@ -2368,21 +2371,21 @@
       // debug output of retrieved media information
       resultContainer.mediaList.forEach((entry) => {
         entry.qualities.forEach((quality) => {
-          debug("Title       : '" + entry.title + "'");
-          debug("Description : '" + entry.description + "'");
-          debug("Url         : '" + quality.url + "'");
-          debug("Type        : '" + quality.type + "'");
-          debug("Quality     : '" + quality.quality + "'");
-          debug("Audio       : '" + quality.isaudio + "'");
-          debug("Subtitle    : '" + quality.issubtitle + "'");
-          debug("Live        : '" + quality.islive + "'");
-          debug("Loaded      : '" + quality.isloaded + "'");
-          debug("Processed   : '" + quality.processed + "'");
-          debug("Muxed       : '" + quality.ismuxed + "'");
+          debug("Title       : '" + entry.title + "'")
+          debug("Description : '" + entry.description + "'")
+          debug("Url         : '" + quality.url + "'")
+          debug("Type        : '" + quality.type + "'")
+          debug("Quality     : '" + quality.quality + "'")
+          debug("Audio       : '" + quality.isaudio + "'")
+          debug("Subtitle    : '" + quality.issubtitle + "'")
+          debug("Live        : '" + quality.islive + "'")
+          debug("Loaded      : '" + quality.isloaded + "'")
+          debug("Processed   : '" + quality.processed + "'")
+          debug("Muxed       : '" + quality.ismuxed + "'")
           quality.content == undefined ?
             debug("Content     : 'undefined'") :
-            debug("Content     : '" + (quality.content.toString().length > 0) ? quality.content.toString().substr(0, 7) + "...'" : "'");
-          debug("------------------------------");
+            debug("Content     : '" + (quality.content.toString().length > 0) ? quality.content.toString().substr(0, 7) + "...'" : "'")
+          debug("------------------------------")
         });
       });
       
@@ -2397,7 +2400,7 @@
       // try again later
       retryCount = (!retryCount || retryCount < 1) ? 1 : ++retryCount;
       let sleepTime = 500 * retryCount * retryCount * retryCount / 2;
-      debug("could not retrieve video download url from player, trying again later in retry " + retryCount + ' after sleeping ' + sleepTime + 'ms');
+      debug("could not retrieve video download url from player, trying again later in retry " + retryCount + ' after sleeping ' + sleepTime + 'ms')
       setTimeout(function () { analysePageAndCreateUiAsync(showUiOpen, showAllFormats, retryCount); }, sleepTime);
 	}
   }
@@ -2421,7 +2424,7 @@
   }
 
   function deleteDownloadUi() {
-    debug("deleteDownloadUi()");
+    debug("deleteDownloadUi()")
     let el = document.getElementById("i2d-popup");
     if (el) {
       el.parentElement.removeChild(el);
@@ -2430,7 +2433,7 @@
 
   function createDownloadUiAndAddUrl(showUiOpen, showAllFormats, title, description, downloadInfo, skippedFormats)
   {
-    debug("createDownloadUiAndAddUrl()");
+    debug("createDownloadUiAndAddUrl()")
 
     // look which ui elements we have already created before
     let el = document.getElementById("i2d-popup");
@@ -2671,41 +2674,73 @@
         spanGroup.appendChild(spanSave);
         spanSave.onclick = () => {
           let isCanceled = false;
-          spanSave.innerHTML = '[download segments...]';
+          spanSave.innerHTML = '[downloading...]';
           spanSave.style.cursor = 'progress';
           spanSave.onclick = () => {
             alert('\nconfirm to stop the running download of stream segments');
             isCanceled = true;
           };
           spanSave.style.color = "rgb(80, 80, 80)";
-          saveM3U8SegmentsAsBlobs(downloadInfo.url, downloadInfo.content,
+          saveM3U8SegmentsAsync(downloadInfo.url, downloadInfo.content,
             (downloadResults) => {
               //https://stackoverflow.com/questions/18451856/how-can-i-let-a-user-download-multiple-files-when-a-button-is-clicked
               //alert("downloadResults created");
-              spanSave.innerHTML = '[download segments done]';
+              spanSave.innerHTML = '[save downloaded segments]';
               spanSave.style.cursor = 'help';
               spanSave.onclick = () => {
                 alert('\ndownloaded data will now be saved');
-                //window.segmentDownloadData = downloadResults;
-                let interval = setInterval(saveAllSegments, 300, downloadResults);
+
+                let downloadData = downloadResults[0];
+                let testSaves = [{
+                    "url": window.URL.createObjectURL(new Blob([downloadData.data], { type: "text/html;charset=UTF-8" })),
+                    "name": videoFileName + "_" + downloadData.number + "_charset-UTF8." + downloadData.type
+                  },{
+                    "url": window.URL.createObjectURL(new Blob([stringToUint8Array(downloadData.data)], { type: "text/html;charset=UTF-8" })),
+                    "name": videoFileName + "_" + downloadData.number + "_str-to-uint8-charset-UTF8." + downloadData.type
+                  },{
+                    "url": window.URL.createObjectURL(new Blob([downloadData.data], { type: "application/octet-binary" })),
+                    "name": videoFileName + "_" + downloadData.number + "_octet-binary." + downloadData.type
+                  },{
+                    "url": window.URL.createObjectURL(new Blob([stringToUint8Array(downloadData.data)], { type: "application/octet-binary" })),
+                    "name": videoFileName + "_" + downloadData.number + "_str-to-uint8-octet-binary." + downloadData.type
+                  }];
+                let testinterval = setInterval(testSaveSegments, 300, testSaves);
+                function testSaveSegments(testData) {
+                  let data = testData.pop();
+                  let anc = document.createElement("a");
+                  anc.href = data.url;
+                  anc.target = '_blank';
+                  anc.download = data.name;
+                  anc.click();
+                  if (testData.length == 0) {
+                    clearInterval(testinterval);
+                  }
+                  id3.fromUrl(data.url).then((tags) => {
+                  //id3(data.url, function (err, tags) {
+                    // tags now contains v1, v2 and merged tags
+                    debug("ID3 tags from '" + data.name + "'")
+                    //for (var tag of tags) { debug(" tag: " + tag)}
+                    tags.forEach((tag) => {debug(" tag: " + tag)});
+                  });
+                }
+
+                //let saveInterval = setInterval(saveAllSegments, 300, downloadResults);
                 function saveAllSegments(downloadResults) {
                   let downloadData = downloadResults.pop();
 
-                  let saveFileName = videoFileName + "_" + downloadData.number + "_" + downloadData.name + "." + downloadData.type;
-                  let saveData = downloadData.data;
                   //let saveData = stringToUint8Array(downloadData.data);
                   //let saveBlob = new Blob([saveData], { type: 'application/octet-binary' });
+                  let saveData = downloadData.data;
                   let saveBlob = new Blob([saveData], { type: "text/html;charset=UTF-8" });
                   let saveUrl = window.URL.createObjectURL(saveBlob);
-
+                  let saveFileName = videoFileName + "_" + downloadData.number + "_" + downloadData.name + "." + downloadData.type;
                   let anc = document.createElement("a");
                   anc.href = saveUrl;
                   anc.target = '_blank';
                   anc.download = saveFileName;
                   anc.click();
-
                   if (downloadData.length == 0) {
-                    clearInterval(interval);
+                    clearInterval(saveInterval);
                   }
                 }
               };
@@ -2757,18 +2792,28 @@
   // see also: https://github.com/eligrey/canvas-toBlob.js
   // see also: https://github.com/eligrey/Blob.js
  
-  debug('userAgent: ' + navigator.userAgent);
+  debug('userAgent: ' + navigator.userAgent)
   debug('docUrl: '+ document.URL)
   // detect Apple OS Safari browser: https://stackoverflow.com/questions/9847580/how-to-detect-safari-chrome-ie-firefox-and-opera-browser
   //let isSafari = /constructor/i.test(window.HTMLElement) || (function (p) { return p.toString() === "[object SafariRemoteNotification]"; })(!window['safari'] || (typeof safari !== 'undefined' && window['safari'].pushNotification));
-  //debug('isSafari: ' + isSafari);  
+  //debug('isSafari: ' + isSafari)
 
   // capture all xhr requests
   // https://stackoverflow.com/questions/55041883/javascript-track-any-xmlhttprequest
   setupXhrHook()
 
   // start analysing page
-  debug("analysePage - OnMainStart()");
+  if (id3jsUrl) {
+    debug("analysePage - OnMainStart()")
+    // load id3jsUrl script and start analysing page defered
+    injectScript(id3jsUrl, ()=>{
+      debug("analysePage - OnID3JsLoad()")
+      //muxJs = window['muxjs'];
+      analysePageAndCreateUiAsync();
+    });
+    return;
+  }
+  debug("analysePage - OnMainStart()")
   analysePageAndCreateUiAsync();      
 }
 
@@ -2778,7 +2823,7 @@
   // we bypass injection if we run under ProcessWebPage control (no sandboxing)
   let ThisScriptId = 'ProcessWebPage_Main';
   if (document.getElementById(ThisScriptId)) {
-     console.log("[Media Download] starting");   
+     console.log("[Media Download] starting");
      //we run in page (ProcessWebPage) > no further injection required
      CodeToInject('');
      return;
@@ -2793,7 +2838,6 @@
     let scriptId = 'UserScript_CodeToInject_' + 'DLWSMEDIA.js';
     script.type = 'text/javascript';
     script.id = scriptId; //ThisScriptId;
-    //script.textContent = '(' + setupScriptCode + ')("' + chromeExtensionScriptUrl.toString() + '");';
     script.textContent = setupScriptCode + ' CodeToInject("' + chromeExtensionScriptUrl.toString() + '");';
     
     // workaround manifest v3 security limitations
@@ -2818,17 +2862,10 @@
     
     //console.log("[Media Download] injectCode - csp");
     //document.head.appendChild(csp)
-
     //script.nonce = "";
     //document.head.appendChild(script);
   }
 
-
-  //window.onload = function () {
-  //  console.log("[Media Download] window.onload");
-  //  injectCode();
-  //};
-  //window.onload = injectCode();
   injectCode();
 
 })(); //(function content() {
