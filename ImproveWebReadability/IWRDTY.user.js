@@ -63,151 +63,6 @@
       return result;
     } 
 
-    function removeUrlParameter(uri, name) {
-      var newUri = uri.trim();
-      var paramsIdx = newUri.indexOf("?");
-      debug(false, "removeUrlParameter -> paramsIdx=" + paramsIdx);
-      if (paramsIdx > 0) {
-        var paramIdx = newUri.indexOf(name + "=");
-        debug(false, "removeUrlParameter -> paramIdx=" + paramIdx);
-        if (paramIdx > paramsIdx) {
-          // replace existing param value
-          var finalUri = newUri.substr(paramIdx);
-          debug(false, "removeUrlParameter -> finalUri=" + finalUri);
-          var paramEndIdx = finalUri.indexOf("&");
-          if (paramEndIdx > 0) {
-            newUri = newUri.substr(0,paramIdx) + newUri.substr(paramEndIdx);
-          }
-          else {
-            newUri = newUri.substr(0,paramIdx);
-          }
-        }
-      }
-      debug(false, "removeUrlParameter -> newUri=" + newUri);
-      return newUri;
-    }
-
-    function addUrlParameter(uri, name, value) {
-      var newUri = uri.trim();
-      var paramsIdx = newUri.indexOf("?");
-      if (paramsIdx > 0) {
-        var paramIdx = newUri.indexOf(name + "=");
-        if (paramIdx > paramsIdx) {
-          // replace existing param value
-          // ...todo...
-        }
-        else {
-          // add param to param list
-          if (newUri.endsWith("?") || newUri.endsWith("&")) {
-            newUri = newUri + name + "=" + value;
-          }
-          else {
-            newUri = newUri + "&" + name + "=" + value;
-          }
-        }
-      }
-      else {
-        // add new param list
-        var newUri = uri.trim();
-        if (newUri.endsWith("/")) {
-          newUri = newUri + "?" + name + "=" + value;
-        }
-        else {
-          newUri = newUri + "/?" + name + "=" + value;
-        }
-      }
-      return newUri;
-    }
-    
-    function getAllUrlParams(url) {
-      // https://www.sitepoint.com/get-url-parameters-with-javascript/
-      // get query string from url (optional) or window
-      var queryString = url ? url.split('?')[1] : window.location.search.slice(1);
-    
-      // we'll store the parameters here
-      var obj = {};
-    
-      // if query string exists
-      if (queryString) {
-    
-        // stuff after # is not part of query string, so get rid of it
-        queryString = queryString.split('#')[0];
-    
-        // split our query string into its component parts
-        var arr = queryString.split('&');
-    
-        for (var i=0; i<arr.length; i++) {
-          // separate the keys and the values
-          var a = arr[i].split('=');
-    
-          // in case params look like: list[]=thing1&list[]=thing2
-          var paramNum = undefined;
-          var paramName = a[0].replace(/\[\d*\]/, function(v) {
-            paramNum = v.slice(1,-1);
-            return '';
-          });
-    
-          // set parameter value (use 'true' if empty)
-          var paramValue = typeof(a[1])==='undefined' ? true : a[1];
-    
-          // (optional) keep case consistent
-          paramName = paramName.toLowerCase();
-          paramValue = paramValue.toLowerCase();
-    
-          // if parameter name already exists
-          if (obj[paramName]) {
-            // convert value to array (if still string)
-            if (typeof obj[paramName] === 'string') {
-              obj[paramName] = [obj[paramName]];
-            }
-            // if no array index number specified...
-            if (typeof paramNum === 'undefined') {
-              // put the value on the end of the array
-              obj[paramName].push(paramValue);
-            }
-            // if array index number specified...
-            else {
-              // put the value at that index number
-              obj[paramName][paramNum] = paramValue;
-            }
-          }
-          // if param name doesn't exist yet, set it
-          else {
-            obj[paramName] = paramValue;
-          }
-        }
-      }
-      return obj;
-    }
-
-    function setCookie(cname, cvalue, exdays) {
-        var d = new Date();
-        d.setTime(d.getTime() + (exdays*24*60*60*1000));
-        var expires = "expires="+ d.toUTCString();
-        var cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
-        debug(false, "setCookie -> '" + cookie + "'");
-        document.cookie = cookie;
-    }
-    
-    function getCookie(cname) {
-        var name = cname + "=";
-        var decodedCookie = decodeURIComponent(document.cookie);
-        debug(false, "getCookie -> decodedCookie = '" + decodedCookie + "'");
-        var ca = decodedCookie.split(';');
-        for(var i = 0; i <ca.length; i++) {
-            var c = ca[i];
-            while (c.charAt(0) == ' ') {
-                c = c.substring(1);
-            }
-            if (c.indexOf(name) == 0) {
-                var cookieValue = c.substring(name.length, c.length);
-                debug(false, "getCookie -> " + cname + " = '" + cookieValue + "'");
-                return cookieValue;
-            }
-        }
-        return "";
-    }
-
     //--------------------------------------------------------------------------------------------------
     // functions for process state marking
 
@@ -389,152 +244,6 @@
     // END OF GENERAL FUNCTIONS
     //--------------------------------------------------------------------------------------------------
 
-    function IWRDTYadaptElementStyles(html) {
-        debug(true, "IWRDTYadaptElementStyles");
-
-        // adapt body style
-        Array.prototype.forEach.call(html.querySelectorAll("body"), function (element) {
-            debug(false, "modifying body");
-            element.style = "";
-            element.style.marginLeft = "70px";
-            element.style.backgroundColor = "#ffffff";
-            element.style.fontSize = "15px";
-            //element.style.margin = "30";
-            element.insertBefore(document.createElement("br"), element.firstChild);
-        });
-
-        // adapt font size of headers
-        Array.prototype.forEach.call(html.querySelectorAll("h1"), function (element) {
-            debug(false, "modifying h1");
-            //element.style = "";
-            element.style.margin = "4px 0px 4px 0px";
-            element.style.backgroundColor = "#ffffff";
-            element.style.fontSize = "28px";
-        });
-        Array.prototype.forEach.call(html.querySelectorAll("h2"), function (element) {
-            debug(false, "modifying h2");
-            //element.style = "";
-            element.style.margin = "4px 0px 4px 0px";
-            element.style.backgroundColor = "#ffffff";
-            element.style.fontSize = "26px";
-        });
-        Array.prototype.forEach.call(html.querySelectorAll("h3"), function (element) {
-            debug(false, "modifying h3");
-            //element.style = "";
-            element.style.margin = "4px 0px 3px 0px";
-            element.style.backgroundColor = "#ffffff";
-            element.style.fontSize = "20px";
-        });
-        Array.prototype.forEach.call(html.querySelectorAll("h4"), function (element) {
-            debug(false, "modifying h4");
-            //element.style = "";
-            element.style.margin = "4px 0px 3px 0px";
-            element.style.backgroundColor = "#ffffff";
-            element.style.fontSize = "20px";
-        });
-
-        var topoPageWidth = "1100px"; //-> table with + maxWith of TopImage must not exceed 1200px
-        
-        Array.prototype.forEach.call(html.querySelectorAll("div#content"), function (element) {
-            element.style.borderStyle = "hidden";
-            element.style.width = topoPageWidth;
-        });
-        
-        Array.prototype.forEach.call(html.querySelectorAll("div#content-center"), function (element) {
-            element.style.borderStyle = "hidden";
-            element.style.padding = "0 0 0 0";
-            element.style.width = topoPageWidth;
-            element.style.color = "#202020"; //"#777777";
-        });
-
-        Array.prototype.forEach.call(html.querySelectorAll("div.poi-section"), function (element) {
-            element.style.borderStyle = "hidden";
-            element.style.padding = "0 0 0 0";
-            element.style.margin = "0 0 0 0";
-            element.style.width = topoPageWidth;
-            element.style.color = "#202020"; //"#777777";
-        });
-
-        Array.prototype.forEach.call(html.querySelectorAll("div#content-center p"), function (element) {
-            element.style.width = topoPageWidth;
-            element.style.color = "#202020"; //"#777777";
-        });
-
-        Array.prototype.forEach.call(html.querySelectorAll("div#content-center>div.poi-section-sectors>p"), function (element) {
-            element.style.width = topoPageWidth;
-            element.style.color = "#202020"; //"#777777";
-        });
-
-        // adapt table style
-        Array.prototype.forEach.call(html.querySelectorAll("table.poi-table-small"), function (element) {
-            element.style.lineHeight = "";
-            element.style.marginBottom = "5px";
-            //element.style.borderStyle = "1px solid black";
-            // adapt floating and width to meet topoPageWidth:
-            element.style.float = "left";
-            element.style.width = "439px"; //table with + maxWith of TopImage must not exceed topoPageWidth
-        });
-        // adapt topo image style
-        Array.prototype.forEach.call(html.querySelectorAll("div.poi-section>table.poi-table-small>img"), function(element) {
-            // adapt floating and width to meet topoPageWidth:
-            element.style.margin = "0 0 0 0";
-            //element.style.float = "right";
-            element.style.width    = "600px"; //table with + maxWith of TopImage must not exceed topoPageWidth
-            element.style.maxWidth = "660px"; //table with + maxWith of TopImage must not exceed topoPageWidth
-        });
-
-        // adapt stars image style
-        Array.prototype.forEach.call(html.querySelectorAll("img"), function (element) {
-            if (element.className.startsWith("stars")) {
-              debug(false, "moving crag stars: " + element.textContent);
-              element.className = "stars";
-              element.style.margin = "0 0 0 0";
-            }
-        });
-
-        // adapt th style
-        Array.prototype.forEach.call(html.querySelectorAll("th"), function (element) {
-            element.style.width = "150px";
-            element.style.lineHeight = "";
-        });
-
-        // adapt ul style
-        Array.prototype.forEach.call(html.querySelectorAll("ul"), function (element) {
-            element.style.margin = "0 0 0px 0";
-            element.style.lineHeight = "";
-            element.style.color = "#202020"; //"#777777";
-        });
-
-        // adapt p style
-        Array.prototype.forEach.call(html.querySelectorAll("p"), function (element) {
-            //element.style.margin = "0 0 0px 0";
-            element.style.margin = "0 0 10px 0";
-            element.style.lineHeight = "";
-        });
-
-        // adapt h4 style
-        Array.prototype.forEach.call(html.querySelectorAll("h4"), function (element) {
-            //element.style.margin = "6px 0 6px 0";
-            element.style.margin = "0px 0 6px 0";
-            element.style.lineHeight = "";
-        });
-
-        // adapt route-list ol style
-        Array.prototype.forEach.call(html.querySelectorAll("ol.route-list"), function (element) {
-            element.style.width = topoPageWidth;
-            element.style.margin = "0 0 0px 0";
-            element.style.lineHeight = "";
-        });
-        // adapt route-list li style
-        Array.prototype.forEach.call(html.querySelectorAll("ol.route-list>li"), function (element) {
-            element.style.padding = "0 0 6px 0";
-        });
-        // adapt route-list li style
-        Array.prototype.forEach.call(html.querySelectorAll("ol.route-list>li>p"), function (element) {
-            element.style.padding = "0 0 0px 0";
-            element.style.lineHeight = "";
-        });
-    }
 
     //----------------------------------------------------------------------------------------------------
     // START of main routine (IWRDTYmodifyDocument)
@@ -580,40 +289,6 @@
           return;
         }
 
-        // do preprocessing
-        /*
-        if (!isPreProcessed()) {
-            debug(true, "IWRDTYmodifyDocument:: start PreProcessing");
-            // on first processing, we just add a clickable element for toggling Raw<>Processed
-            markAsPreProcess();
-          
-            Array.prototype.forEach.call(document.documentElement.querySelectorAll("h2:nth-of-type(1)"), function (element) {
-                debug(false, "manipulating crag name: " + element.textContent);
-
-                // misuse crag name as anchor for backward link to overview page
-                element.onclick = function () {
-                    // toggle current page processing on every click
-                    if (isProcessed()) {
-                        setProcessPages(false);
-                        location.reload();
-                        return;
-                    } else if (isPreProcessed()) {
-                        setProcessPages(true);
-                        IWRDTYmodifyDocument(document);
-                        return;
-                    }
-                };
-            });
-
-            var processPages = getProcessPages();
-            debug(true, "IWRDTYmodifyDocument -> processPages = " + processPages);
-            if (processPages != "true") {
-                debug(true, "IWRDTYmodifyDocument:: end PreProcessing -> wait for user input to start Processing");
-                return;
-            }
-            debug(true, "IWRDTYmodifyDocument:: end PreProcessing -> start Processing");
-        }*/
-
         debug(true, "IWRDTYmodifyDocument:: start Processing");
 
         processStart();
@@ -623,14 +298,15 @@
         // (1) GENRAL processing
         removeGoogleAnalytics(dochtml);
 
-        var allChilds = getChildTreeAsNodeList(dochtml); //debug(false, "IWRDTYmodifyGebietPage getChildTreeAsNodeList.length: " + allChilds.length);
-        for (var child of allChilds) {
-          if (child.tagName == "H3") {
-            //child.parentElement.removeChild(child);
-          }
-        }
+        //var allChilds = getChildTreeAsNodeList(dochtml); //debug(false, "IWRDTYmodifyGebietPage getChildTreeAsNodeList.length: " + allChilds.length);
+        //for (var child of allChilds) {
+        //  if (child.tagName == "H3") {
+        //    //child.parentElement.removeChild(child);
+        //  }
+        //}
 
-        // (4) remove general unwanted content 
+        // (4) remove general unwanted content
+         
         if (isKletternDePage) {
  	        removeElement(dochtml, "aside.mps-aside");
 	        removeElement(dochtml, "nav.mps-article-topics");
@@ -651,11 +327,18 @@
 	        // hide Photoshow Boxes:
 	        hideElement(dochtml, "div.photo-show"); //"mps-ce box photo-show"
 	      } 
-	      f
-        
-        
-        
-        
+	      if (isGigaDePage) { 
+	       	removeElement(dochtml, "div.u-shape"); 
+	       	removeElement(dochtml, "div.u-shape-top");
+	        removeElement(dochtml, "div.section"); //section spacer-md
+					removeElement(dochtml, "div.ed-container"); 
+					removeElement(dochtml, "div.social-media-bar");
+					removeElement(dochtml, "footer.main-footer");
+          
+          removeElement(dochtml, "div#sdgAdServerContainer-posterad");
+					removeElement(dochtml, "div#sdgAdServerContainer-banner");
+	        removeElement(dochtml, "div#sdgAdServerContainer-sky");
+	      }
 
         debug(true, "IWRDTYmodifyDocument:: finished Processing");
         processEnd();
