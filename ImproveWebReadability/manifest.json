@@ -1,0 +1,23 @@
+{
+  "manifest_version": 2,
+  
+  "name":         "Improve Web Readability",
+  "description":  "Improves web page readability.",
+  "version":      "0.1.2",
+  "icons":        { "128": "./IWRDTY.png" },
+
+  "permissions": [ 
+    "https://*.de/*",
+    "https://*.rockandice.com/*"
+  ],
+   
+  "content_scripts": [ {
+    "all_frames": true,
+    "js": [ "IWRDTY.user.js" ],
+    "matches": [ 
+    "https://*.de/*",
+    "https://*.rockandice.com/*"
+    ],
+    "run_at": "document_start"
+  } ]
+}
