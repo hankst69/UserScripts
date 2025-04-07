@@ -1,4 +1,7 @@
 ﻿// IWRDTY - Improve Web Readability
+// "https://*.de/*"
+// "https://www.klettern.de/*"
+// "https://www.rockandice.com/*"
 
 (function content() {
 
@@ -263,8 +266,10 @@
 
         // decide page type
         var isAnyOfValidPages = false;
-        var isKletternDePage = false; 
+        var isKletternDePage = false;
+        var isHeiseDePage = false;
         var isGigaDePage = false;
+        var isRockAndIceComPage = false;
         if (!isAnyOfValidPages) {
           if (document.URL.indexOf('klettern.de') > 0) {
             isKletternDePage = true; isAnyOfValidPages = true;
@@ -272,9 +277,21 @@
           }
         }
         if (!isAnyOfValidPages) {
+          if (document.URL.indexOf('heise.de') > 0) {
+            isHeiseDePage = true; isAnyOfValidPages = true;
+            debug(true, "IWRDTYmodifyDocument -> isHeiseDePage");
+          }
+        }
+        if (!isAnyOfValidPages) {
           if (document.URL.indexOf('giga.de') > 0) {
             isGigaDePage = true; isAnyOfValidPages = true;
             debug(true, "IWRDTYmodifyDocument -> isGigaDePage");
+          }
+        }
+        if (!isAnyOfValidPages) {
+          if (document.URL.indexOf('rockandice.com') > 0) {
+            isRockAndIceComPage = true; isAnyOfValidPages = true;
+            debug(true, "IWRDTYmodifyDocument -> isRockAndIceComPage");
           }
         }
         //if (!isAnyOfValidPages) {
@@ -306,39 +323,72 @@
         //}
 
         // (4) remove general unwanted content
-         
-        if (isKletternDePage) {
- 	        removeElement(dochtml, "aside.mps-aside");
-	        removeElement(dochtml, "nav.mps-article-topics");
-	        removeElement(dochtml, "section.mps-partner");
-	        removeElement(dochtml, "div#topBanner");
-	        removeElement(dochtml, "div#rightBanner");
-	        removeElement(dochtml, "div#taboola-below-article-thumbnails");
-	        removeElement(dochtml, "div#div-gpt-ad-pubperform");
-					removeElement(dochtml, "div#div-gpt-ad-idx_con_oben");
-	        removeElement(dochtml, "div#div-gpt-ad-art_con_oben");
-	        removeElement(dochtml, "div#div-gpt-ad-art_con_mitte");
-	        removeElement(dochtml, "div#div-gpt-ad-art_pic");
-	        removeElement(dochtml, "div.sm-screen"); //"teads-inread sm-screen"
-	        removeElement(dochtml, "footer.mps-footer");
-	        removeElement(dochtml, "div.scroller");
-	        // hide Inhaltsverzeichnis oben:
-	        hideElement(dochtml, "div#pagination-content-top");
-	        // hide Photoshow Boxes:
-	        hideElement(dochtml, "div.photo-show"); //"mps-ce box photo-show"
-	      } 
-	      if (isGigaDePage) { 
-	       	removeElement(dochtml, "div.u-shape"); 
-	       	removeElement(dochtml, "div.u-shape-top");
-	        removeElement(dochtml, "div.section"); //section spacer-md
-					removeElement(dochtml, "div.ed-container"); 
-					removeElement(dochtml, "div.social-media-bar");
-					removeElement(dochtml, "footer.main-footer");
+
+        if (isKletternDePage) {
+          //removeElement(dochtml, "div.v-A_-wrapper--stroer");
+          removeElement(dochtml, "aside.mps-aside");
+          removeElement(dochtml, "nav.mps-article-topics");
+          removeElement(dochtml, "section.mps-partner");
+          removeElement(dochtml, "div#topBanner");
+          removeElement(dochtml, "div#rightBanner");
+          removeElement(dochtml, "div#taboola-below-article-thumbnails");
+          removeElement(dochtml, "div#div-gpt-ad-pubperform");
+          removeElement(dochtml, "div#div-gpt-ad-idx_con_oben");
+          removeElement(dochtml, "div#div-gpt-ad-art_con_oben");
+          removeElement(dochtml, "div#div-gpt-ad-art_con_mitte");
+          removeElement(dochtml, "div#div-gpt-ad-art_pic");
+          removeElement(dochtml, "div#div-gpt-ad-banner");
+          removeElement(dochtml, "div#div-gpt-ad-sky");
+          removeElement(dochtml, "div#div-gpt-ad-posterad");
+          removeElement(dochtml, "div#div-gpt-ad-rectangle");
+          removeElement(dochtml, "div.sm-screen"); //"teads-inread sm-screen"
+          removeElement(dochtml, "footer.mps-footer");
+          removeElement(dochtml, "div.scroller");
+          // hide Inhaltsverzeichnis oben:
+          hideElement(dochtml, "div#pagination-content-top");
+          // hide Photoshow Boxes:
+          hideElement(dochtml, "div.photo-show"); //"mps-ce box photo-show"
+        }
+        if (isHeiseDePage) { 
+          removeElement(dochtml, "a-ad");
+          removeElement(dochtml, "div#wtma_teaser");
+          removeElement(dochtml, "div#mitte_rechts");
+          removeElement(dochtml, "aside.akwa-ad-container");
+          removeElement(dochtml, "aside.recommendations");
+          removeElement(dochtml, "div.teads-inread");
+          //
+          removeElement(dochtml, "div.ho-stage-container");
+          removeElement(dochtml, "div.bottom_up");
+          removeElement(dochtml, "footer.main-footer");
+        }
+        if (isGigaDePage) { 
+          removeElement(dochtml, "div.u-shape");
+          removeElement(dochtml, "div.u-shape-top");
+          removeElement(dochtml, "div.section"); //section spacer-md
+          removeElement(dochtml, "div.ed-container");
+          removeElement(dochtml, "div.social-media-bar");
+          removeElement(dochtml, "footer.main-footer");
           
           removeElement(dochtml, "div#sdgAdServerContainer-posterad");
-					removeElement(dochtml, "div#sdgAdServerContainer-banner");
-	        removeElement(dochtml, "div#sdgAdServerContainer-sky");
-	      }
+          removeElement(dochtml, "div#sdgAdServerContainer-banner");
+          removeElement(dochtml, "div#sdgAdServerContainer-sky");
+        }
+        if (isRockAndIceComPage) { 
+          removeElement(dochtml, "div.topAdsBanner");
+          removeElement(dochtml, "div.googleAdds");
+          removeElement(dochtml, "div.minibanner");
+          removeElement(dochtml, "section.boxed");
+          removeElement(dochtml, "footer.site-footer");
+          //removeElement(dochtml, "div.row"); // removes News from right side
+          removeElement(dochtml, "div.dynamicoffset"); // removes News from right side and bottom
+
+          Array.prototype.forEach.call(dochtml.querySelectorAll("div.content-area"), function (element) {
+              element.style.width = '90%';
+          });
+          Array.prototype.forEach.call(dochtml.querySelectorAll("div.col-md-10"), function (element) {
+              element.style.width = '100%';
+          });
+        }
 
         debug(true, "IWRDTYmodifyDocument:: finished Processing");
         processEnd();
